@@ -1,0 +1,24 @@
+package com.datastax.bdp.cassandra.metrics;
+
+public class UserObjectCqlConstants {
+   public static final String OBJECT_USER_READ_IO_INSERT = String.format("INSERT INTO %s.%s (    keyspace_name,    table_name,    node_ip,    user_ip,    conn_id,    username,    read_latency,    total_reads,    write_latency,    total_writes,    read_quantiles,     write_quantiles,     latency_index)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) USING TTL ?;", new Object[]{"dse_perf", "object_user_read_io_snapshot"});
+   public static final String OBJECT_USER_READ_IO_DELETE = String.format("DELETE FROM %s.%s WHERE node_ip = ? AND latency_index = ?", new Object[]{"dse_perf", "object_user_read_io_snapshot"});
+   public static final String USER_OBJECT_READ_IO_INSERT = String.format("INSERT INTO %s.%s (    keyspace_name,    table_name,    node_ip,    user_ip,    conn_id,    username,    read_latency,    total_reads,    write_latency,    total_writes,    read_quantiles,    write_quantiles,     latency_index) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) USING TTL ?", new Object[]{"dse_perf", "user_object_read_io_snapshot"});
+   public static final String USER_OBJECT_READ_IO_DELETE = String.format("DELETE FROM %s.%s WHERE node_ip = ? AND latency_index = ?", new Object[]{"dse_perf", "user_object_read_io_snapshot"});
+   public static final String USER_READ_IO_INSERT = String.format("INSERT INTO %s.%s (    node_ip,    user_ip,    conn_id,    username,    read_latency,    total_reads,    write_latency,    total_writes,    latency_index)VALUES(?,?,?,?,?,?,?,?,?) USING TTL ?", new Object[]{"dse_perf", "user_read_io_snapshot"});
+   public static final String USER_READ_IO_DELETE = String.format("DELETE FROM %s.%s WHERE node_ip = ? AND latency_index = ?", new Object[]{"dse_perf", "user_read_io_snapshot"});
+   public static final String OBJECT_USER_WRITE_IO_INSERT = String.format("INSERT INTO %s.%s (    keyspace_name,    table_name,    node_ip,    user_ip,    conn_id,    username,    read_latency,    total_reads,    write_latency,    total_writes,    read_quantiles,     write_quantiles,     latency_index)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) USING TTL ?", new Object[]{"dse_perf", "object_user_write_io_snapshot"});
+   public static final String OBJECT_USER_WRITE_IO_DELETE = String.format("DELETE FROM %s.%s WHERE node_ip = ? AND latency_index = ?", new Object[]{"dse_perf", "object_user_write_io_snapshot"});
+   public static final String USER_OBJECT_WRITE_IO_INSERT = String.format("INSERT INTO %s.%s (    keyspace_name,    table_name,    node_ip,    user_ip,    conn_id,    username,    read_latency,    total_reads,    write_latency,    total_writes,    read_quantiles,     write_quantiles,     latency_index)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) USING TTL ?", new Object[]{"dse_perf", "user_object_write_io_snapshot"});
+   public static final String USER_OBJECT_WRITE_IO_DELETE = String.format("DELETE FROM %s.%s WHERE node_ip = ? AND latency_index = ?", new Object[]{"dse_perf", "user_object_write_io_snapshot"});
+   public static final String USER_WRITE_IO_INSERT = String.format("INSERT INTO %s.%s (    node_ip,    user_ip,    conn_id,    username,    read_latency,    total_reads,    write_latency,    total_writes,    latency_index)VALUES(?,?,?,?,?,?,?,?,?) USING TTL ?", new Object[]{"dse_perf", "user_write_io_snapshot"});
+   public static final String USER_WRITE_IO_DELETE = String.format("DELETE FROM %s.%s WHERE node_ip = ? AND latency_index = ?", new Object[]{"dse_perf", "user_write_io_snapshot"});
+   public static final String USER_OBJECT_IO_INSERT = String.format("INSERT INTO %s.%s (    keyspace_name,    table_name,    node_ip,    user_ip,    conn_id,    username,    read_latency,    total_reads,    write_latency,    total_writes,    read_quantiles,     write_quantiles,     last_activity)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) USING TTL ?", new Object[]{"dse_perf", "user_object_io"});
+   public static final String OBJECT_USER_IO_INSERT = String.format("INSERT INTO %s.%s (    keyspace_name,    table_name,    node_ip,    user_ip,    conn_id,    username,    read_latency,    total_reads,    write_latency,    total_writes,    read_quantiles,     write_quantiles,     last_activity)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) USING TTL ?", new Object[]{"dse_perf", "object_user_io"});
+   public static final String USER_IO_INSERT = String.format("INSERT INTO %s.%s (    node_ip,    user_ip,    conn_id,    username,    read_latency,    total_reads,    write_latency,    total_writes,    last_activity)VALUES(?,?,?,?,?,?,?,?,?) USING TTL ?", new Object[]{"dse_perf", "user_io"});
+   public static final String SCHEMA_ADD_READ_QUANTILES = "ALTER TABLE dse_perf.%s ADD read_quantiles map<double, double>;";
+   public static final String SCHEMA_ADD_WRITE_QUANTILES = "ALTER TABLE dse_perf.%s ADD write_quantiles map<double, double>;";
+
+   public UserObjectCqlConstants() {
+   }
+}

@@ -1,0 +1,5 @@
+Manifest-Version: 1.0
+Implementation-Title: dse-core
+Implementation-Version: 6.0.4
+Implementation-Vendor: DataStax
+
