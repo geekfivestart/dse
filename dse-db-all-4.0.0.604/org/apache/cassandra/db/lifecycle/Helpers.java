@@ -26,24 +26,13 @@ class Helpers {
    }
 
    static <T> Map<T, T> replace(Map<T, T> original, Set<T> remove, Iterable<T> add) {
-      Iterator var3 = remove.iterator();
-
-      Object reader;
-      do {
-         if(!var3.hasNext()) {
-            assert !Iterables.any(add, Predicates.and(Predicates.not(Predicates.in(remove)), Predicates.in(original.keySet()))) : String.format("original:%s remove:%s add:%s", new Object[]{original.keySet(), remove, add});
-
-            Map<T, T> result = identityMap(Iterables.concat(add, Iterables.filter(original.keySet(), Predicates.not(Predicates.in(remove)))));
-
-            assert result.size() == original.size() - remove.size() + Iterables.size(add) : String.format("Expecting new size of %d, got %d while replacing %s by %s in %s", new Object[]{Integer.valueOf(original.size() - remove.size() + Iterables.size(add)), Integer.valueOf(result.size()), remove, add, original.keySet()});
-
-            return result;
-         }
-
-         reader = var3.next();
-      } while($assertionsDisabled || original.get(reader) == reader);
-
-      throw new AssertionError();
+      for (T reader : remove) {
+         assert (original.get(reader) == reader);
+      }
+      assert (!Iterables.any(add, (Predicate)Predicates.and((Predicate)Predicates.not((Predicate)Predicates.in(remove)), (Predicate)Predicates.in(original.keySet()))));
+      Map<T, T> result = Helpers.identityMap(Iterables.concat(add, (Iterable)Iterables.filter(original.keySet(), (Predicate)Predicates.not((Predicate)Predicates.in(remove)))));
+      assert (result.size() == original.size() - remove.size() + Iterables.size(add));
+      return result;
    }
 
    static void setupOnline(Iterable<SSTableReader> readers) {
@@ -72,20 +61,11 @@ class Helpers {
       return accumulate;
    }
 
-   static void checkNotReplaced(Iterable<SSTableReader> readers) {
-      Iterator var1 = readers.iterator();
-
-      SSTableReader reader;
-      do {
-         if(!var1.hasNext()) {
-            return;
-         }
-
-         reader = (SSTableReader)var1.next();
-      } while($assertionsDisabled || !reader.isReplaced());
-
-      throw new AssertionError();
-   }
+    static void checkNotReplaced(Iterable<SSTableReader> readers) {
+        for (SSTableReader reader : readers) {
+            assert (!reader.isReplaced());
+        }
+    }
 
    static Throwable markObsolete(List<LogTransaction.Obsoletion> obsoletions, Throwable accumulate) {
       if(obsoletions != null && !obsoletions.isEmpty()) {
@@ -145,14 +125,10 @@ class Helpers {
    }
 
    static <T> Map<T, T> identityMap(Iterable<T> values) {
-      Builder<T, T> builder = ImmutableMap.builder();
-      Iterator var2 = values.iterator();
-
-      while(var2.hasNext()) {
-         T t = var2.next();
+      ImmutableMap.Builder builder = ImmutableMap.builder();
+      for (T t : values) {
          builder.put(t, t);
       }
-
       return builder.build();
    }
 
@@ -202,7 +178,10 @@ class Helpers {
    }
 
    static <T> T select(T t, Collection<T> col) {
-      return col instanceof Set && !col.contains(t)?null:Iterables.getFirst(Iterables.filter(col, Predicates.equalTo(t)), (Object)null);
+      if (col instanceof Set && !col.contains(t)) {
+         return null;
+      }
+      return (T)Iterables.getFirst((Iterable)Iterables.filter(col, (Predicate)Predicates.equalTo(t)), null);
    }
 
    static <T> T selectFirst(T t, Collection... sets) {

@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory;
 public class HintedHandoffMetrics {
    private static final Logger logger = LoggerFactory.getLogger(HintedHandoffMetrics.class);
    private static final MetricNameFactory factory = new DefaultNameFactory("HintedHandOffManager");
-   private final LoadingCache<InetAddress, HintedHandoffMetrics.DifferencingCounter> notStored = Caffeine.newBuilder().executor(MoreExecutors.directExecutor()).build(HintedHandoffMetrics.DifferencingCounter::<init>);
+   private final LoadingCache<InetAddress, HintedHandoffMetrics.DifferencingCounter> notStored = Caffeine.newBuilder().executor(MoreExecutors.directExecutor()).build(HintedHandoffMetrics.DifferencingCounter::new);
    private final LoadingCache<InetAddress, Counter> createdHintCounts = Caffeine.newBuilder().executor(MoreExecutors.directExecutor()).build((address) -> {
       return CassandraMetricsRegistry.Metrics.counter(factory.createMetricName("Hints_created-" + address.getHostAddress().replace(':', '.')));
    });

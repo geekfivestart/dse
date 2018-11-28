@@ -369,7 +369,7 @@ public class BatchStatement implements CQLStatement {
       String tableName = casRequest.metadata.name;
       Single<ResultMessage> result = Single.defer(() -> {
          return ModificationStatement.buildCasResultSet(ksName, tableName, StorageProxy.cas(ksName, tableName, casRequest.key, casRequest, options.getSerialConsistency(), options.getConsistency(), state.getClientState(), queryStartNanoTime), columnsWithConditions, true, options.forStatement(0));
-      }).map(ResultMessage.Rows::<init>);
+      }).map(ResultMessage.Rows::new);
       return RxThreads.subscribeOnIo(result, TPCTaskType.CAS);
    }
 
@@ -462,7 +462,7 @@ public class BatchStatement implements CQLStatement {
       String tableName = request.metadata.name;
       return ModificationStatement.casInternal(request, state).flatMap((result) -> {
          return ModificationStatement.buildCasResultSet(ksName, tableName, result, columnsWithConditions, true, options.forStatement(0));
-      }).map(ResultMessage.Rows::<init>);
+      }).map(ResultMessage.Rows::new);
    }
 
    public String toString() {

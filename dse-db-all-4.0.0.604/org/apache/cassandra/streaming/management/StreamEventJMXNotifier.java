@@ -18,29 +18,32 @@ public class StreamEventJMXNotifier extends NotificationBroadcasterSupport imple
 
    public void handleStreamEvent(StreamEvent event) {
       Notification notif = null;
-      switch(null.$SwitchMap$org$apache$cassandra$streaming$StreamEvent$Type[event.eventType.ordinal()]) {
-      case 1:
-         notif = new Notification(StreamEvent.SessionPreparedEvent.class.getCanonicalName(), "org.apache.cassandra.net:type=StreamManager", this.seq.getAndIncrement());
-         notif.setUserData(SessionInfoCompositeData.toCompositeData(event.planId, ((StreamEvent.SessionPreparedEvent)event).session));
-         break;
-      case 2:
-         notif = new Notification(StreamEvent.SessionCompleteEvent.class.getCanonicalName(), "org.apache.cassandra.net:type=StreamManager", this.seq.getAndIncrement());
-         notif.setUserData(SessionCompleteEventCompositeData.toCompositeData((StreamEvent.SessionCompleteEvent)event));
-         break;
-      case 3:
-         ProgressInfo progress = ((StreamEvent.ProgressEvent)event).progress;
-         long current = System.currentTimeMillis();
-         if(current - this.progressLastSent < 1000L && !progress.isCompleted()) {
+      switch (event.eventType) {
+         case STREAM_PREPARED: {
+            notif = new Notification(StreamEvent.SessionPreparedEvent.class.getCanonicalName(), "org.apache.cassandra.net:type=StreamManager", this.seq.getAndIncrement());
+            notif.setUserData(SessionInfoCompositeData.toCompositeData(event.planId, ((StreamEvent.SessionPreparedEvent)event).session));
+            break;
+         }
+         case STREAM_COMPLETE: {
+            notif = new Notification(StreamEvent.SessionCompleteEvent.class.getCanonicalName(), "org.apache.cassandra.net:type=StreamManager", this.seq.getAndIncrement());
+            notif.setUserData(SessionCompleteEventCompositeData.toCompositeData((StreamEvent.SessionCompleteEvent)event));
+            break;
+         }
+         case FILE_PROGRESS: {
+            ProgressInfo progress = ((StreamEvent.ProgressEvent)event).progress;
+            long current = System.currentTimeMillis();
+            if (current - this.progressLastSent >= 1000L || progress.isCompleted()) {
+               notif = new Notification(StreamEvent.ProgressEvent.class.getCanonicalName(), "org.apache.cassandra.net:type=StreamManager", this.seq.getAndIncrement());
+               notif.setUserData(ProgressInfoCompositeData.toCompositeData(event.planId, progress));
+               this.progressLastSent = System.currentTimeMillis();
+               break;
+            }
             return;
          }
-
-         notif = new Notification(StreamEvent.ProgressEvent.class.getCanonicalName(), "org.apache.cassandra.net:type=StreamManager", this.seq.getAndIncrement());
-         notif.setUserData(ProgressInfoCompositeData.toCompositeData(event.planId, progress));
-         this.progressLastSent = System.currentTimeMillis();
       }
-
       this.sendNotification(notif);
    }
+
 
    public void onSuccess(StreamState result) {
       Notification notif = new Notification(StreamEvent.class.getCanonicalName() + ".success", "org.apache.cassandra.net:type=StreamManager", this.seq.getAndIncrement());

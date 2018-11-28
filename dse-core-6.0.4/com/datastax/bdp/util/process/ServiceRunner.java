@@ -146,7 +146,7 @@ public abstract class ServiceRunner<T> implements Runnable {
          } else if(this.setState(ServiceRunner.State.STARTING, ServiceRunner.State.SHUTTING_DOWN)) {
             this.interrupt();
          } else if(this.setState(ServiceRunner.State.RUNNING, ServiceRunner.State.SHUTTING_DOWN)) {
-            this.shutdownService(this.service.getAndSet((Object)null));
+            this.shutdownService(this.service.getAndSet(null));
          }
       } catch (Exception var2) {
          if(this.onError(var2, this.getState()) == ServiceRunner.Action.TERMINATE) {

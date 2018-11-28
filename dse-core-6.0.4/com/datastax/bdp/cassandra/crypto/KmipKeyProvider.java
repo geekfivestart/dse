@@ -31,7 +31,7 @@ public class KmipKeyProvider implements IMultiKeyProvider {
       if(idBytes.length > MAX_KEY_LENGTH) {
          throw new RuntimeException(String.format("Max key id size: %s, got %s. Set %s property to at least %s", new Object[]{Integer.valueOf(MAX_KEY_LENGTH), Integer.valueOf(idBytes.length), maxKeyLengthProperty, Integer.valueOf(idBytes.length)}));
       } else {
-         output.put(0);
+         output.put((byte)0);
          output.putInt(idBytes.length);
          output.put(idBytes);
          logger.debug("Wrote chunk header for {}", key);

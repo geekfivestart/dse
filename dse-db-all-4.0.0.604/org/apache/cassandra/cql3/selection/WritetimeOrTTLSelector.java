@@ -24,7 +24,7 @@ final class WritetimeOrTTLSelector extends Selector {
          ColumnMetadata column = metadata.getColumn(ByteBufferUtil.readWithVIntLength(in));
          int idx = in.readInt();
          boolean isWritetime = in.readBoolean();
-         return new WritetimeOrTTLSelector(column, idx, isWritetime, null);
+         return new WritetimeOrTTLSelector(column, idx, isWritetime);
       }
    };
    private final ColumnMetadata column;
@@ -48,7 +48,7 @@ final class WritetimeOrTTLSelector extends Selector {
          }
 
          public Selector newInstance(QueryOptions options) {
-            return new WritetimeOrTTLSelector(def, idx, isWritetime, null);
+            return new WritetimeOrTTLSelector(def, idx, isWritetime);
          }
 
          public boolean isWritetimeSelectorFactory() {

@@ -78,8 +78,8 @@ class ViewBuilder {
    private void loadStatus() {
       this.builtRanges.clear();
       this.pendingRanges.clear();
-      ((Map)TPCUtils.blockingGet(SystemKeyspace.getViewBuildStatus(this.ksName, this.view.name))).forEach((range, pair) -> {
-         Token lastToken = (Token)pair.left;
+      (TPCUtils.blockingGet(SystemKeyspace.getViewBuildStatus(this.ksName, this.view.name))).forEach((range, pair) -> {
+         Token lastToken = pair.left;
          if(lastToken != null && lastToken.equals(range.right)) {
             this.builtRanges.add(range);
             this.keysBuilt += ((Long)pair.right).longValue();
@@ -90,60 +90,48 @@ class ViewBuilder {
       });
    }
 
+
    private synchronized void build() {
-      if(this.isStopped) {
-         logger.debug("Stopped build for view({}.{}) after covering {} keys", new Object[]{this.ksName, this.view.name, Long.valueOf(this.keysBuilt)});
-      } else {
-         Set<Range<Token>> newRanges = (Set)StorageService.instance.getLocalRanges(this.ksName).stream().map((r) -> {
-            return r.subtractAll(this.builtRanges);
-         }).flatMap(Collection::stream).map((r) -> {
-            return r.subtractAll(this.pendingRanges.keySet());
-         }).flatMap(Collection::stream).collect(Collectors.toSet());
-         if(newRanges.isEmpty() && this.pendingRanges.isEmpty()) {
-            this.finish();
-         } else {
-            ((Set)DatabaseDescriptor.getPartitioner().splitter().map((s) -> {
-               return s.split((Collection)newRanges, NUM_TASKS);
-            }).orElse(newRanges)).forEach((r) -> {
-               Pair var10000 = (Pair)this.pendingRanges.put(r, Pair.create((Object)null, Long.valueOf(0L)));
-            });
-            Stream var10000 = this.pendingRanges.entrySet().stream().map((e) -> {
-               return new ViewBuilderTask(this.baseCfs, this.view, (Range)e.getKey(), (Token)((Pair)e.getValue()).left, ((Long)((Pair)e.getValue()).right).longValue());
-            });
-            Set var10001 = this.tasks;
-            this.tasks.getClass();
-            var10000 = var10000.peek(var10001::add);
-            CompactionManager var4 = CompactionManager.instance;
-            CompactionManager.instance.getClass();
-            List<ListenableFuture<Long>> futures = (List)var10000.map(var4::submitViewBuilder).collect(Collectors.toList());
-            ListenableFuture<List<Long>> future = Futures.allAsList(futures);
-            Futures.addCallback(future, new FutureCallback<List<Long>>() {
-               public void onSuccess(List<Long> result) {
-                  ViewBuilder.this.keysBuilt = ViewBuilder.this.keysBuilt + result.stream().mapToLong((x) -> {
-                     return x.longValue();
-                  }).sum();
-                  ViewBuilder.this.builtRanges.addAll(ViewBuilder.this.pendingRanges.keySet());
-                  ViewBuilder.this.pendingRanges.clear();
-                  ViewBuilder.this.build();
-               }
-
-               public void onFailure(Throwable t) {
-                  if(t instanceof CompactionInterruptedException) {
-                     ViewBuilder.this.internalStop(true);
-                     ViewBuilder.this.keysBuilt = ViewBuilder.this.tasks.stream().mapToLong(ViewBuilderTask::keysBuilt).sum();
-                     ViewBuilder.logger.info("Interrupted build for view({}.{}) after covering {} keys", new Object[]{ViewBuilder.this.ksName, ViewBuilder.this.view.name, Long.valueOf(ViewBuilder.this.keysBuilt)});
-                  } else {
-                     ScheduledExecutors.nonPeriodicTasks.schedule(() -> {
-                        ViewBuilder.this.loadStatusAndBuild();
-                     }, 5L, TimeUnit.MINUTES);
-                     ViewBuilder.logger.warn("Materialized View failed to complete, sleeping 5 minutes before restarting", t);
-                  }
-
-               }
-            }, MoreExecutors.directExecutor());
-            this.future = future;
-         }
+      if (this.isStopped) {
+         logger.debug("Stopped build for view({}.{}) after covering {} keys", new Object[]{this.ksName, this.view.name, this.keysBuilt});
+         return;
       }
+      Set<Range<Token>> newRanges = StorageService.instance.getLocalRanges(this.ksName).stream().map(r -> r.subtractAll(this.builtRanges)).flatMap(Collection::stream).map(r -> r.subtractAll(this.pendingRanges.keySet())).flatMap(Collection::stream).collect(Collectors.toSet());
+      if (newRanges.isEmpty() && this.pendingRanges.isEmpty()) {
+         this.finish();
+         return;
+      }
+      DatabaseDescriptor.getPartitioner().splitter().
+              map(s -> s.split(newRanges, NUM_TASKS)).
+              orElse(newRanges).
+              forEach(r -> this.pendingRanges.put(r, Pair.<Token,Long>create(null, 0L)));
+      List futures = this.pendingRanges.entrySet().stream().
+              map(e -> new ViewBuilderTask(this.baseCfs, this.view, e.getKey(), e.getValue().left, e.getValue().right)).
+              peek(this.tasks::add).
+              map(CompactionManager.instance::submitViewBuilder).
+              collect(Collectors.toList());
+      ListenableFuture future = Futures.allAsList(futures);
+      Futures.addCallback((ListenableFuture)future, (FutureCallback)new FutureCallback<List<Long>>(){
+
+         public void onSuccess(List<Long> result) {
+            ViewBuilder.this.keysBuilt = ViewBuilder.this.keysBuilt + result.stream().mapToLong(x -> x).sum();
+            ViewBuilder.this.builtRanges.addAll(ViewBuilder.this.pendingRanges.keySet());
+            ViewBuilder.this.pendingRanges.clear();
+            ViewBuilder.this.build();
+         }
+
+         public void onFailure(Throwable t) {
+            if (t instanceof CompactionInterruptedException) {
+               ViewBuilder.this.internalStop(true);
+               ViewBuilder.this.keysBuilt = ViewBuilder.this.tasks.stream().mapToLong(ViewBuilderTask::keysBuilt).sum();
+               logger.info("Interrupted build for view({}.{}) after covering {} keys", new Object[]{ViewBuilder.this.ksName, ViewBuilder.this.view.name, ViewBuilder.this.keysBuilt});
+            } else {
+               ScheduledExecutors.nonPeriodicTasks.schedule(() -> ViewBuilder.this.loadStatusAndBuild(), 5L, TimeUnit.MINUTES);
+               logger.warn("Materialized View failed to complete, sleeping 5 minutes before restarting", t);
+            }
+         }
+      }, MoreExecutors.directExecutor());
+      this.future = future;
    }
 
    private void finish() {

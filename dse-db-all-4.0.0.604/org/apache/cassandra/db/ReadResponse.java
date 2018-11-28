@@ -46,7 +46,7 @@ public abstract class ReadResponse {
          public ReadResponse deserialize(DataInputPlus in) throws IOException {
             ByteBuffer digest = ByteBufferUtil.readWithVIntLength(in);
             if(digest.hasRemaining()) {
-               return new ReadResponse.DigestResponse(digest, null);
+               return new ReadResponse.DigestResponse(digest);
             } else {
                ByteBuffer data = ByteBufferUtil.readWithVIntLength(in);
                return new ReadResponse.RemoteDataResponse(data, v.encodingVersion);
@@ -84,7 +84,7 @@ public abstract class ReadResponse {
 
    public static Single<ReadResponse> createDigestResponse(Flow<FlowableUnfilteredPartition> partitions, ReadCommand command) {
       return makeDigest(partitions, command).map((digest) -> {
-         return new ReadResponse.DigestResponse(digest, null);
+         return new ReadResponse.DigestResponse(digest);
       });
    }
 
@@ -229,7 +229,7 @@ public abstract class ReadResponse {
       }
 
       public static Single<ReadResponse> build(Flow<FlowableUnfilteredPartition> partitions) {
-         return ArrayBackedPartition.create(partitions).toList().mapToRxSingle(ReadResponse.LocalResponse::<init>);
+         return ArrayBackedPartition.create(partitions).toList().mapToRxSingle(ReadResponse.LocalResponse::new);
       }
 
       public Flow<FlowableUnfilteredPartition> data(final ReadCommand command) {

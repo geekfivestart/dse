@@ -43,7 +43,7 @@ public class ComplexColumnData extends ColumnData implements Iterable<Cell> {
    }
 
    public Cell getCell(CellPath path) {
-      return (Cell)BTree.find(this.cells, this.column.asymmetricCellPathComparator(), path);
+      return (Cell)((Object)BTree.find(this.cells, this.column.asymmetricCellPathComparator(), path));
    }
 
    public <R> R reduce(R seed, BTree.ReduceFunction<R, Cell> reducer) {
@@ -178,7 +178,7 @@ public class ComplexColumnData extends ColumnData implements Iterable<Cell> {
    }
 
    void setValue(CellPath path, ByteBuffer value) {
-      Cell current = (Cell)BTree.find(this.cells, this.column.asymmetricCellPathComparator(), path);
+      Cell current = (Cell)((Object)BTree.find(this.cells, this.column.asymmetricCellPathComparator(), path));
       BTree.replaceInSitu(this.cells, this.column.cellComparator(), current, current.withUpdatedValue(value));
    }
 

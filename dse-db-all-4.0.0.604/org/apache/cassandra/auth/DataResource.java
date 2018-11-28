@@ -47,27 +47,30 @@ public class DataResource implements IResource {
    }
 
    public String getName() {
-      switch(null.$SwitchMap$org$apache$cassandra$auth$DataResource$Level[this.level.ordinal()]) {
-      case 1:
-         return "data";
-      case 2:
-         return String.format("%s/%s", new Object[]{"data", this.keyspace});
-      case 3:
-         return String.format("%s/%s/%s", new Object[]{"data", this.keyspace, this.table});
-      default:
-         throw new AssertionError();
+      switch (this.level) {
+         case ROOT: {
+            return ROOT_NAME;
+         }
+         case KEYSPACE: {
+            return String.format("%s/%s", ROOT_NAME, this.keyspace);
+         }
+         case TABLE: {
+            return String.format("%s/%s/%s", ROOT_NAME, this.keyspace, this.table);
+         }
       }
+      throw new AssertionError();
    }
 
    public IResource getParent() {
-      switch(null.$SwitchMap$org$apache$cassandra$auth$DataResource$Level[this.level.ordinal()]) {
-      case 2:
-         return root();
-      case 3:
-         return keyspace(this.keyspace);
-      default:
-         throw new IllegalStateException("Root-level resource can't have a parent");
+      switch (this.level) {
+         case KEYSPACE: {
+            return DataResource.root();
+         }
+         case TABLE: {
+            return DataResource.keyspace(this.keyspace);
+         }
       }
+      throw new IllegalStateException("Root-level resource can't have a parent");
    }
 
    public boolean isRootLevel() {
@@ -103,28 +106,31 @@ public class DataResource implements IResource {
    }
 
    public boolean exists() {
-      switch(null.$SwitchMap$org$apache$cassandra$auth$DataResource$Level[this.level.ordinal()]) {
-      case 1:
-         return true;
-      case 2:
-         return Schema.instance.getKeyspaces().contains(this.keyspace);
-      case 3:
-         return Schema.instance.getTableMetadata(this.keyspace, this.table) != null;
-      default:
-         throw new AssertionError();
+      switch (this.level) {
+         case ROOT: {
+            return true;
+         }
+         case KEYSPACE: {
+            return Schema.instance.getKeyspaces().contains(this.keyspace);
+         }
+         case TABLE: {
+            return Schema.instance.getTableMetadata(this.keyspace, this.table) != null;
+         }
       }
+      throw new AssertionError();
    }
 
    public Set<Permission> applicablePermissions() {
-      switch(null.$SwitchMap$org$apache$cassandra$auth$DataResource$Level[this.level.ordinal()]) {
-      case 1:
-      case 2:
-         return KEYSPACE_LEVEL_PERMISSIONS;
-      case 3:
-         return TABLE_LEVEL_PERMISSIONS;
-      default:
-         throw new AssertionError();
+      switch (this.level) {
+         case ROOT:
+         case KEYSPACE: {
+            return KEYSPACE_LEVEL_PERMISSIONS;
+         }
+         case TABLE: {
+            return TABLE_LEVEL_PERMISSIONS;
+         }
       }
+      throw new AssertionError();
    }
 
    public IResource qualifyWithKeyspace(Supplier<String> keyspace) {
@@ -132,16 +138,18 @@ public class DataResource implements IResource {
    }
 
    public String toString() {
-      switch(null.$SwitchMap$org$apache$cassandra$auth$DataResource$Level[this.level.ordinal()]) {
-      case 1:
-         return "<all keyspaces>";
-      case 2:
-         return String.format("<keyspace %s>", new Object[]{this.keyspace});
-      case 3:
-         return String.format("<table %s.%s>", new Object[]{this.keyspace, this.table});
-      default:
-         throw new AssertionError();
+      switch (this.level) {
+         case ROOT: {
+            return "<all keyspaces>";
+         }
+         case KEYSPACE: {
+            return String.format("<keyspace %s>", this.keyspace);
+         }
+         case TABLE: {
+            return String.format("<table %s.%s>", this.keyspace, this.table);
+         }
       }
+      throw new AssertionError();
    }
 
    public boolean equals(Object o) {

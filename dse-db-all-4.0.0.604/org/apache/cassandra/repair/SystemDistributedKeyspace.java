@@ -391,30 +391,46 @@ public final class SystemDistributedKeyspace {
       }, (Object)null, "recording NodeSync validation");
    }
 
+
    public static void recordNodeSyncUserValidation(UserValidationProposer proposer) {
+      ByteBuffer endTime;
       UserValidationProposer.Statistics statistics = proposer.statistics();
       List<Range<Token>> ranges = proposer.validatedRanges();
-      Set<String> stringRanges = ranges == null?null:(Set)ranges.stream().map(Range::toString).collect(Collectors.toSet());
-      ByteBuffer startTime = statistics.startTime() < 0L?null:ByteBufferUtil.bytes(statistics.startTime());
+      Set stringRanges = ranges == null ? null : ranges.stream().map(Range::toString).collect(Collectors.toSet());
+      ByteBuffer startTime = statistics.startTime() < 0L ? null : ByteBufferUtil.bytes(statistics.startTime());
       UserValidationProposer.Status status = proposer.status();
-      ByteBuffer endTime;
-      switch(null.$SwitchMap$com$datastax$bdp$db$nodesync$UserValidationProposer$Status[status.ordinal()]) {
-      case 1:
-         endTime = null;
-         break;
-      case 2:
-         endTime = ByteBufferUtil.bytes(statistics.endTime());
-         break;
-      default:
-         endTime = ByteBufferUtil.bytes(System.currentTimeMillis());
+      switch (status) {
+         case RUNNING: {
+            endTime = null;
+            break;
+         }
+         case SUCCESSFUL: {
+            endTime = ByteBufferUtil.bytes(statistics.endTime());
+            break;
+         }
+         default: {
+            endTime = ByteBufferUtil.bytes(System.currentTimeMillis());
+         }
       }
-
       ValidationMetrics metrics = statistics.metrics();
       String q = "INSERT INTO %s.%s (id,keyspace_name,table_name,node,status,validated_ranges,started_at,ended_at,segments_to_validate,segments_validated,outcomes, metrics) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-      String query = String.format(q, new Object[]{"system_distributed", "nodesync_user_validations"});
-      withNodeSyncExceptionHandling(() -> {
-         return QueryProcessor.execute(query, ConsistencyLevel.ONE, new Object[]{proposer.id().toString(), proposer.table().keyspace, proposer.table().name, DatabaseDescriptor.getListenAddress(), status.toString(), stringRanges, startTime, endTime, Long.valueOf(statistics.segmentsToValidate()), Long.valueOf(statistics.segmentValidated()), ValidationOutcome.toMap(statistics.getOutcomes()), metrics == null?null:metrics.toBytes()});
-      }, (Object)null, "recording NodeSync user validation");
+      String query = String.format(q, "system_distributed", NODESYNC_USER_VALIDATIONS);
+      SystemDistributedKeyspace.withNodeSyncExceptionHandling(() -> {
+         Object[] arrobject = new Object[12];
+         arrobject[0] = proposer.id().toString();
+         arrobject[1] = proposer.table().keyspace;
+         arrobject[2] = proposer.table().name;
+         arrobject[3] = DatabaseDescriptor.getListenAddress();
+         arrobject[4] = status.toString();
+         arrobject[5] = stringRanges;
+         arrobject[6] = startTime;
+         arrobject[7] = endTime;
+         arrobject[8] = statistics.segmentsToValidate();
+         arrobject[9] = statistics.segmentValidated();
+         arrobject[10] = ValidationOutcome.toMap(statistics.getOutcomes());
+         arrobject[11] = metrics == null ? null : metrics.toBytes();
+         return QueryProcessor.execute(query, ConsistencyLevel.ONE, arrobject);
+      }, null, "recording NodeSync user validation");
    }
 
    private static CompletableFuture<Void> forceFlush(String table) {

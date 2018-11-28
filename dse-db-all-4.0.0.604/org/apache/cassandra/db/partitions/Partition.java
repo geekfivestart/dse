@@ -19,7 +19,7 @@ public interface Partition extends Iterable<Row> {
 
    TableMetadata metadata();
 
-   DecoratedKey partitionKey();
+   public DecoratedKey partitionKey();
 
    DeletionTime partitionLevelDeletion();
 

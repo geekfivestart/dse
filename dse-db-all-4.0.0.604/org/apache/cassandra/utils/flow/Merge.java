@@ -18,7 +18,7 @@ public class Merge {
          if(!reducer.trivialReduceIsTrivial()) {
             return ((Flow)sources.get(0)).map((next) -> {
                reducer.onKeyChange();
-               reducer.reduce(0, next);
+               reducer.reduce(0, (In)next);
                return reducer.getReduced();
             });
          } else {
@@ -92,12 +92,12 @@ public class Merge {
       }
 
       public void onComplete() {
-         this.onAdvance((Object)null);
+         this.onAdvance(null);
       }
 
       public void onError(Throwable error) {
          this.error = Flow.wrapException(error, this);
-         this.onAdvance((Object)null);
+         this.onAdvance(null);
       }
 
       public void onNext(In next) {

@@ -308,170 +308,113 @@ public class BigTableReader extends SSTableReader {
    }
 
    protected BigRowIndexEntry getPosition(PartitionPosition key, SSTableReader.Operator op, boolean updateCacheAndStats, boolean permitMatchPastLast, SSTableReadsListener listener, Rebufferer.ReaderConstraint rc) {
-      if(op == SSTableReader.Operator.EQ) {
-         assert key instanceof DecoratedKey;
-
-         if(!this.bf.isPresent((DecoratedKey)key)) {
+      if (op == SSTableReader.Operator.EQ) {
+         assert (key instanceof DecoratedKey);
+         if (!this.bf.isPresent((DecoratedKey)key)) {
             listener.onSSTableSkipped(this, SSTableReadsListener.SkippingReason.BLOOM_FILTER);
-            Tracing.trace("Bloom filter allows skipping sstable {}", (Object)Integer.valueOf(this.descriptor.generation));
+            Tracing.trace("Bloom filter allows skipping sstable {}", (Object)this.descriptor.generation);
             return null;
          }
       }
-
-      if((op == SSTableReader.Operator.EQ || op == SSTableReader.Operator.GE) && key instanceof DecoratedKey) {
+      if ((op == SSTableReader.Operator.EQ || op == SSTableReader.Operator.GE) && key instanceof DecoratedKey) {
          DecoratedKey decoratedKey = (DecoratedKey)key;
          KeyCacheKey cacheKey = new KeyCacheKey(this.metadata(), this.descriptor, decoratedKey.getKey());
          BigRowIndexEntry cachedPosition = this.getCachedPosition(cacheKey, updateCacheAndStats);
-         if(cachedPosition != null) {
+         if (cachedPosition != null) {
             listener.onSSTableSelected(this, cachedPosition, SSTableReadsListener.SelectionReason.KEY_CACHE_HIT);
-            Tracing.trace("Key cache hit for sstable {}", (Object)Integer.valueOf(this.descriptor.generation));
+            Tracing.trace("Key cache hit for sstable {}", (Object)this.descriptor.generation);
             return cachedPosition;
          }
       }
-
       boolean skip = false;
-      int binarySearchResult;
-      if(((PartitionPosition)key).compareTo(this.first) < 0) {
-         if(op == SSTableReader.Operator.EQ) {
+      if (key.compareTo(this.first) < 0) {
+         if (op == SSTableReader.Operator.EQ) {
             skip = true;
          } else {
             key = this.first;
          }
-
          op = SSTableReader.Operator.EQ;
       } else {
-         binarySearchResult = this.last.compareTo((PartitionPosition)key);
-         skip = binarySearchResult <= 0 && (binarySearchResult < 0 || !permitMatchPastLast && op == SSTableReader.Operator.GT);
+         int l = this.last.compareTo(key);
+         boolean bl = skip = l <= 0 && (l < 0 || !permitMatchPastLast && op == SSTableReader.Operator.GT);
       }
-
-      if(skip) {
-         if(op == SSTableReader.Operator.EQ && updateCacheAndStats) {
+      if (skip) {
+         if (op == SSTableReader.Operator.EQ && updateCacheAndStats) {
             this.bloomFilterTracker.addFalsePositive();
          }
-
          listener.onSSTableSkipped(this, SSTableReadsListener.SkippingReason.MIN_MAX_KEYS);
-         Tracing.trace("Check against min and max keys allows skipping sstable {}", (Object)Integer.valueOf(this.descriptor.generation));
+         Tracing.trace("Check against min and max keys allows skipping sstable {}", (Object)this.descriptor.generation);
          return null;
-      } else {
-         binarySearchResult = this.indexSummary.binarySearch((PartitionPosition)key);
-         long sampledPosition = getIndexScanPositionFromBinarySearchResult(binarySearchResult, this.indexSummary);
-         int sampledIndex = getIndexSummaryIndexFromBinarySearchResult(binarySearchResult);
-         int effectiveInterval = this.indexSummary.getEffectiveIndexIntervalAfterIndex(sampledIndex);
-         if(this.ifile == null) {
-            return null;
-         } else {
-            int i = 0;
-            String path = null;
-
-            try {
-               FileDataInput in = this.ifile.createReader(sampledPosition, rc);
-               Throwable var16 = null;
-
-               try {
-                  path = in.getPath();
-
-                  while(!in.isEOF()) {
-                     ++i;
-                     ByteBuffer indexKey = ByteBufferUtil.readWithShortLength(in);
-                     boolean opSatisfied;
-                     boolean exactMatch;
-                     Throwable var23;
-                     if(op == SSTableReader.Operator.EQ && i <= effectiveInterval) {
-                        opSatisfied = exactMatch = indexKey.equals(((DecoratedKey)key).getKey());
-                     } else {
-                        DecoratedKey indexDecoratedKey = this.decorateKey(indexKey);
-                        int comparison = indexDecoratedKey.compareTo((PartitionPosition)key);
-                        int v = op.apply(comparison);
-                        opSatisfied = v == 0;
-                        exactMatch = comparison == 0;
-                        if(v < 0) {
-                           listener.onSSTableSkipped(this, SSTableReadsListener.SkippingReason.PARTITION_INDEX_LOOKUP);
-                           Tracing.trace("Partition index lookup allows skipping sstable {}", (Object)Integer.valueOf(this.descriptor.generation));
-                           var23 = null;
-                           return var23;
-                        }
-                     }
-
-                     if(opSatisfied) {
-                        BigRowIndexEntry indexEntry = this.rowIndexEntrySerializer.deserialize(in, in.getFilePointer());
-                        if(exactMatch && updateCacheAndStats) {
-                           assert key instanceof DecoratedKey;
-
-                           DecoratedKey decoratedKey = (DecoratedKey)key;
-                           if(logger.isTraceEnabled()) {
-                              FileDataInput fdi = this.dataFile.createReader(indexEntry.position, rc);
-                              var23 = null;
-
-                              try {
-                                 DecoratedKey keyInDisk = this.decorateKey(ByteBufferUtil.readWithShortLength(fdi));
-                                 if(!keyInDisk.equals(key)) {
-                                    throw new AssertionError(String.format("%s != %s in %s", new Object[]{keyInDisk, key, fdi.getPath()}));
-                                 }
-                              } catch (Throwable var50) {
-                                 var23 = var50;
-                                 throw var50;
-                              } finally {
-                                 if(fdi != null) {
-                                    if(var23 != null) {
-                                       try {
-                                          fdi.close();
-                                       } catch (Throwable var49) {
-                                          var23.addSuppressed(var49);
-                                       }
-                                    } else {
-                                       fdi.close();
-                                    }
-                                 }
-
-                              }
-                           }
-
-                           this.cacheKey(decoratedKey, indexEntry);
-                        }
-
-                        if(op == SSTableReader.Operator.EQ && updateCacheAndStats) {
-                           this.bloomFilterTracker.addTruePositive();
-                        }
-
-                        listener.onSSTableSelected(this, indexEntry, SSTableReadsListener.SelectionReason.INDEX_ENTRY_FOUND);
-                        Tracing.trace("Partition index with {} entries found for sstable {}", Integer.valueOf(indexEntry.rowIndexCount()), Integer.valueOf(this.descriptor.generation));
-                        BigRowIndexEntry var60 = indexEntry;
-                        return var60;
-                     }
-
-                     BigRowIndexEntry.Serializer.skip(in, this.descriptor.version);
+      }
+      int binarySearchResult = this.indexSummary.binarySearch(key);
+      long sampledPosition = BigTableReader.getIndexScanPositionFromBinarySearchResult(binarySearchResult, this.indexSummary);
+      int sampledIndex = BigTableReader.getIndexSummaryIndexFromBinarySearchResult(binarySearchResult);
+      int effectiveInterval = this.indexSummary.getEffectiveIndexIntervalAfterIndex(sampledIndex);
+      if (this.ifile == null) {
+         return null;
+      }
+      int i = 0;
+      String path = null;
+      try {
+         try (FileDataInput in = this.ifile.createReader(sampledPosition, rc);){
+            path = in.getPath();
+            while (!in.isEOF()) {
+               boolean opSatisfied;
+               boolean exactMatch;
+               ByteBuffer indexKey = ByteBufferUtil.readWithShortLength(in);
+               if (op == SSTableReader.Operator.EQ && ++i <= effectiveInterval) {
+                  opSatisfied = exactMatch = indexKey.equals(((DecoratedKey)key).getKey());
+               } else {
+                  DecoratedKey indexDecoratedKey = this.decorateKey(indexKey);
+                  int comparison = indexDecoratedKey.compareTo(key);
+                  int v = op.apply(comparison);
+                  opSatisfied = v == 0;
+                  boolean bl = exactMatch = comparison == 0;
+                  if (v < 0) {
+                     listener.onSSTableSkipped(this, SSTableReadsListener.SkippingReason.PARTITION_INDEX_LOOKUP);
+                     Tracing.trace("Partition index lookup allows skipping sstable {}", (Object)this.descriptor.generation);
+                     BigRowIndexEntry bigRowIndexEntry = null;
+                     return bigRowIndexEntry;
                   }
-               } catch (Throwable var52) {
-                  var16 = var52;
-                  throw var52;
-               } finally {
-                  if(in != null) {
-                     if(var16 != null) {
-                        try {
-                           in.close();
-                        } catch (Throwable var48) {
-                           var16.addSuppressed(var48);
-                        }
-                     } else {
-                        in.close();
-                     }
-                  }
-
                }
-            } catch (IOException var54) {
-               this.markSuspect();
-               throw new CorruptSSTableException(var54, path);
+               if (opSatisfied) {
+                  BigRowIndexEntry indexEntry = this.rowIndexEntrySerializer.deserialize(in, in.getFilePointer());
+                  if (exactMatch && updateCacheAndStats) {
+                     DecoratedKey decoratedKey;
+                     assert (key instanceof DecoratedKey);
+                     decoratedKey = (DecoratedKey)key;
+                     if (logger.isTraceEnabled()) {
+                        try (FileDataInput fdi = this.dataFile.createReader(indexEntry.position, rc);){
+                           DecoratedKey keyInDisk = this.decorateKey(ByteBufferUtil.readWithShortLength(fdi));
+                           if (!keyInDisk.equals(key)) {
+                              throw new AssertionError((Object)String.format("%s != %s in %s", keyInDisk, key, fdi.getPath()));
+                           }
+                        }
+                     }
+                     this.cacheKey(decoratedKey, indexEntry);
+                  }
+                  if (op == SSTableReader.Operator.EQ && updateCacheAndStats) {
+                     this.bloomFilterTracker.addTruePositive();
+                  }
+                  listener.onSSTableSelected(this, indexEntry, SSTableReadsListener.SelectionReason.INDEX_ENTRY_FOUND);
+                  Tracing.trace("Partition index with {} entries found for sstable {}", (Object)indexEntry.rowIndexCount(), (Object)this.descriptor.generation);
+                  BigRowIndexEntry decoratedKey = indexEntry;
+                  return decoratedKey;
+               }
+               BigRowIndexEntry.Serializer.skip(in, this.descriptor.version);
             }
-
-            if(op == SSTableReader.Operator.EQ && updateCacheAndStats) {
-               this.bloomFilterTracker.addFalsePositive();
-            }
-
-            listener.onSSTableSkipped(this, SSTableReadsListener.SkippingReason.INDEX_ENTRY_NOT_FOUND);
-            Tracing.trace("Partition index lookup complete (bloom filter false positive) for sstable {}", (Object)Integer.valueOf(this.descriptor.generation));
-            return null;
          }
       }
+      catch (IOException e) {
+         this.markSuspect();
+         throw new CorruptSSTableException((Throwable)e, path);
+      }
+      if (op == SSTableReader.Operator.EQ && updateCacheAndStats) {
+         this.bloomFilterTracker.addFalsePositive();
+      }
+      listener.onSSTableSkipped(this, SSTableReadsListener.SkippingReason.INDEX_ENTRY_NOT_FOUND);
+      Tracing.trace("Partition index lookup complete (bloom filter false positive) for sstable {}", (Object)this.descriptor.generation);
+      return null;
    }
 
    public long estimatedKeys() {

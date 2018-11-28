@@ -40,56 +40,29 @@ public class RepairVerbs extends VerbGroup<RepairVerbs.RepairVersion> {
    public final Verb.OneWay<FailSession> FAILED_SESSION;
    public final Verb.RequestResponse<StatusRequest, StatusResponse> STATUS_REQUEST;
 
-   public RepairVerbs(Verbs.Group id) {
-      super(id, true, RepairVerbs.RepairVersion.class);
-      VerbGroup<RepairVerbs.RepairVersion>.RegistrationHelper helper = this.helper().stage(Stage.ANTI_ENTROPY).droppedGroup(DroppedMessages.Group.REPAIR);
-      VerbGroup.RegistrationHelper.OneWayBuilder var10001 = helper.oneWay("VALIDATION_REQUEST", ValidationRequest.class);
-      ActiveRepairService var10002 = ActiveRepairService.instance;
-      ActiveRepairService.instance.getClass();
-      this.VALIDATION_REQUEST = var10001.handler(decoratedOneWay(var10002::handleValidationRequest));
-      var10001 = helper.oneWay("VALIDATION_COMPLETE", ValidationComplete.class);
-      var10002 = ActiveRepairService.instance;
-      ActiveRepairService.instance.getClass();
-      this.VALIDATION_COMPLETE = var10001.handler(decoratedOneWay(var10002::handleValidationComplete));
-      var10001 = helper.oneWay("SYNC_REQUEST", SyncRequest.class);
-      var10002 = ActiveRepairService.instance;
-      ActiveRepairService.instance.getClass();
-      this.SYNC_REQUEST = var10001.handler(decoratedOneWay(var10002::handleSyncRequest));
-      var10001 = helper.oneWay("SYNC_COMPLETE", SyncComplete.class);
-      var10002 = ActiveRepairService.instance;
-      ActiveRepairService.instance.getClass();
-      this.SYNC_COMPLETE = var10001.handler(decoratedOneWay(var10002::handleSyncComplete));
-      VerbGroup.RegistrationHelper.AckedRequestBuilder var3 = (VerbGroup.RegistrationHelper.AckedRequestBuilder)helper.ackedRequest("PREPARE", PrepareMessage.class).timeout(DatabaseDescriptor::getRpcTimeout);
-      var10002 = ActiveRepairService.instance;
-      ActiveRepairService.instance.getClass();
-      this.PREPARE = var3.syncHandler(decoratedAck(var10002::handlePrepare));
-      var3 = (VerbGroup.RegistrationHelper.AckedRequestBuilder)helper.ackedRequest("SNAPSHOT", SnapshotMessage.class).timeout(1, TimeUnit.HOURS);
-      var10002 = ActiveRepairService.instance;
-      ActiveRepairService.instance.getClass();
-      this.SNAPSHOT = var3.syncHandler(decoratedAck(var10002::handleSnapshot));
-      this.CLEANUP = ((VerbGroup.RegistrationHelper.AckedRequestBuilder)helper.ackedRequest("CLEANUP", CleanupMessage.class).timeout(1, TimeUnit.HOURS)).syncHandler((from, msg) -> {
-         ActiveRepairService.instance.removeParentRepairSession(msg.parentRepairSession);
-      });
-      var10001 = helper.oneWay("CONSISTENT_REQUEST", PrepareConsistentRequest.class);
-      LocalSessions var5 = ActiveRepairService.instance.consistent.local;
-      ActiveRepairService.instance.consistent.local.getClass();
-      this.CONSISTENT_REQUEST = var10001.handler(decoratedOneWay(var5::handlePrepareMessage));
-      var10001 = helper.oneWay("CONSISTENT_RESPONSE", PrepareConsistentResponse.class);
-      CoordinatorSessions var6 = ActiveRepairService.instance.consistent.coordinated;
-      ActiveRepairService.instance.consistent.coordinated.getClass();
-      this.CONSISTENT_RESPONSE = var10001.handler(var6::handlePrepareResponse);
-      this.FINALIZE_COMMIT = ((VerbGroup.RegistrationHelper.AckedRequestBuilder)helper.ackedRequest("FINALIZE_COMMIT", FinalizeCommit.class).timeout(FINALIZE_COMMIT_TIMEOUT, TimeUnit.SECONDS)).syncHandler(decoratedAck((from, msg) -> {
+   public RepairVerbs(final Verbs.Group id) {
+      super(id, true, RepairVersion.class);
+      final RegistrationHelper helper = this.helper().stage(Stage.ANTI_ENTROPY).droppedGroup(DroppedMessages.Group.REPAIR);
+      this.VALIDATION_REQUEST = helper.oneWay("VALIDATION_REQUEST", ValidationRequest.class).handler(decoratedOneWay(ActiveRepairService.instance::handleValidationRequest));
+      this.VALIDATION_COMPLETE = helper.oneWay("VALIDATION_COMPLETE", ValidationComplete.class).handler(decoratedOneWay(ActiveRepairService.instance::handleValidationComplete));
+      this.SYNC_REQUEST = helper.oneWay("SYNC_REQUEST", SyncRequest.class).handler(decoratedOneWay(ActiveRepairService.instance::handleSyncRequest));
+      this.SYNC_COMPLETE = helper.oneWay("SYNC_COMPLETE", SyncComplete.class).handler(decoratedOneWay(ActiveRepairService.instance::handleSyncComplete));
+      this.PREPARE = helper.ackedRequest("PREPARE", PrepareMessage.class).timeout(DatabaseDescriptor::getRpcTimeout).syncHandler(decoratedAck(ActiveRepairService.instance::handlePrepare));
+      this.SNAPSHOT = helper.ackedRequest("SNAPSHOT", SnapshotMessage.class).timeout(1, TimeUnit.HOURS).syncHandler(decoratedAck(ActiveRepairService.instance::handleSnapshot));
+      this.CLEANUP = helper.ackedRequest("CLEANUP", CleanupMessage.class).timeout(1, TimeUnit.HOURS).syncHandler((from, msg) -> ActiveRepairService.instance.removeParentRepairSession(msg.parentRepairSession));
+      this.CONSISTENT_REQUEST = helper.oneWay("CONSISTENT_REQUEST", PrepareConsistentRequest.class).handler(decoratedOneWay(ActiveRepairService.instance.consistent.local::handlePrepareMessage));
+      this.CONSISTENT_RESPONSE = helper.oneWay("CONSISTENT_RESPONSE", PrepareConsistentResponse.class).handler(ActiveRepairService.instance.consistent.coordinated::handlePrepareResponse);
+      this.FINALIZE_COMMIT = helper.ackedRequest("FINALIZE_COMMIT", FinalizeCommit.class).timeout(RepairVerbs.FINALIZE_COMMIT_TIMEOUT, TimeUnit.SECONDS).syncHandler(decoratedAck((from, msg) -> {
          ActiveRepairService.instance.consistent.local.handleFinalizeCommitMessage(from, msg);
          maybeRemoveSession(from, msg);
+         return;
       }));
       this.FAILED_SESSION = helper.oneWay("FAILED_SESSION", FailSession.class).handler(decoratedOneWay((from, msg) -> {
          ActiveRepairService.instance.consistent.local.handleFailSessionMessage(from, msg);
          maybeRemoveSession(from, msg);
+         return;
       }));
-      VerbGroup.RegistrationHelper.RequestResponseBuilder var4 = (VerbGroup.RegistrationHelper.RequestResponseBuilder)helper.requestResponse("STATUS_REQUEST", StatusRequest.class, StatusResponse.class).timeout(DatabaseDescriptor::getRpcTimeout);
-      var5 = ActiveRepairService.instance.consistent.local;
-      ActiveRepairService.instance.consistent.local.getClass();
-      this.STATUS_REQUEST = var4.syncHandler(var5::handleStatusRequest);
+      this.STATUS_REQUEST = helper.requestResponse("STATUS_REQUEST", StatusRequest.class, StatusResponse.class).timeout(DatabaseDescriptor::getRpcTimeout).syncHandler(ActiveRepairService.instance.consistent.local::handleStatusRequest);
    }
 
    public String getUnsupportedVersionMessage(MessagingVersion version) {

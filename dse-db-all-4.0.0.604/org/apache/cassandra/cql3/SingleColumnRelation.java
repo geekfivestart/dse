@@ -68,14 +68,15 @@ public class SingleColumnRelation extends Relation {
    }
 
    public SingleColumnRelation withNonStrictOperator() {
-      switch(null.$SwitchMap$org$apache$cassandra$cql3$Operator[this.relationType.ordinal()]) {
-      case 1:
-         return new SingleColumnRelation(this.entity, Operator.GTE, this.value);
-      case 2:
-         return new SingleColumnRelation(this.entity, Operator.LTE, this.value);
-      default:
-         return this;
+      switch (this.relationType) {
+         case GT: {
+            return new SingleColumnRelation(this.entity, Operator.GTE, this.value);
+         }
+         case LT: {
+            return new SingleColumnRelation(this.entity, Operator.LTE, this.value);
+         }
       }
+      return this;
    }
 
    public Relation renameIdentifier(ColumnMetadata.Raw from, ColumnMetadata.Raw to) {

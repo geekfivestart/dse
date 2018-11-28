@@ -136,54 +136,38 @@ public class Columns extends AbstractCollection<ColumnMetadata> {
    }
 
    public Columns mergeTo(Columns other) {
-      if(this != other && other != NONE) {
-         if(this == NONE) {
-            return other;
-         } else if(Arrays.equals(this.columns, other.columns)) {
-            return this;
-         } else {
-            CloseableIterator<ColumnMetadata> merge = MergeIterator.get(Lists.newArrayList(new UnmodifiableIterator[]{Iterators.forArray(this.columns), Iterators.forArray(other.columns)}), Comparator.naturalOrder(), new Reducer<ColumnMetadata, ColumnMetadata>() {
-               ColumnMetadata reduced = null;
-
-               public boolean trivialReduceIsTrivial() {
-                  return true;
-               }
-
-               public void reduce(int idx, ColumnMetadata current) {
-                  this.reduced = current;
-               }
-
-               public ColumnMetadata getReduced() {
-                  return this.reduced;
-               }
-            });
-            Throwable var3 = null;
-
-            Columns var4;
-            try {
-               var4 = from(Lists.newArrayList(merge));
-            } catch (Throwable var13) {
-               var3 = var13;
-               throw var13;
-            } finally {
-               if(merge != null) {
-                  if(var3 != null) {
-                     try {
-                        merge.close();
-                     } catch (Throwable var12) {
-                        var3.addSuppressed(var12);
-                     }
-                  } else {
-                     merge.close();
-                  }
-               }
-
-            }
-
-            return var4;
-         }
-      } else {
+      if (this == other || other == NONE) {
          return this;
+      }
+      if (this == NONE) {
+         return other;
+      }
+      if (Arrays.equals(this.columns, other.columns)) {
+         return this;
+      }
+      try (MergeIterator merge = MergeIterator.<ColumnMetadata,ColumnMetadata>get(Lists.newArrayList(new UnmodifiableIterator[]{Iterators.forArray(this.columns), Iterators.forArray((Object[])other.columns)}),
+              Comparator.naturalOrder(),
+              new Reducer<ColumnMetadata, ColumnMetadata>(){
+         ColumnMetadata reduced = null;
+
+         @Override
+         public boolean trivialReduceIsTrivial() {
+            return true;
+         }
+
+         @Override
+         public void reduce(int idx, ColumnMetadata current) {
+            this.reduced = current;
+         }
+
+         @Override
+         public ColumnMetadata getReduced() {
+            return this.reduced;
+         }
+      });)
+      {
+         Columns columns = Columns.from(Lists.newArrayList(merge));
+         return columns;
       }
    }
 
@@ -371,7 +355,7 @@ public class Columns extends AbstractCollection<ColumnMetadata> {
             columns[i] = column;
          }
 
-         return new Columns(columns, null);
+         return new Columns(columns);
       }
 
       public void serializeSubset(Collection<ColumnMetadata> columns, Columns superset, DataOutputPlus out) throws IOException {
@@ -421,7 +405,7 @@ public class Columns extends AbstractCollection<ColumnMetadata> {
                }
             }
 
-            return new Columns(columns.length == index?columns:(ColumnMetadata[])Arrays.copyOf(columns, index), firstComplexIdx, null);
+            return new Columns(columns.length == index?columns:(ColumnMetadata[])Arrays.copyOf(columns, index), firstComplexIdx);
          }
       }
 
@@ -526,7 +510,7 @@ public class Columns extends AbstractCollection<ColumnMetadata> {
             }
          }
 
-         return new Columns(columns, null);
+         return new Columns(columns);
       }
 
       private int serializeLargeSubsetSize(Collection<ColumnMetadata> columns, int columnCount, Columns superset, int supersetCount) {

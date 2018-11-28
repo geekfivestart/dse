@@ -328,7 +328,7 @@ public class Range<T extends RingPosition<T>> extends AbstractBounds<T> implemen
 
                output.add(current);
                return output;
-            } while(!next.right.equals(min) && current.right.compareTo(next.right) >= 0);
+            } while(!next.right.equals(min) && current.right.compareTo((T)next.right) >= 0);
 
             current = new Range(current.left, next.right);
          }

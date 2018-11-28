@@ -76,18 +76,20 @@ public class StandaloneSSTableUtil {
 
    }
 
-   private static BiPredicate<File, Directories.FileType> getFilter(StandaloneSSTableUtil.Options options) {
+   private static BiPredicate<File, Directories.FileType> getFilter(Options options) {
       return (file, type) -> {
-         switch(null.$SwitchMap$org$apache$cassandra$db$Directories$FileType[type.ordinal()]) {
-         case 1:
-            return options.type != StandaloneSSTableUtil.Options.FileType.TMP;
-         case 2:
-            return options.type != StandaloneSSTableUtil.Options.FileType.FINAL;
-         case 3:
-            return options.oplogs;
-         default:
-            throw new AssertionError();
+         switch (type) {
+            case FINAL: {
+               return options.type != Options.FileType.TMP;
+            }
+            case TEMPORARY: {
+               return options.type != Options.FileType.FINAL;
+            }
+            case TXN_LOG: {
+               return options.oplogs;
+            }
          }
+         throw new AssertionError();
       };
    }
 

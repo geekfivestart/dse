@@ -16,460 +16,411 @@ final class BitUtil {
       return (int)x & 127;
    }
 
+
    public static long pop_array(long[] A, int wordOffset, int numWords) {
+      int i;
+      long twosA;
+      long twosB;
+      long foursA;
       int n = wordOffset + numWords;
       long tot = 0L;
       long tot8 = 0L;
       long ones = 0L;
       long twos = 0L;
       long fours = 0L;
-
-      int i;
-      long b;
-      long c;
-      long u;
-      long twosA;
-      long foursA;
-      long eights;
-      long u;
-      for(i = wordOffset; i <= n - 8; i += 8) {
-         eights = A[i];
-         u = A[i + 1];
-         long u = ones ^ eights;
-         b = ones & eights | u & u;
-         ones = u ^ u;
-         eights = A[i + 2];
-         u = A[i + 3];
-         u = ones ^ eights;
-         c = ones & eights | u & u;
-         ones = u ^ u;
-         eights = twos ^ b;
-         u = twos & b | eights & c;
-         twos = eights ^ c;
-         eights = A[i + 4];
-         u = A[i + 5];
-         u = ones ^ eights;
-         b = ones & eights | u & u;
-         ones = u ^ u;
-         eights = A[i + 6];
-         u = A[i + 7];
-         u = ones ^ eights;
-         c = ones & eights | u & u;
-         ones = u ^ u;
-         eights = twos ^ b;
-         twosA = twos & b | eights & c;
-         twos = eights ^ c;
-         eights = fours ^ u;
-         foursA = fours & u | eights & twosA;
-         fours = eights ^ twosA;
-         tot8 += (long)pop(foursA);
-      }
-
-      if(i <= n - 4) {
-         foursA = A[i];
-         eights = A[i + 1];
-         u = ones ^ foursA;
-         b = ones & foursA | u & eights;
-         ones = u ^ eights;
-         foursA = A[i + 2];
-         eights = A[i + 3];
-         u = ones ^ foursA;
-         c = ones & foursA | u & eights;
-         ones = u ^ eights;
-         foursA = twos ^ b;
-         u = twos & b | foursA & c;
-         twos = foursA ^ c;
-         twosA = fours & u;
-         fours ^= u;
-         tot8 += (long)pop(twosA);
-         i += 4;
-      }
-
-      if(i <= n - 2) {
-         b = A[i];
-         c = A[i + 1];
+      for (i = wordOffset; i <= n - 8; i += 8) {
+         long b = A[i];
+         long c = A[i + 1];
+         long u = ones ^ b;
+         twosA = ones & b | u & c;
+         ones = u ^ c;
+         b = A[i + 2];
+         c = A[i + 3];
+         u = ones ^ b;
+         twosB = ones & b | u & c;
+         ones = u ^ c;
+         long u2 = twos ^ twosA;
+         foursA = twos & twosA | u2 & twosB;
+         twos = u2 ^ twosB;
+         b = A[i + 4];
+         c = A[i + 5];
          u = ones ^ b;
          twosA = ones & b | u & c;
          ones = u ^ c;
-         foursA = twos & twosA;
-         twos ^= twosA;
-         eights = fours & foursA;
-         fours ^= foursA;
-         tot8 += (long)pop(eights);
-         i += 2;
-      }
-
-      if(i < n) {
-         tot += (long)pop(A[i]);
-      }
-
-      tot += (long)((pop(fours) << 2) + (pop(twos) << 1) + pop(ones)) + (tot8 << 3);
-      return tot;
-   }
-
-   public static long pop_intersect(long[] A, long[] B, int wordOffset, int numWords) {
-      int n = wordOffset + numWords;
-      long tot = 0L;
-      long tot8 = 0L;
-      long ones = 0L;
-      long twos = 0L;
-      long fours = 0L;
-
-      int i;
-      long b;
-      long c;
-      long u;
-      long twosA;
-      long foursA;
-      long eights;
-      long u;
-      for(i = wordOffset; i <= n - 8; i += 8) {
-         eights = A[i] & B[i];
-         u = A[i + 1] & B[i + 1];
-         long u = ones ^ eights;
-         b = ones & eights | u & u;
-         ones = u ^ u;
-         eights = A[i + 2] & B[i + 2];
-         u = A[i + 3] & B[i + 3];
-         u = ones ^ eights;
-         c = ones & eights | u & u;
-         ones = u ^ u;
-         eights = twos ^ b;
-         u = twos & b | eights & c;
-         twos = eights ^ c;
-         eights = A[i + 4] & B[i + 4];
-         u = A[i + 5] & B[i + 5];
-         u = ones ^ eights;
-         b = ones & eights | u & u;
-         ones = u ^ u;
-         eights = A[i + 6] & B[i + 6];
-         u = A[i + 7] & B[i + 7];
-         u = ones ^ eights;
-         c = ones & eights | u & u;
-         ones = u ^ u;
-         eights = twos ^ b;
-         twosA = twos & b | eights & c;
-         twos = eights ^ c;
-         eights = fours ^ u;
-         foursA = fours & u | eights & twosA;
-         fours = eights ^ twosA;
-         tot8 += (long)pop(foursA);
-      }
-
-      if(i <= n - 4) {
-         foursA = A[i] & B[i];
-         eights = A[i + 1] & B[i + 1];
-         u = ones ^ foursA;
-         b = ones & foursA | u & eights;
-         ones = u ^ eights;
-         foursA = A[i + 2] & B[i + 2];
-         eights = A[i + 3] & B[i + 3];
-         u = ones ^ foursA;
-         c = ones & foursA | u & eights;
-         ones = u ^ eights;
-         foursA = twos ^ b;
-         u = twos & b | foursA & c;
-         twos = foursA ^ c;
-         twosA = fours & u;
-         fours ^= u;
-         tot8 += (long)pop(twosA);
-         i += 4;
-      }
-
-      if(i <= n - 2) {
-         b = A[i] & B[i];
-         c = A[i + 1] & B[i + 1];
+         b = A[i + 6];
+         c = A[i + 7];
          u = ones ^ b;
+         twosB = ones & b | u & c;
+         ones = u ^ c;
+         u2 = twos ^ twosA;
+         long foursB = twos & twosA | u2 & twosB;
+         twos = u2 ^ twosB;
+         u2 = fours ^ foursA;
+         long eights = fours & foursA | u2 & foursB;
+         fours = u2 ^ foursB;
+         tot8 += (long)BitUtil.pop(eights);
+      }
+      if (i <= n - 4) {
+         long b = A[i];
+         long c = A[i + 1];
+         long u = ones ^ b;
          twosA = ones & b | u & c;
          ones = u ^ c;
-         foursA = twos & twosA;
-         twos ^= twosA;
-         eights = fours & foursA;
+         b = A[i + 2];
+         c = A[i + 3];
+         u = ones ^ b;
+         twosB = ones & b | u & c;
+         ones = u ^ c;
+         long u3 = twos ^ twosA;
+         foursA = twos & twosA | u3 & twosB;
+         twos = u3 ^ twosB;
+         long eights = fours & foursA;
          fours ^= foursA;
-         tot8 += (long)pop(eights);
-         i += 2;
-      }
-
-      if(i < n) {
-         tot += (long)pop(A[i] & B[i]);
-      }
-
-      tot += (long)((pop(fours) << 2) + (pop(twos) << 1) + pop(ones)) + (tot8 << 3);
-      return tot;
-   }
-
-   public static long pop_union(long[] A, long[] B, int wordOffset, int numWords) {
-      int n = wordOffset + numWords;
-      long tot = 0L;
-      long tot8 = 0L;
-      long ones = 0L;
-      long twos = 0L;
-      long fours = 0L;
-
-      int i;
-      long b;
-      long c;
-      long u;
-      long twosA;
-      long foursA;
-      long eights;
-      long u;
-      for(i = wordOffset; i <= n - 8; i += 8) {
-         eights = A[i] | B[i];
-         u = A[i + 1] | B[i + 1];
-         long u = ones ^ eights;
-         b = ones & eights | u & u;
-         ones = u ^ u;
-         eights = A[i + 2] | B[i + 2];
-         u = A[i + 3] | B[i + 3];
-         u = ones ^ eights;
-         c = ones & eights | u & u;
-         ones = u ^ u;
-         eights = twos ^ b;
-         u = twos & b | eights & c;
-         twos = eights ^ c;
-         eights = A[i + 4] | B[i + 4];
-         u = A[i + 5] | B[i + 5];
-         u = ones ^ eights;
-         b = ones & eights | u & u;
-         ones = u ^ u;
-         eights = A[i + 6] | B[i + 6];
-         u = A[i + 7] | B[i + 7];
-         u = ones ^ eights;
-         c = ones & eights | u & u;
-         ones = u ^ u;
-         eights = twos ^ b;
-         twosA = twos & b | eights & c;
-         twos = eights ^ c;
-         eights = fours ^ u;
-         foursA = fours & u | eights & twosA;
-         fours = eights ^ twosA;
-         tot8 += (long)pop(foursA);
-      }
-
-      if(i <= n - 4) {
-         foursA = A[i] | B[i];
-         eights = A[i + 1] | B[i + 1];
-         u = ones ^ foursA;
-         b = ones & foursA | u & eights;
-         ones = u ^ eights;
-         foursA = A[i + 2] | B[i + 2];
-         eights = A[i + 3] | B[i + 3];
-         u = ones ^ foursA;
-         c = ones & foursA | u & eights;
-         ones = u ^ eights;
-         foursA = twos ^ b;
-         u = twos & b | foursA & c;
-         twos = foursA ^ c;
-         twosA = fours & u;
-         fours ^= u;
-         tot8 += (long)pop(twosA);
+         tot8 += (long)BitUtil.pop(eights);
          i += 4;
       }
-
-      if(i <= n - 2) {
-         b = A[i] | B[i];
-         c = A[i + 1] | B[i + 1];
-         u = ones ^ b;
-         twosA = ones & b | u & c;
+      if (i <= n - 2) {
+         long b = A[i];
+         long c = A[i + 1];
+         long u = ones ^ b;
+         long twosA2 = ones & b | u & c;
          ones = u ^ c;
-         foursA = twos & twosA;
-         twos ^= twosA;
-         eights = fours & foursA;
-         fours ^= foursA;
-         tot8 += (long)pop(eights);
+         long foursA2 = twos & twosA2;
+         twos ^= twosA2;
+         long eights = fours & foursA2;
+         fours ^= foursA2;
+         tot8 += (long)BitUtil.pop(eights);
          i += 2;
       }
-
-      if(i < n) {
-         tot += (long)pop(A[i] | B[i]);
+      if (i < n) {
+         tot += (long)BitUtil.pop(A[i]);
       }
-
-      tot += (long)((pop(fours) << 2) + (pop(twos) << 1) + pop(ones)) + (tot8 << 3);
-      return tot;
+      return tot += (long)((BitUtil.pop(fours) << 2) + (BitUtil.pop(twos) << 1) + BitUtil.pop(ones)) + (tot8 << 3);
    }
 
-   public static long pop_andnot(long[] A, long[] B, int wordOffset, int numWords) {
-      int n = wordOffset + numWords;
-      long tot = 0L;
-      long tot8 = 0L;
-      long ones = 0L;
-      long twos = 0L;
-      long fours = 0L;
+    public static long pop_intersect(long[] A, long[] B, int wordOffset, int numWords) {
+        long twosB;
+        long foursA;
+        long twosA;
+        int i;
+        int n = wordOffset + numWords;
+        long tot = 0L;
+        long tot8 = 0L;
+        long ones = 0L;
+        long twos = 0L;
+        long fours = 0L;
+        for (i = wordOffset; i <= n - 8; i += 8) {
+            long b = A[i] & B[i];
+            long c = A[i + 1] & B[i + 1];
+            long u = ones ^ b;
+            twosA = ones & b | u & c;
+            ones = u ^ c;
+            b = A[i + 2] & B[i + 2];
+            c = A[i + 3] & B[i + 3];
+            u = ones ^ b;
+            twosB = ones & b | u & c;
+            ones = u ^ c;
+            long u2 = twos ^ twosA;
+            foursA = twos & twosA | u2 & twosB;
+            twos = u2 ^ twosB;
+            b = A[i + 4] & B[i + 4];
+            c = A[i + 5] & B[i + 5];
+            u = ones ^ b;
+            twosA = ones & b | u & c;
+            ones = u ^ c;
+            b = A[i + 6] & B[i + 6];
+            c = A[i + 7] & B[i + 7];
+            u = ones ^ b;
+            twosB = ones & b | u & c;
+            ones = u ^ c;
+            u2 = twos ^ twosA;
+            long foursB = twos & twosA | u2 & twosB;
+            twos = u2 ^ twosB;
+            u2 = fours ^ foursA;
+            long eights = fours & foursA | u2 & foursB;
+            fours = u2 ^ foursB;
+            tot8 += (long)BitUtil.pop(eights);
+        }
+        if (i <= n - 4) {
+            long b = A[i] & B[i];
+            long c = A[i + 1] & B[i + 1];
+            long u = ones ^ b;
+            twosA = ones & b | u & c;
+            ones = u ^ c;
+            b = A[i + 2] & B[i + 2];
+            c = A[i + 3] & B[i + 3];
+            u = ones ^ b;
+            twosB = ones & b | u & c;
+            ones = u ^ c;
+            long u3 = twos ^ twosA;
+            foursA = twos & twosA | u3 & twosB;
+            twos = u3 ^ twosB;
+            long eights = fours & foursA;
+            fours ^= foursA;
+            tot8 += (long)BitUtil.pop(eights);
+            i += 4;
+        }
+        if (i <= n - 2) {
+            long b = A[i] & B[i];
+            long c = A[i + 1] & B[i + 1];
+            long u = ones ^ b;
+            long twosA2 = ones & b | u & c;
+            ones = u ^ c;
+            long foursA2 = twos & twosA2;
+            twos ^= twosA2;
+            long eights = fours & foursA2;
+            fours ^= foursA2;
+            tot8 += (long)BitUtil.pop(eights);
+            i += 2;
+        }
+        if (i < n) {
+            tot += (long)BitUtil.pop(A[i] & B[i]);
+        }
+        return tot += (long)((BitUtil.pop(fours) << 2) + (BitUtil.pop(twos) << 1) + BitUtil.pop(ones)) + (tot8 << 3);
+    }
 
-      int i;
-      long b;
-      long c;
-      long u;
-      long twosA;
-      long foursA;
-      long eights;
-      long u;
-      for(i = wordOffset; i <= n - 8; i += 8) {
-         eights = A[i] & ~B[i];
-         u = A[i + 1] & ~B[i + 1];
-         long u = ones ^ eights;
-         b = ones & eights | u & u;
-         ones = u ^ u;
-         eights = A[i + 2] & ~B[i + 2];
-         u = A[i + 3] & ~B[i + 3];
-         u = ones ^ eights;
-         c = ones & eights | u & u;
-         ones = u ^ u;
-         eights = twos ^ b;
-         u = twos & b | eights & c;
-         twos = eights ^ c;
-         eights = A[i + 4] & ~B[i + 4];
-         u = A[i + 5] & ~B[i + 5];
-         u = ones ^ eights;
-         b = ones & eights | u & u;
-         ones = u ^ u;
-         eights = A[i + 6] & ~B[i + 6];
-         u = A[i + 7] & ~B[i + 7];
-         u = ones ^ eights;
-         c = ones & eights | u & u;
-         ones = u ^ u;
-         eights = twos ^ b;
-         twosA = twos & b | eights & c;
-         twos = eights ^ c;
-         eights = fours ^ u;
-         foursA = fours & u | eights & twosA;
-         fours = eights ^ twosA;
-         tot8 += (long)pop(foursA);
-      }
+    public static long pop_union(long[] A, long[] B, int wordOffset, int numWords) {
+        long twosB;
+        long foursA;
+        long twosA;
+        int i;
+        int n = wordOffset + numWords;
+        long tot = 0L;
+        long tot8 = 0L;
+        long ones = 0L;
+        long twos = 0L;
+        long fours = 0L;
+        for (i = wordOffset; i <= n - 8; i += 8) {
+            long b = A[i] | B[i];
+            long c = A[i + 1] | B[i + 1];
+            long u = ones ^ b;
+            twosA = ones & b | u & c;
+            ones = u ^ c;
+            b = A[i + 2] | B[i + 2];
+            c = A[i + 3] | B[i + 3];
+            u = ones ^ b;
+            twosB = ones & b | u & c;
+            ones = u ^ c;
+            long u2 = twos ^ twosA;
+            foursA = twos & twosA | u2 & twosB;
+            twos = u2 ^ twosB;
+            b = A[i + 4] | B[i + 4];
+            c = A[i + 5] | B[i + 5];
+            u = ones ^ b;
+            twosA = ones & b | u & c;
+            ones = u ^ c;
+            b = A[i + 6] | B[i + 6];
+            c = A[i + 7] | B[i + 7];
+            u = ones ^ b;
+            twosB = ones & b | u & c;
+            ones = u ^ c;
+            u2 = twos ^ twosA;
+            long foursB = twos & twosA | u2 & twosB;
+            twos = u2 ^ twosB;
+            u2 = fours ^ foursA;
+            long eights = fours & foursA | u2 & foursB;
+            fours = u2 ^ foursB;
+            tot8 += (long)BitUtil.pop(eights);
+        }
+        if (i <= n - 4) {
+            long b = A[i] | B[i];
+            long c = A[i + 1] | B[i + 1];
+            long u = ones ^ b;
+            twosA = ones & b | u & c;
+            ones = u ^ c;
+            b = A[i + 2] | B[i + 2];
+            c = A[i + 3] | B[i + 3];
+            u = ones ^ b;
+            twosB = ones & b | u & c;
+            ones = u ^ c;
+            long u3 = twos ^ twosA;
+            foursA = twos & twosA | u3 & twosB;
+            twos = u3 ^ twosB;
+            long eights = fours & foursA;
+            fours ^= foursA;
+            tot8 += (long)BitUtil.pop(eights);
+            i += 4;
+        }
+        if (i <= n - 2) {
+            long b = A[i] | B[i];
+            long c = A[i + 1] | B[i + 1];
+            long u = ones ^ b;
+            long twosA2 = ones & b | u & c;
+            ones = u ^ c;
+            long foursA2 = twos & twosA2;
+            twos ^= twosA2;
+            long eights = fours & foursA2;
+            fours ^= foursA2;
+            tot8 += (long)BitUtil.pop(eights);
+            i += 2;
+        }
+        if (i < n) {
+            tot += (long)BitUtil.pop(A[i] | B[i]);
+        }
+        return tot += (long)((BitUtil.pop(fours) << 2) + (BitUtil.pop(twos) << 1) + BitUtil.pop(ones)) + (tot8 << 3);
+    }
 
-      if(i <= n - 4) {
-         foursA = A[i] & ~B[i];
-         eights = A[i + 1] & ~B[i + 1];
-         u = ones ^ foursA;
-         b = ones & foursA | u & eights;
-         ones = u ^ eights;
-         foursA = A[i + 2] & ~B[i + 2];
-         eights = A[i + 3] & ~B[i + 3];
-         u = ones ^ foursA;
-         c = ones & foursA | u & eights;
-         ones = u ^ eights;
-         foursA = twos ^ b;
-         u = twos & b | foursA & c;
-         twos = foursA ^ c;
-         twosA = fours & u;
-         fours ^= u;
-         tot8 += (long)pop(twosA);
-         i += 4;
-      }
+    public static long pop_andnot(long[] A, long[] B, int wordOffset, int numWords) {
+        long twosB;
+        long foursA;
+        long twosA;
+        int i;
+        int n = wordOffset + numWords;
+        long tot = 0L;
+        long tot8 = 0L;
+        long ones = 0L;
+        long twos = 0L;
+        long fours = 0L;
+        for (i = wordOffset; i <= n - 8; i += 8) {
+            long b = A[i] & (B[i] ^ -1L);
+            long c = A[i + 1] & (B[i + 1] ^ -1L);
+            long u = ones ^ b;
+            twosA = ones & b | u & c;
+            ones = u ^ c;
+            b = A[i + 2] & (B[i + 2] ^ -1L);
+            c = A[i + 3] & (B[i + 3] ^ -1L);
+            u = ones ^ b;
+            twosB = ones & b | u & c;
+            ones = u ^ c;
+            long u2 = twos ^ twosA;
+            foursA = twos & twosA | u2 & twosB;
+            twos = u2 ^ twosB;
+            b = A[i + 4] & (B[i + 4] ^ -1L);
+            c = A[i + 5] & (B[i + 5] ^ -1L);
+            u = ones ^ b;
+            twosA = ones & b | u & c;
+            ones = u ^ c;
+            b = A[i + 6] & (B[i + 6] ^ -1L);
+            c = A[i + 7] & (B[i + 7] ^ -1L);
+            u = ones ^ b;
+            twosB = ones & b | u & c;
+            ones = u ^ c;
+            u2 = twos ^ twosA;
+            long foursB = twos & twosA | u2 & twosB;
+            twos = u2 ^ twosB;
+            u2 = fours ^ foursA;
+            long eights = fours & foursA | u2 & foursB;
+            fours = u2 ^ foursB;
+            tot8 += (long)BitUtil.pop(eights);
+        }
+        if (i <= n - 4) {
+            long b = A[i] & (B[i] ^ -1L);
+            long c = A[i + 1] & (B[i + 1] ^ -1L);
+            long u = ones ^ b;
+            twosA = ones & b | u & c;
+            ones = u ^ c;
+            b = A[i + 2] & (B[i + 2] ^ -1L);
+            c = A[i + 3] & (B[i + 3] ^ -1L);
+            u = ones ^ b;
+            twosB = ones & b | u & c;
+            ones = u ^ c;
+            long u3 = twos ^ twosA;
+            foursA = twos & twosA | u3 & twosB;
+            twos = u3 ^ twosB;
+            long eights = fours & foursA;
+            fours ^= foursA;
+            tot8 += (long)BitUtil.pop(eights);
+            i += 4;
+        }
+        if (i <= n - 2) {
+            long b = A[i] & (B[i] ^ -1L);
+            long c = A[i + 1] & (B[i + 1] ^ -1L);
+            long u = ones ^ b;
+            long twosA2 = ones & b | u & c;
+            ones = u ^ c;
+            long foursA2 = twos & twosA2;
+            twos ^= twosA2;
+            long eights = fours & foursA2;
+            fours ^= foursA2;
+            tot8 += (long)BitUtil.pop(eights);
+            i += 2;
+        }
+        if (i < n) {
+            tot += (long)BitUtil.pop(A[i] & (B[i] ^ -1L));
+        }
+        return tot += (long)((BitUtil.pop(fours) << 2) + (BitUtil.pop(twos) << 1) + BitUtil.pop(ones)) + (tot8 << 3);
+    }
 
-      if(i <= n - 2) {
-         b = A[i] & ~B[i];
-         c = A[i + 1] & ~B[i + 1];
-         u = ones ^ b;
-         twosA = ones & b | u & c;
-         ones = u ^ c;
-         foursA = twos & twosA;
-         twos ^= twosA;
-         eights = fours & foursA;
-         fours ^= foursA;
-         tot8 += (long)pop(eights);
-         i += 2;
-      }
-
-      if(i < n) {
-         tot += (long)pop(A[i] & ~B[i]);
-      }
-
-      tot += (long)((pop(fours) << 2) + (pop(twos) << 1) + pop(ones)) + (tot8 << 3);
-      return tot;
-   }
-
-   public static long pop_xor(long[] A, long[] B, int wordOffset, int numWords) {
-      int n = wordOffset + numWords;
-      long tot = 0L;
-      long tot8 = 0L;
-      long ones = 0L;
-      long twos = 0L;
-      long fours = 0L;
-
-      int i;
-      long b;
-      long c;
-      long u;
-      long twosA;
-      long foursA;
-      long eights;
-      long u;
-      for(i = wordOffset; i <= n - 8; i += 8) {
-         eights = A[i] ^ B[i];
-         u = A[i + 1] ^ B[i + 1];
-         long u = ones ^ eights;
-         b = ones & eights | u & u;
-         ones = u ^ u;
-         eights = A[i + 2] ^ B[i + 2];
-         u = A[i + 3] ^ B[i + 3];
-         u = ones ^ eights;
-         c = ones & eights | u & u;
-         ones = u ^ u;
-         eights = twos ^ b;
-         u = twos & b | eights & c;
-         twos = eights ^ c;
-         eights = A[i + 4] ^ B[i + 4];
-         u = A[i + 5] ^ B[i + 5];
-         u = ones ^ eights;
-         b = ones & eights | u & u;
-         ones = u ^ u;
-         eights = A[i + 6] ^ B[i + 6];
-         u = A[i + 7] ^ B[i + 7];
-         u = ones ^ eights;
-         c = ones & eights | u & u;
-         ones = u ^ u;
-         eights = twos ^ b;
-         twosA = twos & b | eights & c;
-         twos = eights ^ c;
-         eights = fours ^ u;
-         foursA = fours & u | eights & twosA;
-         fours = eights ^ twosA;
-         tot8 += (long)pop(foursA);
-      }
-
-      if(i <= n - 4) {
-         foursA = A[i] ^ B[i];
-         eights = A[i + 1] ^ B[i + 1];
-         u = ones ^ foursA;
-         b = ones & foursA | u & eights;
-         ones = u ^ eights;
-         foursA = A[i + 2] ^ B[i + 2];
-         eights = A[i + 3] ^ B[i + 3];
-         u = ones ^ foursA;
-         c = ones & foursA | u & eights;
-         ones = u ^ eights;
-         foursA = twos ^ b;
-         u = twos & b | foursA & c;
-         twos = foursA ^ c;
-         twosA = fours & u;
-         fours ^= u;
-         tot8 += (long)pop(twosA);
-         i += 4;
-      }
-
-      if(i <= n - 2) {
-         b = A[i] ^ B[i];
-         c = A[i + 1] ^ B[i + 1];
-         u = ones ^ b;
-         twosA = ones & b | u & c;
-         ones = u ^ c;
-         foursA = twos & twosA;
-         twos ^= twosA;
-         eights = fours & foursA;
-         fours ^= foursA;
-         tot8 += (long)pop(eights);
-         i += 2;
-      }
-
-      if(i < n) {
-         tot += (long)pop(A[i] ^ B[i]);
-      }
-
-      tot += (long)((pop(fours) << 2) + (pop(twos) << 1) + pop(ones)) + (tot8 << 3);
-      return tot;
-   }
+    public static long pop_xor(long[] A, long[] B, int wordOffset, int numWords) {
+        long twosB;
+        long foursA;
+        long twosA;
+        int i;
+        int n = wordOffset + numWords;
+        long tot = 0L;
+        long tot8 = 0L;
+        long ones = 0L;
+        long twos = 0L;
+        long fours = 0L;
+        for (i = wordOffset; i <= n - 8; i += 8) {
+            long b = A[i] ^ B[i];
+            long c = A[i + 1] ^ B[i + 1];
+            long u = ones ^ b;
+            twosA = ones & b | u & c;
+            ones = u ^ c;
+            b = A[i + 2] ^ B[i + 2];
+            c = A[i + 3] ^ B[i + 3];
+            u = ones ^ b;
+            twosB = ones & b | u & c;
+            ones = u ^ c;
+            long u2 = twos ^ twosA;
+            foursA = twos & twosA | u2 & twosB;
+            twos = u2 ^ twosB;
+            b = A[i + 4] ^ B[i + 4];
+            c = A[i + 5] ^ B[i + 5];
+            u = ones ^ b;
+            twosA = ones & b | u & c;
+            ones = u ^ c;
+            b = A[i + 6] ^ B[i + 6];
+            c = A[i + 7] ^ B[i + 7];
+            u = ones ^ b;
+            twosB = ones & b | u & c;
+            ones = u ^ c;
+            u2 = twos ^ twosA;
+            long foursB = twos & twosA | u2 & twosB;
+            twos = u2 ^ twosB;
+            u2 = fours ^ foursA;
+            long eights = fours & foursA | u2 & foursB;
+            fours = u2 ^ foursB;
+            tot8 += (long)BitUtil.pop(eights);
+        }
+        if (i <= n - 4) {
+            long b = A[i] ^ B[i];
+            long c = A[i + 1] ^ B[i + 1];
+            long u = ones ^ b;
+            twosA = ones & b | u & c;
+            ones = u ^ c;
+            b = A[i + 2] ^ B[i + 2];
+            c = A[i + 3] ^ B[i + 3];
+            u = ones ^ b;
+            twosB = ones & b | u & c;
+            ones = u ^ c;
+            long u3 = twos ^ twosA;
+            foursA = twos & twosA | u3 & twosB;
+            twos = u3 ^ twosB;
+            long eights = fours & foursA;
+            fours ^= foursA;
+            tot8 += (long)BitUtil.pop(eights);
+            i += 4;
+        }
+        if (i <= n - 2) {
+            long b = A[i] ^ B[i];
+            long c = A[i + 1] ^ B[i + 1];
+            long u = ones ^ b;
+            long twosA2 = ones & b | u & c;
+            ones = u ^ c;
+            long foursA2 = twos & twosA2;
+            twos ^= twosA2;
+            long eights = fours & foursA2;
+            fours ^= foursA2;
+            tot8 += (long)BitUtil.pop(eights);
+            i += 2;
+        }
+        if (i < n) {
+            tot += (long)BitUtil.pop(A[i] ^ B[i]);
+        }
+        return tot += (long)((BitUtil.pop(fours) << 2) + (BitUtil.pop(twos) << 1) + BitUtil.pop(ones)) + (tot8 << 3);
+    }
 
    public static int ntz(long val) {
       int lower = (int)val;

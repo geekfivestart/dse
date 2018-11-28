@@ -49,13 +49,15 @@ public class ReadVerbs extends VerbGroup<ReadVerbs.ReadVersion> {
       this.SINGLE_READ = ((VerbGroup.RegistrationHelper.MonitoredRequestResponseBuilder)((VerbGroup.RegistrationHelper.MonitoredRequestResponseBuilder)helper.monitoredRequestResponse("SINGLE_READ", SinglePartitionReadCommand.class, ReadResponse.class).timeout(DatabaseDescriptor::getReadRpcTimeout)).droppedGroup(DroppedMessages.Group.READ)).handler(readHandler());
       this.RANGE_READ = ((VerbGroup.RegistrationHelper.MonitoredRequestResponseBuilder)((VerbGroup.RegistrationHelper.MonitoredRequestResponseBuilder)helper.monitoredRequestResponse("RANGE_READ", PartitionRangeReadCommand.class, ReadResponse.class).timeout(DatabaseDescriptor::getRangeRpcTimeout)).droppedGroup(DroppedMessages.Group.RANGE_SLICE)).handler(readHandler());
       this.NODESYNC = ((VerbGroup.RegistrationHelper.MonitoredRequestResponseBuilder)((VerbGroup.RegistrationHelper.MonitoredRequestResponseBuilder)((VerbGroup.RegistrationHelper.MonitoredRequestResponseBuilder)helper.monitoredRequestResponse("NODESYNC", NodeSyncReadCommand.class, ReadResponse.class).timeout(DatabaseDescriptor::getRangeRpcTimeout)).droppedGroup(DroppedMessages.Group.NODESYNC)).withErrorHandler((err) -> {
-         switch(null.$SwitchMap$org$apache$cassandra$exceptions$RequestFailureReason[err.reason.ordinal()]) {
-         case 1:
-         case 2:
-            ErrorHandler.noSpamLogger.debug(err.getMessage(), new Object[0]);
-            break;
-         default:
-            ErrorHandler.DEFAULT.handleError(err);
+         switch (err.reason) {
+            case UNKNOWN_TABLE:
+            case UNKNOWN_KEYSPACE: {
+               ErrorHandler.noSpamLogger.debug(err.getMessage(), new Object[0]);
+               break;
+            }
+            default: {
+               ErrorHandler.DEFAULT.handleError(err);
+            }
          }
 
       })).handler(readHandler());

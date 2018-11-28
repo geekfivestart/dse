@@ -504,12 +504,12 @@ public class DseDaemon extends CassandraDaemon implements DseDaemonMXBean {
 
    private void postSetup() {
       System.setSecurityManager(new DseJavaSecurityManager(System.getSecurityManager()));
-      JMX.registerMBean(this, JMX.Type.CORE, MapBuilder.immutable().withKeys(new String[]{"name"}).withValues(new String[]{"DseDaemon"}).build());
+      JMX.registerMBean(this, JMX.Type.CORE, MapBuilder.<String,String>immutable().withKeys(new String[]{"name"}).withValues(new String[]{"DseDaemon"}).build());
       RpcRegistry.register(EndpointStateTracker.instance);
-      JMX.registerMBean(EndpointStateTracker.instance, JMX.Type.CORE, MapBuilder.immutable().withKeys(new String[]{"name"}).withValues(new String[]{"EndpointStateTracker"}).build());
-      JMX.registerMBean(KmipHosts.instance, JMX.Type.CORE, MapBuilder.immutable().withKeys(new String[]{"name"}).withValues(new String[]{"KmipHosts"}).build());
-      JMX.registerMBean(new YamlLocation(), JMX.Type.CORE, MapBuilder.immutable().withKeys(new String[]{"name"}).withValues(new String[]{"YamlLocation"}).build());
-      JMX.registerMBean(TieredTableStats.instance, JMX.Type.CORE, MapBuilder.immutable().withKeys(new String[]{"name"}).withValues(new String[]{"TieredTableStats"}).build());
+      JMX.registerMBean(EndpointStateTracker.instance, JMX.Type.CORE, MapBuilder.<String,String>immutable().withKeys(new String[]{"name"}).withValues(new String[]{"EndpointStateTracker"}).build());
+      JMX.registerMBean(KmipHosts.instance, JMX.Type.CORE, MapBuilder.<String,String>immutable().withKeys(new String[]{"name"}).withValues(new String[]{"KmipHosts"}).build());
+      JMX.registerMBean(new YamlLocation(), JMX.Type.CORE, MapBuilder.<String,String>immutable().withKeys(new String[]{"name"}).withValues(new String[]{"YamlLocation"}).build());
+      JMX.registerMBean(TieredTableStats.instance, JMX.Type.CORE, MapBuilder.<String,String>immutable().withKeys(new String[]{"name"}).withValues(new String[]{"TieredTableStats"}).build());
       DseState.instance.initialize();
 
       try {

@@ -152,7 +152,7 @@ public abstract class AbstractTimeWindowStorageStrategy extends TieredStorageStr
    class Tier extends TieredStorageStrategy.Tier {
       private final long maxAge;
 
-      public Tier(int this$0, TieredStorageConfig.Tier level, Map<String, String> config, long options) {
+      public Tier(int level, TieredStorageConfig.Tier config, Map<String, String> options, long maxAge) {
          super(level, config, options);
          this.maxAge = maxAge;
       }

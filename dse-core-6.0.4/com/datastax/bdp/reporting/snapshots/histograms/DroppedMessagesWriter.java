@@ -100,10 +100,7 @@ public class DroppedMessagesWriter extends CqlWriter<DroppedMessagesWriter.Writa
       }
 
       public boolean isNotEmpty() {
-         Stream var10000 = this.metricsMap.keySet().stream();
-         Map var10001 = this.metricsMap;
-         this.metricsMap.getClass();
-         return var10000.map(var10001::get).anyMatch(this::isNotEmpty);
+         return this.metricsMap.keySet().stream().map(this.metricsMap::get).anyMatch(this::isNotEmpty);
       }
 
       public boolean isNotEmpty(DroppedMessageMetrics droppedMessageMetrics) {

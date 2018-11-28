@@ -26,25 +26,24 @@ public class ReducingKeyIterator implements KeyIterator {
    }
 
    ReducingKeyIterator(Collection<SSTableReader> sstables, AbstractBounds<Token> range) {
-      List<ReducingKeyIterator.Iter> iters = new ArrayList(sstables.size());
-      Iterator var4 = sstables.iterator();
-
-      while(var4.hasNext()) {
-         SSTableReader sstable = (SSTableReader)var4.next();
-         iters.add(new ReducingKeyIterator.Iter(sstable, range));
+      ArrayList<Iter> iters = new ArrayList<Iter>(sstables.size());
+      for (SSTableReader sstable : sstables) {
+         iters.add(new Iter(sstable, range));
       }
-
-      this.mi = MergeIterator.get(iters, DecoratedKey.comparator, new Reducer<DecoratedKey, DecoratedKey>() {
+      this.mi = MergeIterator.get(iters, DecoratedKey.comparator, new Reducer<DecoratedKey, DecoratedKey>(){
          DecoratedKey reduced = null;
 
+         @Override
          public boolean trivialReduceIsTrivial() {
             return true;
          }
 
+         @Override
          public void reduce(int idx, DecoratedKey current) {
             this.reduced = current;
          }
 
+         @Override
          public DecoratedKey getReduced() {
             return this.reduced;
          }
@@ -77,7 +76,7 @@ public class ReducingKeyIterator implements KeyIterator {
       AbstractBounds<Token> range;
       final long total;
 
-      public Iter(SSTableReader this$0, AbstractBounds<Token> sstable) {
+      public Iter(SSTableReader sstable, AbstractBounds<Token> range) {
          this.sstable = sstable;
          this.range = range;
          ReducingKeyIterator.this.bytesTotal += this.total = sstable.uncompressedLength();

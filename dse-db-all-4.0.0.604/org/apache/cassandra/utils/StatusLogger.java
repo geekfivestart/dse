@@ -44,55 +44,38 @@ public class StatusLogger {
    }
 
    private static void logStatus() {
-      MBeanServer server = ManagementFactory.getPlatformMBeanServer();
-      String headerFormat = "%-" + TpStatsPrinter.longestTPCStatNameLength() + "s%12s%30s%10s%15s%10s%18s%n";
-      logger.info(String.format(headerFormat, new Object[]{"Pool Name", "Active", "Pending (w/Backpressure)", "Delayed", "Completed", "Blocked", "All Time Blocked"}));
-      Multimap<String, String> jmxThreadPools = ThreadPoolMetrics.getJmxThreadPools(server);
-      Iterator var3 = jmxThreadPools.keySet().iterator();
-
-      while(var3.hasNext()) {
-         String poolKey = (String)var3.next();
-         TreeSet<String> poolValues = new TreeSet(jmxThreadPools.get(poolKey));
-         Iterator var6 = poolValues.iterator();
-
-         while(var6.hasNext()) {
-            String poolValue = (String)var6.next();
-            logger.info(String.format(headerFormat, new Object[]{poolValue, ThreadPoolMetrics.getJmxMetric(server, poolKey, poolValue, "ActiveTasks"), ThreadPoolMetrics.getJmxMetric(server, poolKey, poolValue, "PendingTasks") + " (" + ThreadPoolMetrics.getJmxMetric(server, poolKey, poolValue, "TotalBackpressureCountedTasks") + ")", ThreadPoolMetrics.getJmxMetric(server, poolKey, poolValue, "TotalBackpressureDelayedTasks"), ThreadPoolMetrics.getJmxMetric(server, poolKey, poolValue, "CompletedTasks"), ThreadPoolMetrics.getJmxMetric(server, poolKey, poolValue, "CurrentlyBlockedTasks"), ThreadPoolMetrics.getJmxMetric(server, poolKey, poolValue, "TotalBlockedTasks")}));
+      final MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+      final String headerFormat = "%-" + TpStatsPrinter.longestTPCStatNameLength() + "s%12s%30s%10s%15s%10s%18s%n";
+      StatusLogger.logger.info(String.format(headerFormat, "Pool Name", "Active", "Pending (w/Backpressure)", "Delayed", "Completed", "Blocked", "All Time Blocked"));
+      final Multimap<String, String> jmxThreadPools = ThreadPoolMetrics.getJmxThreadPools(server);
+      for (final String poolKey : jmxThreadPools.keySet()) {
+         final TreeSet<String> poolValues = new TreeSet<String>(jmxThreadPools.get(poolKey));
+         for (final String poolValue : poolValues) {
+            StatusLogger.logger.info(String.format(headerFormat, poolValue, ThreadPoolMetrics.getJmxMetric(server, poolKey, poolValue, "ActiveTasks"), ThreadPoolMetrics.getJmxMetric(server, poolKey, poolValue, "PendingTasks") + " (" + ThreadPoolMetrics.getJmxMetric(server, poolKey, poolValue, "TotalBackpressureCountedTasks") + ")", ThreadPoolMetrics.getJmxMetric(server, poolKey, poolValue, "TotalBackpressureDelayedTasks"), ThreadPoolMetrics.getJmxMetric(server, poolKey, poolValue, "CompletedTasks"), ThreadPoolMetrics.getJmxMetric(server, poolKey, poolValue, "CurrentlyBlockedTasks"), ThreadPoolMetrics.getJmxMetric(server, poolKey, poolValue, "TotalBlockedTasks")));
          }
       }
-
-      logger.info(String.format("%-25s%10s%10s", new Object[]{"CompactionManager", Integer.valueOf(CompactionManager.instance.getActiveCompactions()), Integer.valueOf(CompactionManager.instance.getPendingTasks())}));
+      StatusLogger.logger.info(String.format("%-25s%10s%10s", "CompactionManager", CompactionManager.instance.getActiveCompactions(), CompactionManager.instance.getPendingTasks()));
       int pendingLargeMessages = 0;
-
-      int n;
-      for(Iterator var12 = MessagingService.instance().getLargeMessagePendingTasks().values().iterator(); var12.hasNext(); pendingLargeMessages += n) {
-         n = ((Integer)var12.next()).intValue();
+      for (final int n : MessagingService.instance().getLargeMessagePendingTasks().values()) {
+         pendingLargeMessages += n;
       }
-
       int pendingSmallMessages = 0;
-
-      int n;
-      for(Iterator var15 = MessagingService.instance().getSmallMessagePendingTasks().values().iterator(); var15.hasNext(); pendingSmallMessages += n) {
-         n = ((Integer)var15.next()).intValue();
+      for (final int n2 : MessagingService.instance().getSmallMessagePendingTasks().values()) {
+         pendingSmallMessages += n2;
       }
-
-      logger.info(String.format("%-25s%10s%10s", new Object[]{"MessagingService", "n/a", pendingLargeMessages + "/" + pendingSmallMessages}));
-      logger.info("Global file buffer pool size: {}", FBUtilities.prettyPrintMemory(BufferPool.sizeInBytes()));
-      logger.info("Global memtable buffer pool size: onHeap = {}, offHeap = {}", FBUtilities.prettyPrintMemory(Memtable.MEMORY_POOL.onHeap.used()), FBUtilities.prettyPrintMemory(Memtable.MEMORY_POOL.offHeap.used()));
-      AutoSavingCache<KeyCacheKey, BigRowIndexEntry> keyCache = CacheService.instance.keyCache;
-      AutoSavingCache<RowCacheKey, IRowCacheEntry> rowCache = CacheService.instance.rowCache;
-      int keyCacheKeysToSave = DatabaseDescriptor.getKeyCacheKeysToSave();
-      int rowCacheKeysToSave = DatabaseDescriptor.getRowCacheKeysToSave();
-      logger.info(String.format("%-25s%10s%25s%25s", new Object[]{"Cache Type", "Size", "Capacity", "KeysToSave"}));
-      logger.info(String.format("%-25s%10s%25s%25s", new Object[]{"KeyCache", Long.valueOf(keyCache.weightedSize()), Long.valueOf(keyCache.getCapacity()), keyCacheKeysToSave == 2147483647?"all":Integer.valueOf(keyCacheKeysToSave)}));
-      logger.info(String.format("%-25s%10s%25s%25s", new Object[]{"RowCache", Long.valueOf(rowCache.weightedSize()), Long.valueOf(rowCache.getCapacity()), rowCacheKeysToSave == 2147483647?"all":Integer.valueOf(rowCacheKeysToSave)}));
-      logger.info(String.format("%-25s%20s", new Object[]{"Table", "Memtable ops,data"}));
-      Iterator var9 = ColumnFamilyStore.all().iterator();
-
-      while(var9.hasNext()) {
-         ColumnFamilyStore cfs = (ColumnFamilyStore)var9.next();
-         logger.info(String.format("%-25s%20s", new Object[]{cfs.keyspace.getName() + "." + cfs.name, cfs.metric.memtableColumnsCount.getValue() + "," + cfs.metric.memtableLiveDataSize.getValue()}));
+      StatusLogger.logger.info(String.format("%-25s%10s%10s", "MessagingService", "n/a", pendingLargeMessages + "/" + pendingSmallMessages));
+      StatusLogger.logger.info("Global file buffer pool size: {}", (Object)FBUtilities.prettyPrintMemory(BufferPool.sizeInBytes()));
+      StatusLogger.logger.info("Global memtable buffer pool size: onHeap = {}, offHeap = {}", (Object)FBUtilities.prettyPrintMemory(Memtable.MEMORY_POOL.onHeap.used()), (Object)FBUtilities.prettyPrintMemory(Memtable.MEMORY_POOL.offHeap.used()));
+      final AutoSavingCache<KeyCacheKey, BigRowIndexEntry> keyCache = CacheService.instance.keyCache;
+      final AutoSavingCache<RowCacheKey, IRowCacheEntry> rowCache = CacheService.instance.rowCache;
+      final int keyCacheKeysToSave = DatabaseDescriptor.getKeyCacheKeysToSave();
+      final int rowCacheKeysToSave = DatabaseDescriptor.getRowCacheKeysToSave();
+      StatusLogger.logger.info(String.format("%-25s%10s%25s%25s", "Cache Type", "Size", "Capacity", "KeysToSave"));
+      StatusLogger.logger.info(String.format("%-25s%10s%25s%25s", "KeyCache", keyCache.weightedSize(), keyCache.getCapacity(), (keyCacheKeysToSave == Integer.MAX_VALUE) ? "all" : keyCacheKeysToSave));
+      StatusLogger.logger.info(String.format("%-25s%10s%25s%25s", "RowCache", rowCache.weightedSize(), rowCache.getCapacity(), (rowCacheKeysToSave == Integer.MAX_VALUE) ? "all" : rowCacheKeysToSave));
+      StatusLogger.logger.info(String.format("%-25s%20s", "Table", "Memtable ops,data"));
+      for (final ColumnFamilyStore cfs : ColumnFamilyStore.all()) {
+         StatusLogger.logger.info(String.format("%-25s%20s", cfs.keyspace.getName() + "." + cfs.name, cfs.metric.memtableColumnsCount.getValue() + "," + cfs.metric.memtableLiveDataSize.getValue()));
       }
-
    }
 }

@@ -30,7 +30,7 @@ public class NativeClustering extends AbstractClusteringPrefix implements Cluste
       long bitmapStart = this.peer + (long)metadataSize;
       UnsafeMemoryAccess.setShort(this.peer, (short)count);
       UnsafeMemoryAccess.setShort(this.peer + (long)(metadataSize - 2), (short)dataSize);
-      UnsafeMemoryAccess.fill(bitmapStart, (long)bitmapSize, 0);
+      UnsafeMemoryAccess.fill(bitmapStart, (long)bitmapSize,(byte) 0);
       long dataStart = this.peer + (long)metadataSize + (long)bitmapSize;
       int dataOffset = 0;
 
@@ -40,7 +40,7 @@ public class NativeClustering extends AbstractClusteringPrefix implements Cluste
          if(value == null) {
             long boffset = bitmapStart + (long)(i >>> 3);
             int b = UnsafeMemoryAccess.getByte(boffset);
-            int b = b | 1 << (i & 7);
+            b = b | 1 << (i & 7);
             UnsafeMemoryAccess.setByte(boffset, (byte)b);
          } else {
             assert value.order() == ByteOrder.BIG_ENDIAN;

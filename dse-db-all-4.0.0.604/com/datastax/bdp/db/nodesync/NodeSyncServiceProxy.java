@@ -47,54 +47,60 @@ public class NodeSyncServiceProxy implements NodeSyncServiceProxyMBean {
    public static void init() {
    }
 
+   @Override
    public void startUserValidation(InetAddress address, Map<String, String> options) {
-      this.send(address, Verbs.NODESYNC.SUBMIT_VALIDATION, UserValidationOptions.fromMap(options), (reason) -> {
-         switch(null.$SwitchMap$org$apache$cassandra$exceptions$RequestFailureReason[reason.ordinal()]) {
-         case 2:
-            return new NodeSyncService.NodeSyncNotRunningException("Cannot start user validation, NodeSync is not currently running.");
-         default:
-            return new NodeSyncServiceProxy.MethodExecutionException(reason, null);
+      this.send(address, Verbs.NODESYNC.SUBMIT_VALIDATION, UserValidationOptions.fromMap(options), reason -> {
+         switch (reason) {
+            case NODESYNC_NOT_RUNNING: {
+               return new NodeSyncService.NodeSyncNotRunningException("Cannot start user validation, NodeSync is not currently running.");
+            }
          }
+         return new MethodExecutionException((RequestFailureReason)reason);
       });
    }
 
+   @Override
    public void cancelUserValidation(InetAddress address, String idStr) {
       UserValidationID id = UserValidationID.from(idStr);
-      this.send(address, Verbs.NODESYNC.CANCEL_VALIDATION, id, (reason) -> {
-         switch(null.$SwitchMap$org$apache$cassandra$exceptions$RequestFailureReason[reason.ordinal()]) {
-         case 2:
-            return new NodeSyncService.NodeSyncNotRunningException("Cannot cancel user validation, NodeSync is not currently running.");
-         case 3:
-            return new NodeSyncService.NotFoundValidationException(id);
-         case 4:
-            return new NodeSyncService.CancelledValidationException(id);
-         default:
-            return new NodeSyncServiceProxy.MethodExecutionException(reason, null);
+      this.send(address, Verbs.NODESYNC.CANCEL_VALIDATION, id, reason -> {
+         switch (reason) {
+            case NODESYNC_NOT_RUNNING: {
+               return new NodeSyncService.NodeSyncNotRunningException("Cannot cancel user validation, NodeSync is not currently running.");
+            }
+            case UNKNOWN_NODESYNC_USER_VALIDATION: {
+               return new NodeSyncService.NotFoundValidationException(id);
+            }
+            case CANCELLED_NODESYNC_USER_VALIDATION: {
+               return new NodeSyncService.CancelledValidationException(id);
+            }
          }
+         return new MethodExecutionException((RequestFailureReason)reason);
       });
    }
 
+   @Override
    public void enableTracing(InetAddress address, Map<String, String> options) {
-      this.send(address, Verbs.NODESYNC.ENABLE_TRACING, TracingOptions.fromMap(options), (reason) -> {
-         switch(null.$SwitchMap$org$apache$cassandra$exceptions$RequestFailureReason[reason.ordinal()]) {
-         case 1:
-            UUID sessionId = this.currentTracingSession(address);
-            return new NodeSyncTracing.NodeSyncTracingAlreadyEnabledException(sessionId);
-         default:
-            return new NodeSyncServiceProxy.MethodExecutionException(reason, null);
+      this.send(address, Verbs.NODESYNC.ENABLE_TRACING, TracingOptions.fromMap(options), reason -> {
+         switch (reason) {
+            case NODESYNC_TRACING_ALREADY_ENABLED: {
+               UUID sessionId = this.currentTracingSession(address);
+               return new NodeSyncTracing.NodeSyncTracingAlreadyEnabledException(sessionId);
+            }
          }
+         return new MethodExecutionException((RequestFailureReason)reason);
       });
    }
+
 
    public void disableTracing(InetAddress address) {
       this.send(address, Verbs.NODESYNC.DISABLE_TRACING, EmptyPayload.instance, (x$0) -> {
-         return new NodeSyncServiceProxy.MethodExecutionException(x$0, null);
+         return new NodeSyncServiceProxy.MethodExecutionException(x$0);
       });
    }
 
    public UUID currentTracingSession(InetAddress address) {
       return (UUID)((Optional)this.send(address, Verbs.NODESYNC.TRACING_SESSION, EmptyPayload.instance, (x$0) -> {
-         return new NodeSyncServiceProxy.MethodExecutionException(x$0, null);
+         return new NodeSyncServiceProxy.MethodExecutionException(x$0);
       })).orElse((Object)null);
    }
 
@@ -120,25 +126,25 @@ public class NodeSyncServiceProxy implements NodeSyncServiceProxyMBean {
    private static void checkSupportsProxying(InetAddress address) {
       CassandraVersion version = SystemKeyspace.getReleaseVersion(address);
       if(version == null || version.compareTo(MIN_VERSION) < 0) {
-         throw new NodeSyncServiceProxy.RemoteVersionException(version, null);
+         throw new NodeSyncServiceProxy.RemoteVersionException(version);
       }
    }
 
    public static final class RemoteVersionException extends NodeSyncServiceProxy.NodeSyncServiceProxyException {
       private RemoteVersionException(CassandraVersion version) {
-         super("The remote node doesn't support proxying, expected DSE >= " + NodeSyncServiceProxy.MIN_VERSION + " but found " + version, null);
+         super("The remote node doesn't support proxying, expected DSE >= " + NodeSyncServiceProxy.MIN_VERSION + " but found " + version);
       }
    }
 
    public static final class MethodTimeoutException extends NodeSyncServiceProxy.NodeSyncServiceProxyException {
       private MethodTimeoutException() {
-         super("Timeout while running the remote NodeSync method", null);
+         super("Timeout while running the remote NodeSync method");
       }
    }
 
    public static final class MethodExecutionException extends NodeSyncServiceProxy.NodeSyncServiceProxyException {
       private MethodExecutionException(RequestFailureReason reason) {
-         super("Failure while running the remote NodeSync method, reason: " + reason, null);
+         super("Failure while running the remote NodeSync method, reason: " + reason);
       }
    }
 
@@ -164,7 +170,7 @@ public class NodeSyncServiceProxy implements NodeSyncServiceProxyMBean {
       }
 
       public void onTimeout(InetAddress host) {
-         this.completeExceptionally(new NodeSyncServiceProxy.MethodTimeoutException(null));
+         this.completeExceptionally(new NodeSyncServiceProxy.MethodTimeoutException());
       }
    }
 }

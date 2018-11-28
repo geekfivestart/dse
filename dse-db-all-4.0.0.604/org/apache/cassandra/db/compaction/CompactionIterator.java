@@ -73,8 +73,8 @@ public class CompactionIterator extends CompactionInfo.Holder implements Unfilte
       }
 
       UnfilteredPartitionIterator merged = scanners.isEmpty()?EmptyIterators.unfilteredPartition(controller.cfs.metadata()):UnfilteredPartitionIterators.merge(scanners, nowInSec, this.listener());
-      merged = Transformation.apply((UnfilteredPartitionIterator)merged, new CompactionIterator.GarbageSkipper(controller, nowInSec, null));
-      this.compacted = Transformation.apply((UnfilteredPartitionIterator)merged, new CompactionIterator.Purger(controller, nowInSec, null));
+      merged = Transformation.apply((UnfilteredPartitionIterator)merged, new CompactionIterator.GarbageSkipper(controller, nowInSec));
+      this.compacted = Transformation.apply((UnfilteredPartitionIterator)merged, new CompactionIterator.Purger(controller, nowInSec));
    }
 
    public TableMetadata metadata() {

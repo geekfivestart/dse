@@ -89,135 +89,135 @@ public enum DataType {
    }
 
    public Object readValue(ByteBuf cb, ProtocolVersion version) {
-      int n;
-      switch(null.$SwitchMap$org$apache$cassandra$transport$DataType[this.ordinal()]) {
-      case 1:
-         return CBUtil.readString(cb);
-      case 2:
-         return toType(codec.decodeOne(cb, version));
-      case 3:
-         return toType(codec.decodeOne(cb, version));
-      case 4:
-         List<AbstractType> l = new ArrayList(2);
-         l.add(toType(codec.decodeOne(cb, version)));
-         l.add(toType(codec.decodeOne(cb, version)));
-         return l;
-      case 5:
-         String ks = CBUtil.readString(cb);
-         ByteBuffer name = UTF8Type.instance.decompose(CBUtil.readString(cb));
-         n = cb.readUnsignedShort();
-         List<FieldIdentifier> fieldNames = new ArrayList(n);
-         List<AbstractType<?>> fieldTypes = new ArrayList(n);
-
-         for(int i = 0; i < n; ++i) {
-            fieldNames.add(FieldIdentifier.forInternalString(CBUtil.readString(cb)));
-            fieldTypes.add(toType(codec.decodeOne(cb, version)));
+      switch (this) {
+         case CUSTOM: {
+            return CBUtil.readString(cb);
          }
-
-         return new UserType(ks, name, fieldNames, fieldTypes, true);
-      case 6:
-         n = cb.readUnsignedShort();
-         List<AbstractType<?>> types = new ArrayList(n);
-
-         for(int i = 0; i < n; ++i) {
-            types.add(toType(codec.decodeOne(cb, version)));
+         case LIST: {
+            return DataType.toType(codec.decodeOne(cb, version));
          }
-
-         return new TupleType(types);
-      default:
-         return null;
+         case SET: {
+            return DataType.toType(codec.decodeOne(cb, version));
+         }
+         case MAP: {
+            ArrayList<AbstractType> l = new ArrayList<AbstractType>(2);
+            l.add(DataType.toType(codec.decodeOne(cb, version)));
+            l.add(DataType.toType(codec.decodeOne(cb, version)));
+            return l;
+         }
+         case UDT: {
+            String ks = CBUtil.readString(cb);
+            ByteBuffer name = UTF8Type.instance.decompose(CBUtil.readString(cb));
+            int n = cb.readUnsignedShort();
+            ArrayList<FieldIdentifier> fieldNames = new ArrayList<FieldIdentifier>(n);
+            ArrayList fieldTypes = new ArrayList(n);
+            for (int i = 0; i < n; ++i) {
+               fieldNames.add(FieldIdentifier.forInternalString(CBUtil.readString(cb)));
+               fieldTypes.add(DataType.toType(codec.decodeOne(cb, version)));
+            }
+            return new UserType(ks, name, fieldNames, fieldTypes, true);
+         }
+         case TUPLE: {
+            int n = cb.readUnsignedShort();
+            ArrayList types = new ArrayList(n);
+            for (int i = 0; i < n; ++i) {
+               types.add(DataType.toType(codec.decodeOne(cb, version)));
+            }
+            return new TupleType(types);
+         }
       }
+      return null;
    }
 
    public void writeValue(Object value, ByteBuf cb, ProtocolVersion version) {
-      if(version.isSmallerThan(this.protocolVersion)) {
+      if (version.isSmallerThan(this.protocolVersion)) {
          CBUtil.writeString(value.toString(), cb);
-      } else {
-         switch(null.$SwitchMap$org$apache$cassandra$transport$DataType[this.ordinal()]) {
-         case 1:
-            assert value instanceof String;
-
+         return;
+      }
+      switch (this) {
+         case CUSTOM: {
+            assert (value instanceof String);
             CBUtil.writeString((String)value, cb);
             break;
-         case 2:
-            codec.writeOne(fromType((AbstractType)value, version), cb, version);
+         }
+         case LIST: {
+            codec.writeOne(DataType.fromType((AbstractType)value, version), cb, version);
             break;
-         case 3:
-            codec.writeOne(fromType((AbstractType)value, version), cb, version);
+         }
+         case SET: {
+            codec.writeOne(DataType.fromType((AbstractType)value, version), cb, version);
             break;
-         case 4:
-            List<AbstractType> l = (List)value;
-            codec.writeOne(fromType((AbstractType)l.get(0), version), cb, version);
-            codec.writeOne(fromType((AbstractType)l.get(1), version), cb, version);
+         }
+         case MAP: {
+            List l = (List)value;
+            codec.writeOne(DataType.fromType((AbstractType)l.get(0), version), cb, version);
+            codec.writeOne(DataType.fromType((AbstractType)l.get(1), version), cb, version);
             break;
-         case 5:
+         }
+         case UDT: {
             UserType udt = (UserType)value;
             CBUtil.writeString(udt.keyspace, cb);
             CBUtil.writeString((String)UTF8Type.instance.compose(udt.name), cb);
             cb.writeShort(udt.size());
-
-            for(int i = 0; i < udt.size(); ++i) {
+            for (int i = 0; i < udt.size(); ++i) {
                CBUtil.writeString(udt.fieldName(i).toString(), cb);
-               codec.writeOne(fromType(udt.fieldType(i), version), cb, version);
+               codec.writeOne(DataType.fromType(udt.fieldType(i), version), cb, version);
             }
-
-            return;
-         case 6:
+            break;
+         }
+         case TUPLE: {
             TupleType tt = (TupleType)value;
             cb.writeShort(tt.size());
-
-            for(int i = 0; i < tt.size(); ++i) {
-               codec.writeOne(fromType(tt.type(i), version), cb, version);
+            for (int i = 0; i < tt.size(); ++i) {
+               codec.writeOne(DataType.fromType(tt.type(i), version), cb, version);
             }
+            break;
          }
-
       }
    }
 
    public int serializedValueSize(Object value, ProtocolVersion version) {
-      if(version.isSmallerThan(this.protocolVersion)) {
+      if (version.isSmallerThan(this.protocolVersion)) {
          return CBUtil.sizeOfString(value.toString());
-      } else {
-         int size;
-         switch(null.$SwitchMap$org$apache$cassandra$transport$DataType[this.ordinal()]) {
-         case 1:
+      }
+      switch (this) {
+         case CUSTOM: {
             return CBUtil.sizeOfString((String)value);
-         case 2:
-         case 3:
-            return codec.oneSerializedSize(fromType((AbstractType)value, version), version);
-         case 4:
-            List<AbstractType> l = (List)value;
+         }
+         case LIST:
+         case SET: {
+            return codec.oneSerializedSize(DataType.fromType((AbstractType)value, version), version);
+         }
+         case MAP: {
+            List l = (List)value;
             int s = 0;
-            int s = s + codec.oneSerializedSize(fromType((AbstractType)l.get(0), version), version);
-            s += codec.oneSerializedSize(fromType((AbstractType)l.get(1), version), version);
-            return s;
-         case 5:
+            s += codec.oneSerializedSize(DataType.fromType((AbstractType)l.get(0), version), version);
+            return s += codec.oneSerializedSize(DataType.fromType((AbstractType)l.get(1), version), version);
+         }
+         case UDT: {
             UserType udt = (UserType)value;
             int size = 0;
-            size = size + CBUtil.sizeOfString(udt.keyspace);
+            size += CBUtil.sizeOfString(udt.keyspace);
             size += CBUtil.sizeOfString((String)UTF8Type.instance.compose(udt.name));
             size += 2;
-
-            for(int i = 0; i < udt.size(); ++i) {
+            for (int i = 0; i < udt.size(); ++i) {
                size += CBUtil.sizeOfString(udt.fieldName(i).toString());
-               size += codec.oneSerializedSize(fromType(udt.fieldType(i), version), version);
+               size += codec.oneSerializedSize(DataType.fromType(udt.fieldType(i), version), version);
             }
-
             return size;
-         case 6:
+         }
+         case TUPLE: {
             TupleType tt = (TupleType)value;
-            size = 2;
-
-            for(int i = 0; i < tt.size(); ++i) {
-               size += codec.oneSerializedSize(fromType(tt.type(i), version), version);
+            int size = 2;
+            for (int i = 0; i < tt.size(); ++i) {
+               size += codec.oneSerializedSize(DataType.fromType(tt.type(i), version), version);
             }
-
             return size;
-         default:
-            return 0;
          }
       }
+      return 0;
    }
+
 
    public static Pair<DataType, Object> fromType(AbstractType type, ProtocolVersion version) {
       if(type instanceof ReversedType) {
@@ -249,27 +249,34 @@ public enum DataType {
       }
    }
 
+
    public static AbstractType toType(Pair<DataType, Object> entry) {
       try {
-         switch(null.$SwitchMap$org$apache$cassandra$transport$DataType[((DataType)entry.left).ordinal()]) {
-         case 1:
-            return TypeParser.parse((String)entry.right);
-         case 2:
-            return ListType.getInstance((AbstractType)entry.right, true);
-         case 3:
-            return SetType.getInstance((AbstractType)entry.right, true);
-         case 4:
-            List<AbstractType> l = (List)entry.right;
-            return MapType.getInstance((AbstractType)l.get(0), (AbstractType)l.get(1), true);
-         case 5:
-            return (AbstractType)entry.right;
-         case 6:
-            return (AbstractType)entry.right;
-         default:
-            return ((DataType)entry.left).type;
+         switch ((DataType)((Object)entry.left)) {
+            case CUSTOM: {
+               return TypeParser.parse((String)entry.right);
+            }
+            case LIST: {
+               return ListType.getInstance((AbstractType)entry.right, true);
+            }
+            case SET: {
+               return SetType.getInstance((AbstractType)entry.right, true);
+            }
+            case MAP: {
+               List l = (List)entry.right;
+               return MapType.getInstance((AbstractType)l.get(0), (AbstractType)l.get(1), true);
+            }
+            case UDT: {
+               return (AbstractType)entry.right;
+            }
+            case TUPLE: {
+               return (AbstractType)entry.right;
+            }
          }
-      } catch (RequestValidationException var2) {
-         throw new ProtocolException(var2.getMessage());
+         return ((DataType)entry.left).type;
+      }
+      catch (RequestValidationException e) {
+         throw new ProtocolException(e.getMessage());
       }
    }
 

@@ -26,6 +26,7 @@ import org.apache.cassandra.db.commitlog.IntervalSet;
 import org.apache.cassandra.db.filter.ClusteringIndexFilter;
 import org.apache.cassandra.db.filter.ColumnFilter;
 import org.apache.cassandra.db.lifecycle.LifecycleTransaction;
+import org.apache.cassandra.db.partitions.AbstractBTreePartition;
 import org.apache.cassandra.db.partitions.AtomicBTreePartition;
 import org.apache.cassandra.db.partitions.Partition;
 import org.apache.cassandra.db.partitions.PartitionUpdate;
@@ -86,26 +87,28 @@ public class Memtable implements Comparable<Memtable> {
    private static MemtablePool createMemtableAllocatorPool() {
       long heapLimit = DatabaseDescriptor.getMemtableHeapSpaceInMb() << 20;
       long offHeapLimit = DatabaseDescriptor.getMemtableOffheapSpaceInMb() << 20;
-      switch(null.$SwitchMap$org$apache$cassandra$config$Config$MemtableAllocationType[DatabaseDescriptor.getMemtableAllocationType().ordinal()]) {
-      case 1:
-         logger.debug("Memtables allocating with on heap buffers");
-         return new HeapPool(heapLimit, DatabaseDescriptor.getMemtableCleanupThreshold(), new ColumnFamilyStore.FlushLargestColumnFamily());
-      case 2:
-         logger.debug("Memtables allocating with on heap slabs");
-         return new SlabPool(heapLimit, 0L, DatabaseDescriptor.getMemtableCleanupThreshold(), new ColumnFamilyStore.FlushLargestColumnFamily());
-      case 3:
-         if(!FileUtils.isCleanerAvailable) {
-            throw new IllegalStateException("Could not free direct byte buffer: offheap_buffers is not a safe memtable_allocation_type without this ability, please adjust your config. This feature is only guaranteed to work on an Oracle JVM. Refusing to start.");
+      switch (DatabaseDescriptor.getMemtableAllocationType()) {
+         case unslabbed_heap_buffers: {
+            logger.debug("Memtables allocating with on heap buffers");
+            return new HeapPool(heapLimit, DatabaseDescriptor.getMemtableCleanupThreshold(), new ColumnFamilyStore.FlushLargestColumnFamily());
          }
-
-         logger.debug("Memtables allocating with off heap buffers");
-         return new SlabPool(heapLimit, offHeapLimit, DatabaseDescriptor.getMemtableCleanupThreshold(), new ColumnFamilyStore.FlushLargestColumnFamily());
-      case 4:
-         logger.debug("Memtables allocating with off heap objects");
-         return new NativePool(heapLimit, offHeapLimit, DatabaseDescriptor.getMemtableCleanupThreshold(), new ColumnFamilyStore.FlushLargestColumnFamily());
-      default:
-         throw new AssertionError();
+         case heap_buffers: {
+            logger.debug("Memtables allocating with on heap slabs");
+            return new SlabPool(heapLimit, 0L, DatabaseDescriptor.getMemtableCleanupThreshold(), new ColumnFamilyStore.FlushLargestColumnFamily());
+         }
+         case offheap_buffers: {
+            if (!FileUtils.isCleanerAvailable) {
+               throw new IllegalStateException("Could not free direct byte buffer: offheap_buffers is not a safe memtable_allocation_type without this ability, please adjust your config. This feature is only guaranteed to work on an Oracle JVM. Refusing to start.");
+            }
+            logger.debug("Memtables allocating with off heap buffers");
+            return new SlabPool(heapLimit, offHeapLimit, DatabaseDescriptor.getMemtableCleanupThreshold(), new ColumnFamilyStore.FlushLargestColumnFamily());
+         }
+         case offheap_objects: {
+            logger.debug("Memtables allocating with off heap objects");
+            return new NativePool(heapLimit, offHeapLimit, DatabaseDescriptor.getMemtableCleanupThreshold(), new ColumnFamilyStore.FlushLargestColumnFamily());
+         }
       }
+      throw new AssertionError();
    }
 
    public int compareTo(Memtable that) {
@@ -419,7 +422,7 @@ public class Memtable implements Comparable<Memtable> {
          partitionFlows.add(this.getCorePartitions(i, columnFilter, dataRange, !startIsMin, !stopIsMin));
       }
 
-      return Flow.merge(partitionFlows, Comparator.comparing(FlowablePartitionBase::partitionKey), new Memtable.MergeReducer(null));
+      return Flow.merge(partitionFlows, Comparator.comparing(FlowablePartitionBase::partitionKey), new Memtable.MergeReducer());
    }
 
    private Flow<FlowableUnfilteredPartition> getSequentialPartitions(ColumnFilter columnFilter, DataRange dataRange) {
@@ -453,7 +456,7 @@ public class Memtable implements Comparable<Memtable> {
       List<PartitionPosition> boundaries = diskBoundaries.positions;
       List<Directories.DataDirectory> locations = diskBoundaries.directories;
       if(boundaries == null) {
-         return Collections.singletonList(new Memtable.FlushRunnable(this.subranges, (Directories.DataDirectory)null, (PartitionPosition)null, (PartitionPosition)null, txn, null));
+         return Collections.singletonList(new Memtable.FlushRunnable(this.subranges, (Directories.DataDirectory)null, (PartitionPosition)null, (PartitionPosition)null, txn));
       } else {
          List<Memtable.FlushRunnable> runnables = new ArrayList(boundaries.size());
          Object rangeStart = this.cfs.getPartitioner().getMinimumToken().minKeyBound();
@@ -461,7 +464,7 @@ public class Memtable implements Comparable<Memtable> {
          try {
             for(int i = 0; i < boundaries.size(); ++i) {
                PartitionPosition t = (PartitionPosition)boundaries.get(i);
-               runnables.add(new Memtable.FlushRunnable(this.subranges, (Directories.DataDirectory)locations.get(i), (PartitionPosition)rangeStart, t, txn, null));
+               runnables.add(new Memtable.FlushRunnable(this.subranges, (Directories.DataDirectory)locations.get(i), (PartitionPosition)rangeStart, t, txn));
                rangeStart = t;
             }
 
@@ -599,111 +602,52 @@ public class Memtable implements Comparable<Memtable> {
          return Memtable.this.cfs.getDirectories();
       }
 
+
       private void writeSortedContents() {
-         if(!this.state.compareAndSet(Memtable.FlushRunnableWriterState.IDLE, Memtable.FlushRunnableWriterState.RUNNING)) {
-            Memtable.logger.debug("Failed to write {}, flushed range = ({}, {}], state: {}", new Object[]{Memtable.this.toString(), this.from, this.to, this.state});
-         } else {
-            Memtable.logger.debug("Writing {}, flushed range = ({}, {}], state: {}, partitioner {}", new Object[]{Memtable.this.toString(), this.from, this.to, this.state, Memtable.this.metadata.partitioner});
-            boolean var19 = false;
-
-            try {
-               var19 = true;
-               List<Iterator<AtomicBTreePartition>> partitions = this.toFlush;
-               if(!Memtable.this.metadata.partitioner.equals(DatabaseDescriptor.getPartitioner()) && partitions.size() > 1) {
-                  partitions = Collections.singletonList(MergeIterator.get(partitions, Comparator.comparing(Partition::partitionKey), new Memtable.MergeReducer(null)));
-               }
-
-               Iterator var2 = partitions.iterator();
-
-               label343:
-               while(true) {
-                  if(!var2.hasNext()) {
-                     var19 = false;
-                     break;
-                  }
-
-                  Iterator<AtomicBTreePartition> partitionSet = (Iterator)var2.next();
-                  if(this.state.get() == Memtable.FlushRunnableWriterState.ABORTING) {
-                     var19 = false;
-                     break;
-                  }
-
-                  while(true) {
-                     AtomicBTreePartition partition;
-                     do {
-                        do {
-                           if(!partitionSet.hasNext() || this.state.get() == Memtable.FlushRunnableWriterState.ABORTING) {
-                              continue label343;
-                           }
-
-                           partition = (AtomicBTreePartition)partitionSet.next();
-                        } while(this.isBatchLogTable && !partition.partitionLevelDeletion().isLive() && partition.hasRows());
-                     } while(partition.isEmpty());
-
-                     try {
-                        UnfilteredRowIterator iter = partition.unfilteredIterator();
-                        Throwable var6 = null;
-
-                        try {
-                           this.writer.append(iter);
-                        } catch (Throwable var27) {
-                           var6 = var27;
-                           throw var27;
-                        } finally {
-                           if(iter != null) {
-                              if(var6 != null) {
-                                 try {
-                                    iter.close();
-                                 } catch (Throwable var26) {
-                                    var6.addSuppressed(var26);
-                                 }
-                              } else {
-                                 iter.close();
-                              }
-                           }
-
-                        }
-                     } catch (Throwable var29) {
-                        Memtable.logger.debug("Error when flushing: {}/{}", var29.getClass().getName(), var29.getMessage());
-                        Throwables.propagate(var29);
-                     }
-                  }
-               }
-            } finally {
-               if(var19) {
-                  while(true) {
-                     if(this.state.compareAndSet(Memtable.FlushRunnableWriterState.RUNNING, Memtable.FlushRunnableWriterState.IDLE)) {
-                        long bytesFlushed = this.writer.getFilePointer();
-                        Memtable.logger.debug("Completed flushing {} ({}) for commitlog position {}", new Object[]{this.writer.getFilename(), FBUtilities.prettyPrintMemory(bytesFlushed), Memtable.this.commitLogUpperBound});
-                        Memtable.this.cfs.metric.bytesFlushed.inc(bytesFlushed);
-                        break;
-                     }
-
-                     if(this.state.compareAndSet(Memtable.FlushRunnableWriterState.ABORTING, Memtable.FlushRunnableWriterState.ABORTED)) {
-                        Memtable.logger.debug("Flushing of {} aborted", this.writer.getFilename());
-                        org.apache.cassandra.utils.Throwables.maybeFail(this.writer.abort((Throwable)null));
-                        break;
-                     }
-                  }
-
-               }
+         if (!this.state.compareAndSet(FlushRunnableWriterState.IDLE, FlushRunnableWriterState.RUNNING)) {
+            Memtable.logger.debug("Failed to write {}, flushed range = ({}, {}], state: {}", new Object[] { Memtable.this.toString(), this.from, this.to, this.state });
+            return;
+         }
+         Memtable.logger.debug("Writing {}, flushed range = ({}, {}], state: {}, partitioner {}", new Object[] { Memtable.this.toString(), this.from, this.to, this.state, Memtable.this.metadata.partitioner });
+         try {
+            List<Iterator<AtomicBTreePartition>> partitions = this.toFlush;
+            if (!Memtable.this.metadata.partitioner.equals(DatabaseDescriptor.getPartitioner()) && partitions.size() > 1) {
+               Comparator comparator=Comparator.comparing(Partition::partitionKey);
+               partitions = Collections.singletonList((Iterator<AtomicBTreePartition>)MergeIterator.<AtomicBTreePartition,AtomicBTreePartition>get(
+                       partitions, comparator, new MergeReducer()));
             }
-
-            while(true) {
-               if(this.state.compareAndSet(Memtable.FlushRunnableWriterState.RUNNING, Memtable.FlushRunnableWriterState.IDLE)) {
-                  long bytesFlushedx = this.writer.getFilePointer();
-                  Memtable.logger.debug("Completed flushing {} ({}) for commitlog position {}", new Object[]{this.writer.getFilename(), FBUtilities.prettyPrintMemory(bytesFlushedx), Memtable.this.commitLogUpperBound});
-                  Memtable.this.cfs.metric.bytesFlushed.inc(bytesFlushedx);
+            for (final Iterator<AtomicBTreePartition> partitionSet : partitions) {
+               if (this.state.get() == FlushRunnableWriterState.ABORTING) {
                   break;
                }
-
-               if(this.state.compareAndSet(Memtable.FlushRunnableWriterState.ABORTING, Memtable.FlushRunnableWriterState.ABORTED)) {
-                  Memtable.logger.debug("Flushing of {} aborted", this.writer.getFilename());
-                  org.apache.cassandra.utils.Throwables.maybeFail(this.writer.abort((Throwable)null));
-                  break;
+               while (partitionSet.hasNext() && this.state.get() != FlushRunnableWriterState.ABORTING) {
+                  final AtomicBTreePartition partition = partitionSet.next();
+                  if (this.isBatchLogTable && !partition.partitionLevelDeletion().isLive() && partition.hasRows()) {
+                     continue;
+                  }
+                  if (partition.isEmpty()) {
+                     continue;
+                  }
+                  try (final UnfilteredRowIterator iter = partition.unfilteredIterator()) {
+                     this.writer.append(iter);
+                  }
+                  catch (Throwable t) {
+                     Memtable.logger.debug("Error when flushing: {}/{}", (Object)t.getClass().getName(), (Object)t.getMessage());
+                     Throwables.propagate(t);
+                  }
                }
             }
-
+         }
+         finally {
+            while (!this.state.compareAndSet(FlushRunnableWriterState.RUNNING, FlushRunnableWriterState.IDLE)) {
+               if (this.state.compareAndSet(FlushRunnableWriterState.ABORTING, FlushRunnableWriterState.ABORTED)) {
+                  Memtable.logger.debug("Flushing of {} aborted", (Object)this.writer.getFilename());
+                  org.apache.cassandra.utils.Throwables.maybeFail(this.writer.abort(null));
+               }
+            }
+            final long bytesFlushed = this.writer.getFilePointer();
+            Memtable.logger.debug("Completed flushing {} ({}) for commitlog position {}", new Object[] { this.writer.getFilename(), FBUtilities.prettyPrintMemory(bytesFlushed), Memtable.this.commitLogUpperBound });
+            Memtable.this.cfs.metric.bytesFlushed.inc(bytesFlushed);
          }
       }
 

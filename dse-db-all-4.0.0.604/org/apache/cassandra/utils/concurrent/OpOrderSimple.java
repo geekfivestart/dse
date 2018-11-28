@@ -194,7 +194,7 @@ public class OpOrderSimple implements OpOrder {
       }
 
       void markBlocking() {
-         this.isBlockingSignal.complete((Object)null);
+         this.isBlockingSignal.complete(null);
       }
 
       public boolean isBlocking() {

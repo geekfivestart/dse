@@ -40,7 +40,7 @@ final class UserTypeSelector extends Selector {
             fields.put(identifier, selector);
          }
 
-         return new UserTypeSelector(type, fields, null);
+         return new UserTypeSelector(type, fields);
       }
    };
    private final AbstractType<?> type;
@@ -82,7 +82,7 @@ final class UserTypeSelector extends Selector {
                fields.put(factory.getKey(), ((Selector.Factory)factory.getValue()).newInstance(options));
             }
 
-            return new UserTypeSelector(type, fields, null);
+            return new UserTypeSelector(type, fields);
          }
 
          public boolean isAggregateSelectorFactory() {

@@ -4,7 +4,7 @@ import io.reactivex.functions.Function;
 import org.apache.cassandra.utils.flow.Flow;
 
 public interface FlowablePartition extends FlowablePartitionBase<Row> {
-   static default FlowablePartition create(PartitionHeader header, Row staticRow, Flow<Row> content) {
+   public static FlowablePartition create(PartitionHeader header, Row staticRow, Flow<Row> content) {
       return new FlowablePartition.Instance(header, staticRow, content);
    }
 

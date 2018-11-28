@@ -93,7 +93,7 @@ public final class UDFDataType {
       } else if(!this.toJavaClass().isAssignableFrom(value.getClass())) {
          throw new InvalidTypeException("Invalid value for CQL type " + this.toDataType().getName());
       } else {
-         return this.typeCodec.serialize(value, com.datastax.driver.core.ProtocolVersion.fromInt(protocolVersion.asInt()));
+         return ((TypeCodec<Object>)this.typeCodec).serialize(value, com.datastax.driver.core.ProtocolVersion.fromInt(protocolVersion.asInt()));
       }
    }
 

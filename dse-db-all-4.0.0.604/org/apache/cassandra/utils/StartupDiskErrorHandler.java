@@ -15,14 +15,16 @@ final class StartupDiskErrorHandler implements ErrorHandler {
    }
 
    public void handleError(Throwable error) {
-      if(error instanceof FSError || error instanceof CorruptSSTableException) {
-         switch(null.$SwitchMap$org$apache$cassandra$config$Config$DiskFailurePolicy[DatabaseDescriptor.getDiskFailurePolicy().ordinal()]) {
-         case 1:
-         case 2:
-         case 3:
-            logger.error("Exiting forcefully due to file system exception on startup, disk failure policy \"{}\"", DatabaseDescriptor.getDiskFailurePolicy(), error);
+      if (!(error instanceof FSError) && !(error instanceof CorruptSSTableException)) {
+         return;
+      }
+      switch (DatabaseDescriptor.getDiskFailurePolicy()) {
+         case stop_paranoid:
+         case stop:
+         case die: {
+            logger.error("Exiting forcefully due to file system exception on startup, disk failure policy \"{}\"", (Object)DatabaseDescriptor.getDiskFailurePolicy(), (Object)error);
             this.killer.killJVM(error, true);
-         default:
+            break;
          }
       }
    }

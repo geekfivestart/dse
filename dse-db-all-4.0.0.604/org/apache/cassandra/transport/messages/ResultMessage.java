@@ -85,7 +85,7 @@ public abstract class ResultMessage extends Message.Response {
                resultMetadata = (ResultSet.ResultMetadata)ResultSet.ResultMetadata.codec.decode(body, version);
             }
 
-            return new ResultMessage.Prepared(id, resultMetadataId, -1, metadata, resultMetadata, null);
+            return new ResultMessage.Prepared(id, resultMetadataId, -1, metadata, resultMetadata);
          }
 
          public void encode(ResultMessage msg, ByteBuf dest, ProtocolVersion version) {

@@ -38,54 +38,44 @@ class MessageSerializer implements Message.Serializer {
       out.writeByte(message.group().id().serializationCode());
       out.writeByte(serializer.code);
       out.writeByte(this.computeFlags(message));
-      if(!message.verb().isOneWay()) {
+      if (!message.verb().isOneWay()) {
          out.writeInt(message.id());
       }
-
-      if(!message.parameters().isEmpty()) {
+      if (!message.parameters().isEmpty()) {
          MessageParameters.serializer().serialize(message.parameters(), out);
       }
-
-      if(this.serializeTimestamps) {
+      if (this.serializeTimestamps) {
          out.writeVInt(message.operationStartMillis() - this.timestampBaseMillis);
       }
-
-      if(!message.verb().isOneWay()) {
+      if (!message.verb().isOneWay()) {
          out.writeUnsignedVInt(message.timeoutMillis());
       }
-
-      if(message.isTraced()) {
+      if (message.isTraced()) {
          message.tracingInfo().serialize(out);
       }
-
-      if(message.isRequest()) {
-         Request<P, ?> request = (Request)message;
-         if(!request.forwards().isEmpty()) {
-            out.writeVInt((long)request.forwards().size());
-            Iterator var5 = request.forwards().iterator();
-
-            while(var5.hasNext()) {
-               Request.Forward forward = (Request.Forward)var5.next();
+      if (message.isRequest()) {
+         Request<?,?> request = (Request<?,?>)message;
+         if (!request.forwards().isEmpty()) {
+            out.writeVInt(request.forwards().size());
+            for (Request.Forward forward : request.forwards()) {
                CompactEndpointSerializationHelper.serialize(forward.to, out);
-               if(!message.verb().isOneWay()) {
-                  out.writeInt(forward.id);
-               }
+               if (message.verb().isOneWay()) continue;
+               out.writeInt(forward.id);
             }
-         } else if(request.isForwarded()) {
+         } else if (request.isForwarded()) {
             CompactEndpointSerializationHelper.serialize(((ForwardRequest)request).replyTo, out);
          }
-
-         serializer.requestSerializer.serialize(request.payload(), out);
+         ((VerbSerializer)serializer).requestSerializer.serialize(request.payload(), out);
       } else {
-         Response<P> response = (Response)message;
-         if(response.isFailure()) {
+         Response response = (Response)message;
+         if (response.isFailure()) {
             out.writeInt(((FailureResponse)response).reason().codeForInternodeProtocol(this.version));
          } else {
-            serializer.responseSerializer.serialize(response.payload(), out);
+            ((VerbSerializer)serializer).responseSerializer.serialize(response.payload(), out);
          }
       }
-
    }
+
 
    private int computeFlags(Message message) {
       int flags = 0;
@@ -242,7 +232,7 @@ class MessageSerializer implements Message.Serializer {
          }
 
          try {
-            P payload = serializer.requestSerializer.deserialize(in);
+            P payload = (P)serializer.requestSerializer.deserialize(in);
             Message.Data<P> data = new Message.Data(payload, -1L, createdAtMillis, timeoutMillis, parameters, tracingInfo);
             return (Message)(replyTo == null?(verb.isOneWay()?new OneWayRequest(from, Request.local, (Verb.OneWay)verb, data, (List)forwards):new Request(from, Request.local, messageId, verb, data, (List)forwards)):new ForwardRequest(from, Request.local, replyTo, messageId, verb, data));
          } catch (Exception var26) {

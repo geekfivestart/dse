@@ -45,29 +45,19 @@ public class PerformanceObjectsController implements LifecycleAware {
       this.plugins = pluginBeans;
    }
 
+   @Override
    public void preSetup() {
-      Iterator var1 = this.plugins.iterator();
-
-      while(var1.hasNext()) {
-         PluginBean plugin = (PluginBean)var1.next();
+      for (PluginBean plugin : this.plugins) {
          plugin.registerMBean();
       }
-
    }
 
    public <T extends PluginBean> T getPluginBeanFor(Class<T> pluginClass) {
-      Iterator var2 = this.plugins.iterator();
-
-      PluginBean plugin;
-      do {
-         if(!var2.hasNext()) {
-            return null;
-         }
-
-         plugin = (PluginBean)var2.next();
-      } while(!plugin.getClass().equals(pluginClass));
-
-      return plugin;
+      for (PluginBean plugin : this.plugins) {
+         if (!plugin.getClass().equals(pluginClass)) continue;
+         return (T)plugin;
+      }
+      return null;
    }
 
    public static String getPerfBeanName(Class<? extends PluginBean> pluginClass) {

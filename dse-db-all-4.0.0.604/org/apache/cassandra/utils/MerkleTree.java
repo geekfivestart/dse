@@ -31,7 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MerkleTree implements Serializable {
-   public static final Versioned<RepairVerbs.RepairVersion, MerkleTree.MerkleTreeSerializer> serializers = RepairVerbs.RepairVersion.versioned(MerkleTree.MerkleTreeSerializer::<init>);
+   public static final Versioned<RepairVerbs.RepairVersion, MerkleTree.MerkleTreeSerializer> serializers = RepairVerbs.RepairVersion.versioned(MerkleTree.MerkleTreeSerializer::new);
    private static Logger logger = LoggerFactory.getLogger(MerkleTree.class);
    private static final long serialVersionUID = 2L;
    public static final byte RECOMMENDED_DEPTH = 126;
@@ -66,7 +66,7 @@ public class MerkleTree implements Serializable {
    public void init() {
       byte sizedepth = (byte)((int)(Math.log10((double)this.maxsize) / Math.log10(2.0D)));
       byte depth = (byte)Math.min(sizedepth, this.hashdepth);
-      this.root = this.initHelper((Token)this.fullRange.left, (Token)this.fullRange.right, 0, depth);
+      this.root = this.initHelper((Token)this.fullRange.left, (Token)this.fullRange.right, (byte)0, depth);
       this.size = (long)Math.pow(2.0D, (double)depth);
    }
 
@@ -117,7 +117,7 @@ public class MerkleTree implements Serializable {
          throw new IllegalArgumentException("Difference only make sense on tree covering the same range (but " + ltree.fullRange + " != " + rtree.fullRange + ")");
       } else {
          List<MerkleTree.TreeDifference> diff = new ArrayList();
-         MerkleTree.TreeDifference active = new MerkleTree.TreeDifference((Token)ltree.fullRange.left, (Token)ltree.fullRange.right, 0);
+         MerkleTree.TreeDifference active = new MerkleTree.TreeDifference((Token)ltree.fullRange.left, (Token)ltree.fullRange.right, (byte)0);
          MerkleTree.Hashable lnode = ltree.find(active);
          MerkleTree.Hashable rnode = rtree.find(active);
          byte[] lhash = lnode.hash();
@@ -218,7 +218,7 @@ public class MerkleTree implements Serializable {
    }
 
    public MerkleTree.TreeRange get(Token t) {
-      return this.getHelper(this.root, (Token)this.fullRange.left, (Token)this.fullRange.right, 0, t);
+      return this.getHelper(this.root, (Token)this.fullRange.left, (Token)this.fullRange.right, (byte)0, t);
    }
 
    MerkleTree.TreeRange getHelper(MerkleTree.Hashable hashable, Token pleft, Token pright, byte depth, Token t) {
@@ -300,7 +300,7 @@ public class MerkleTree implements Serializable {
          return false;
       } else {
          try {
-            this.root = this.splitHelper(this.root, (Token)this.fullRange.left, (Token)this.fullRange.right, 0, t);
+            this.root = this.splitHelper(this.root, (Token)this.fullRange.left, (Token)this.fullRange.right, (byte)0, t);
             return true;
          } catch (MerkleTree.StopRecursion.TooDeep var3) {
             return false;
@@ -671,7 +671,7 @@ public class MerkleTree implements Serializable {
       private final MerkleTree tree;
 
       TreeRangeIterator(MerkleTree tree) {
-         this.tovisit.add(new MerkleTree.TreeRange(tree, (Token)tree.fullRange.left, (Token)tree.fullRange.right, 0, tree.root));
+         this.tovisit.add(new MerkleTree.TreeRange(tree, (Token)tree.fullRange.left, (Token)tree.fullRange.right, (byte)0, tree.root));
          this.tree = tree;
       }
 

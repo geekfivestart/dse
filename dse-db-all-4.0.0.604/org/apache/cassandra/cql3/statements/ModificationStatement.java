@@ -364,7 +364,7 @@ public abstract class ModificationStatement implements CQLStatement, TableStatem
       CQL3CasRequest request = this.makeCasRequest(queryState, options);
       Single<ResultMessage> result = Single.defer(() -> {
          return this.buildCasResultSet(StorageProxy.cas(this.keyspace(), this.columnFamily(), request.key, request, options.getSerialConsistency(), options.getConsistency(), queryState.getClientState(), queryStartNanoTime), options);
-      }).map(ResultMessage.Rows::<init>);
+      }).map(ResultMessage.Rows::new);
       return RxThreads.subscribeOnIo(result, TPCTaskType.CAS);
    }
 
@@ -479,7 +479,7 @@ public abstract class ModificationStatement implements CQLStatement, TableStatem
       CQL3CasRequest request = this.makeCasRequest(state, options);
       return casInternal(request, state).flatMap((result) -> {
          return this.buildCasResultSet(result, options);
-      }).map(ResultMessage.Rows::<init>);
+      }).map(ResultMessage.Rows::new);
    }
 
    static Single<Optional<RowIterator>> casInternal(CQL3CasRequest request, QueryState state) {
@@ -513,74 +513,48 @@ public abstract class ModificationStatement implements CQLStatement, TableStatem
 
    final Completable addUpdates(UpdatesCollector collector, QueryOptions options, boolean local, long now, long queryStartNanoTime) {
       List<ByteBuffer> keys = this.buildPartitionKeyNames(options);
-      Single paramsSingle;
-      if(this.hasSlices()) {
+      if (this.hasSlices()) {
          Slices slices = this.createSlices(options);
-         if(slices.isEmpty()) {
+         if (slices.isEmpty()) {
             return Completable.complete();
-         } else {
-            paramsSingle = this.makeUpdateParameters(keys, new ClusteringIndexSliceFilter(slices, false), options, DataLimits.NONE, local, now, queryStartNanoTime);
-            return paramsSingle.flatMapCompletable((params) -> {
-               Iterator var6 = keys.iterator();
-
-               while(var6.hasNext()) {
-                  ByteBuffer key = (ByteBuffer)var6.next();
-                  Validation.validateKey(this.metadata(), key);
-                  DecoratedKey dk = this.metadata().partitioner.decorateKey(key);
-                  PartitionUpdate upd = collector.getPartitionUpdate(this.metadata(), dk, options.getConsistency());
-                  Iterator var10 = slices.iterator();
-
-                  while(var10.hasNext()) {
-                     Slice slice = (Slice)var10.next();
-                     this.addUpdateForKey(upd, slice, params);
-                  }
-               }
-
-               return Completable.complete();
-            });
          }
-      } else {
-         NavigableSet<Clustering> clusterings = this.createClustering(options);
-         if(this.restrictions.hasClusteringColumnsRestrictions() && clusterings.isEmpty()) {
+         Single<UpdateParameters> paramsSingle = this.makeUpdateParameters(keys, new ClusteringIndexSliceFilter(slices, false), options, DataLimits.NONE, local, now, queryStartNanoTime);
+         return paramsSingle.flatMapCompletable(params -> {
+            for (ByteBuffer key : keys) {
+               Validation.validateKey(this.metadata(), key);
+               DecoratedKey dk = this.metadata().partitioner.decorateKey(key);
+               PartitionUpdate upd = collector.getPartitionUpdate(this.metadata(), dk, options.getConsistency());
+               for (Slice slice : slices) {
+                  this.addUpdateForKey(upd, slice, params);
+               }
+            }
             return Completable.complete();
-         } else {
-            paramsSingle = this.makeUpdateParameters(keys, clusterings, options, local, now, queryStartNanoTime);
-            return paramsSingle.flatMapCompletable((params) -> {
-               Iterator var6 = keys.iterator();
-
-               while(true) {
-                  while(var6.hasNext()) {
-                     ByteBuffer key = (ByteBuffer)var6.next();
-                     Validation.validateKey(this.metadata(), key);
-                     DecoratedKey dk = this.metadata().partitioner.decorateKey(key);
-                     PartitionUpdate upd = collector.getPartitionUpdate(this.metadata, dk, options.getConsistency());
-                     if(!this.restrictions.hasClusteringColumnsRestrictions()) {
-                        this.addUpdateForKey(upd, Clustering.EMPTY, params);
-                     } else {
-                        Iterator var10 = clusterings.iterator();
-
-                        while(var10.hasNext()) {
-                           Clustering clustering = (Clustering)var10.next();
-                           ByteBuffer[] var12 = clustering.getRawValues();
-                           int var13 = var12.length;
-
-                           for(int var14 = 0; var14 < var13; ++var14) {
-                              ByteBuffer c = var12[var14];
-                              if(c != null && c.remaining() > '\uffff') {
-                                 throw new InvalidRequestException(String.format("Key length of %d is longer than maximum of %d", new Object[]{Integer.valueOf(clustering.dataSize()), Integer.valueOf('\uffff')}));
-                              }
-                           }
-
-                           this.addUpdateForKey(upd, clustering, params);
-                        }
-                     }
-                  }
-
-                  return Completable.complete();
-               }
-            });
-         }
+         });
       }
+      NavigableSet<Clustering> clusterings = this.createClustering(options);
+      if (this.restrictions.hasClusteringColumnsRestrictions() && clusterings.isEmpty()) {
+         return Completable.complete();
+      }
+      Single<UpdateParameters> paramsSingle = this.makeUpdateParameters(keys, clusterings, options, local, now, queryStartNanoTime);
+      return paramsSingle.flatMapCompletable(params -> {
+         for (ByteBuffer key : keys) {
+            Validation.validateKey(this.metadata(), key);
+            DecoratedKey dk = this.metadata().partitioner.decorateKey(key);
+            PartitionUpdate upd = collector.getPartitionUpdate(this.metadata, dk, options.getConsistency());
+            if (!this.restrictions.hasClusteringColumnsRestrictions()) {
+               this.addUpdateForKey(upd, Clustering.EMPTY, params);
+               continue;
+            }
+            for (Clustering clustering : clusterings) {
+               for (ByteBuffer c : clustering.getRawValues()) {
+                  if (c == null || c.remaining() <= 65535) continue;
+                  throw new InvalidRequestException(String.format("Key length of %d is longer than maximum of %d", clustering.dataSize(), 65535));
+               }
+               this.addUpdateForKey(upd, clustering, params);
+            }
+         }
+         return Completable.complete();
+      });
    }
 
    Slices createSlices(QueryOptions options) {

@@ -13,24 +13,24 @@ public enum Stage {
 
    private Stage() {
    }
-
-   public String getJmxType() {
-      switch(null.$SwitchMap$org$apache$cassandra$concurrent$Stage[this.ordinal()]) {
-      case 1:
-      case 2:
-      case 3:
-      case 4:
-      case 5:
-      case 6:
-         return "internal";
-      case 7:
-      case 8:
-      case 9:
-         return "request";
-      default:
-         throw new AssertionError("Unknown stage " + this);
-      }
-   }
+    public String getJmxType() {
+        switch (this) {
+            case ANTI_ENTROPY:
+            case GOSSIP:
+            case MIGRATION:
+            case MISC:
+            case INTERNAL_RESPONSE:
+            case BACKGROUND_IO: {
+                return "internal";
+            }
+            case REQUEST_RESPONSE:
+            case READ_REPAIR:
+            case AUTHZ: {
+                return "request";
+            }
+        }
+        throw new AssertionError((Object)("Unknown stage " + (Object)((Object)this)));
+    }
 
    public String getJmxName() {
       String name = "";

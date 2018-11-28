@@ -56,27 +56,23 @@ public class BTree {
    }
 
    private static <C, K extends C, V extends C> Object[] buildInternal(Iterable<K> source, int size, UpdateFunction<K, V> updateF) {
-      if(!(size >= 0 & size < FAN_FACTOR)) {
-         TreeBuilder builder = TreeBuilder.newInstance();
-         Object[] btree = builder.build(source, updateF, size);
-         return btree;
-      } else if(size == 0) {
-         return EMPTY_LEAF;
-      } else {
-         V[] values = (Object[])(new Object[size | 1]);
-         int i = 0;
-
-         Object k;
-         for(Iterator var5 = source.iterator(); var5.hasNext(); values[i++] = updateF.apply(k)) {
-            k = var5.next();
+      if (size >= 0 & size < FAN_FACTOR) {
+         if (size == 0) {
+            return EMPTY_LEAF;
          }
-
-         if(updateF != UpdateFunction.noOp()) {
+         Object[] values = new Object[size | 1];
+         int i = 0;
+         for (K k : source) {
+            values[i++] = updateF.apply(k);
+         }
+         if (updateF != UpdateFunction.noOp()) {
             updateF.allocated(ObjectSizes.sizeOfArray(values));
          }
-
          return values;
       }
+      TreeBuilder builder = TreeBuilder.newInstance();
+      Object[] btree = builder.build(source, updateF, size);
+      return btree;
    }
 
    public static <C, K extends C, V extends C> Object[] update(Object[] btree, Comparator<C> comparator, Collection<K> updateWith, UpdateFunction<K, V> updateF) {
@@ -150,20 +146,16 @@ public class BTree {
    }
 
    public static <V> V find(Object[] node, Comparator<? super V> comparator, V find) {
-      while(true) {
-         int keyEnd = getKeyEnd(node);
-         int i = Arrays.binarySearch((Object[])node, 0, keyEnd, find, comparator);
-         if(i >= 0) {
-            return node[i];
-         }
-
-         if(isLeaf(node)) {
+      int i;
+      int keyEnd;
+      while ((i = Arrays.<Object>binarySearch(node, 0, keyEnd = BTree.getKeyEnd(node), find, (Comparator<? super Object>)comparator)) < 0) {
+         if (BTree.isLeaf(node)) {
             return null;
          }
-
          i = -1 - i;
-         node = (Object[])((Object[])node[keyEnd + i]);
+         node = (Object[])node[keyEnd + i];
       }
+      return (V)node[i];
    }
 
    public static <V> void replaceInSitu(Object[] tree, int index, V replace) {
@@ -198,7 +190,7 @@ public class BTree {
    public static <V> void replaceInSitu(Object[] node, Comparator<? super V> comparator, V find, V replace) {
       while(true) {
          int keyEnd = getKeyEnd(node);
-         int i = Arrays.binarySearch((Object[])node, 0, keyEnd, find, comparator);
+         int i = Arrays.<Object>binarySearch(node, 0, keyEnd, find, (Comparator<? super Object>)comparator);
          if(i >= 0) {
             assert find == node[i];
 
@@ -215,63 +207,53 @@ public class BTree {
       }
    }
 
-   public static <V> int findIndex(Object[] node, Comparator<? super V> comparator, V find) {
+   public static <V> int findIndex(Object[] node, final Comparator<? super V> comparator, final V find) {
       int lb = 0;
-
-      while(true) {
-         int keyEnd = getKeyEnd(node);
-         int i = Arrays.binarySearch((Object[])node, 0, keyEnd, find, comparator);
-         boolean exact = i >= 0;
-         if(isLeaf(node)) {
-            return exact?lb + i:i - lb;
+      while (true) {
+         final int keyEnd = getKeyEnd(node);
+         int i = Arrays.binarySearch(node, 0, keyEnd, find, (Comparator<? super Object>)comparator);
+         final boolean exact = i >= 0;
+         if (isLeaf(node)) {
+            return exact ? (lb + i) : (i - lb);
          }
-
-         if(!exact) {
+         if (!exact) {
             i = -1 - i;
          }
-
-         int[] sizeMap = getSizeMap(node);
-         if(exact) {
+         final int[] sizeMap = getSizeMap(node);
+         if (exact) {
             return lb + sizeMap[i];
          }
-
-         if(i > 0) {
+         if (i > 0) {
             lb += sizeMap[i - 1] + 1;
          }
-
-         node = (Object[])((Object[])node[keyEnd + i]);
+         node = (Object[])node[keyEnd + i];
       }
    }
 
-   public static <V> V findByIndex(Object[] tree, int index) {
-      if(index < 0 | index >= size(tree)) {
+   public static <V> V findByIndex(final Object[] tree, int index) {
+      if (index < 0 | index >= size(tree)) {
          throw new IndexOutOfBoundsException(index + " not in range [0.." + size(tree) + ")");
-      } else {
-         Object[] node;
-         int boundary;
-         for(node = tree; !isLeaf(node); node = (Object[])((Object[])node[getChildStart(node) + boundary])) {
-            int[] sizeMap = getSizeMap(node);
-            boundary = Arrays.binarySearch(sizeMap, index);
-            if(boundary >= 0) {
-               assert boundary < sizeMap.length - 1;
-
-               return node[boundary];
-            }
-
+      }
+      Object[] node = tree;
+      while (!isLeaf(node)) {
+         final int[] sizeMap = getSizeMap(node);
+         int boundary = Arrays.binarySearch(sizeMap, index);
+         if (boundary >= 0) {
+            assert boundary < sizeMap.length - 1;
+            return (V)node[boundary];
+         }
+         else {
             boundary = -1 - boundary;
-            if(boundary > 0) {
+            if (boundary > 0) {
                assert boundary < sizeMap.length;
-
                index -= 1 + sizeMap[boundary - 1];
             }
+            node = (Object[])node[getChildStart(node) + boundary];
          }
-
-         int keyEnd = getLeafKeyEnd(node);
-
-         assert index < keyEnd;
-
-         return node[index];
       }
+      final int keyEnd = getLeafKeyEnd(node);
+      assert index < keyEnd;
+      return (V)node[index];
    }
 
    public static <V> int lowerIndex(Object[] btree, Comparator<? super V> comparator, V find) {
@@ -438,7 +420,7 @@ public class BTree {
       if(isEmpty(btree)) {
          return btree;
       } else {
-         BTree.FiltrationTracker<V> wrapped = new BTree.FiltrationTracker(function, null);
+         BTree.FiltrationTracker<V> wrapped = new BTree.FiltrationTracker(function);
          Object[] result = transformAndFilter(btree, wrapped);
          if(!wrapped.failed) {
             return result;
@@ -463,7 +445,7 @@ public class BTree {
       for(int i = 0; i < limit; ++i) {
          int idx = isLeaf?i:i / 2 + (i % 2 == 0?childOffset:0);
          Object current = btree[idx];
-         Object updated = idx < childOffset?function.apply(current):transformAndFilter((Object[])((Object[])current), function);
+         Object updated = idx < childOffset?function.apply((V)current):transformAndFilter((Object[])((Object[])current), function);
          if(updated != current) {
             if(result == btree) {
                result = (Object[])btree.clone();
@@ -527,7 +509,7 @@ public class BTree {
    }
 
    static <V> int compare(Comparator<V> cmp, Object a, Object b) {
-      return a == b?0:(a == NEGATIVE_INFINITY | b == POSITIVE_INFINITY?-1:(b == NEGATIVE_INFINITY | a == POSITIVE_INFINITY?1:cmp.compare(a, b)));
+      return a == b?0:(a == NEGATIVE_INFINITY | b == POSITIVE_INFINITY?-1:(b == NEGATIVE_INFINITY | a == POSITIVE_INFINITY?1:cmp.compare((V)a, (V)b)));
    }
 
    public static boolean isWellFormed(Object[] btree, Comparator<? extends Object> cmp) {
@@ -607,11 +589,11 @@ public class BTree {
          int idx = isLeaf?i:i / 2 + (i % 2 == 0?childOffset:0);
          Object current = btree[idx];
          if(idx < childOffset) {
-            if(stopCondition != null && stopCondition.apply(current)) {
+            if(stopCondition != null && stopCondition.apply((V)current)) {
                return true;
             }
 
-            function.accept(current);
+            function.accept((V)current);
          } else if(applyForwards((Object[])((Object[])current), function, stopCondition)) {
             return true;
          }
@@ -643,11 +625,11 @@ public class BTree {
                return true;
             }
          } else {
-            if(stopCondition != null && stopCondition.apply(current)) {
+            if(stopCondition != null && stopCondition.apply((V)current)) {
                return true;
             }
 
-            function.accept(current);
+            function.accept((V)current);
          }
 
          --i;
@@ -665,7 +647,7 @@ public class BTree {
          int idx = isLeaf?i:i / 2 + (i % 2 == 0?childOffset:0);
          Object current = btree[idx];
          if(idx < childOffset) {
-            seed = function.apply(seed, current);
+            seed = function.apply(seed, (V)current);
          } else {
             seed = reduce((Object[])((Object[])current), seed, function);
          }
@@ -696,7 +678,7 @@ public class BTree {
       EMPTY_BRANCH = new Object[]{null, new int[0]};
       builderRecycler = new Recycler<BTree.Builder>() {
          protected BTree.Builder newObject(Handle handle) {
-            return new BTree.Builder(handle, null);
+            return new BTree.Builder(handle);
          }
       };
       POSITIVE_INFINITY = new Object();
@@ -780,7 +762,7 @@ public class BTree {
          int prevCount = this.count++;
          values[prevCount] = v;
          if(this.auto && this.detected && prevCount > 0) {
-            V prev = values[prevCount - 1];
+            V prev = (V)values[prevCount - 1];
             int c = this.comparator.compare(prev, v);
             if(c == 0 && this.auto) {
                this.count = prevCount;
@@ -844,68 +826,56 @@ public class BTree {
          return this.mergeAll(addCount);
       }
 
-      private BTree.Builder<V> mergeAll(int addCount) {
+      private Builder<V> mergeAll(int addCount) {
+         int i;
          Object[] a = this.values;
          int addOffset = this.count;
-         int i = 0;
          int j = addOffset;
          int curEnd = addOffset;
-
-         int addEnd;
-         Object ai;
-         for(addEnd = addOffset + addCount; i < curEnd && j < addEnd; ++i) {
-            V ai = a[i];
-            ai = a[j];
-            int c = ai == ai?0:this.comparator.compare(ai, ai);
-            if(c > 0) {
-               break;
+         int addEnd = addOffset + addCount;
+         for (i = 0; i < curEnd && j < addEnd; ++i) {
+            int c;
+            V ai = (V)a[i];
+            V aj = (V)a[j];
+            int n = c = ai == aj ? 0 : this.comparator.compare(ai, aj);
+            if (c > 0) break;
+            if (c != 0) continue;
+            if (this.quickResolver != null) {
+               a[i] = this.quickResolver.resolve(ai, aj);
             }
-
-            if(c == 0) {
-               if(this.quickResolver != null) {
-                  a[i] = this.quickResolver.resolve(ai, ai);
-               }
-
+            ++j;
+         }
+         if (j == addEnd) {
+            return this;
+         }
+         int newCount = i;
+         System.arraycopy(a, i, a, addEnd, this.count - i);
+         curEnd = addEnd + (this.count - i);
+         i = addEnd;
+         while (i < curEnd && j < addEnd) {
+            V ai = (V)a[i];
+            V aj = (V)a[j];
+            int c = this.comparator.compare(ai, aj);
+            if (c == 0) {
+               Object newValue = this.quickResolver == null ? ai : this.quickResolver.resolve(ai, aj);
+               a[newCount++] = newValue;
+               ++i;
                ++j;
+               continue;
             }
+            a[newCount++] = c < 0 ? a[i++] : a[j++];
          }
-
-         if(j == addEnd) {
-            return this;
-         } else {
-            int newCount = i;
-            System.arraycopy(a, i, a, addEnd, this.count - i);
-            curEnd = addEnd + (this.count - i);
-            i = addEnd;
-
-            while(i < curEnd && j < addEnd) {
-               ai = a[i];
-               V aj = a[j];
-               int c = this.comparator.compare(ai, aj);
-               if(c == 0) {
-                  Object newValue = this.quickResolver == null?ai:this.quickResolver.resolve(ai, aj);
-                  a[newCount++] = newValue;
-                  ++i;
-                  ++j;
-               } else {
-                  a[newCount++] = c < 0?a[i++]:a[j++];
-               }
+         if (i < curEnd) {
+            System.arraycopy(a, i, a, newCount, curEnd - i);
+            newCount += curEnd - i;
+         } else if (j < addEnd) {
+            if (j != newCount) {
+               System.arraycopy(a, j, a, newCount, addEnd - j);
             }
-
-            if(i < curEnd) {
-               System.arraycopy(a, i, a, newCount, curEnd - i);
-               newCount += curEnd - i;
-            } else if(j < addEnd) {
-               if(j != newCount) {
-                  System.arraycopy(a, j, a, newCount, addEnd - j);
-               }
-
-               newCount += addEnd - j;
-            }
-
-            this.count = newCount;
-            return this;
+            newCount += addEnd - j;
          }
+         this.count = newCount;
+         return this;
       }
 
       public boolean isEmpty() {
@@ -927,49 +897,42 @@ public class BTree {
       }
 
       public BTree.Builder<V> sort() {
-         Arrays.sort((Object[])this.values, 0, this.count, this.comparator);
+         Arrays.sort((V[])this.values, 0, this.count, this.comparator);
          return this;
       }
 
       private void autoEnforce() {
-         if(!this.detected && this.count > 1) {
+         if (!this.detected && this.count > 1) {
             this.sort();
             int prevIdx = 0;
-            V prev = this.values[0];
-
-            for(int i = 1; i < this.count; ++i) {
-               V next = this.values[i];
-               if(this.comparator.compare(prev, next) != 0) {
-                  ++prevIdx;
-                  prev = next;
-                  this.values[prevIdx] = next;
-               } else if(this.quickResolver != null) {
-                  this.values[prevIdx] = prev = this.quickResolver.resolve(prev, next);
+            V prev = (V)this.values[0];
+            for (int i = 1; i < this.count; ++i) {
+               final V next = (V)this.values[i];
+               if (this.comparator.compare((V)prev, (V)next) != 0) {
+                  prev = (V)(this.values[++prevIdx] = next);
+               }
+               else if (this.quickResolver != null) {
+                  prev = (V)(this.values[prevIdx] = this.quickResolver.resolve(prev, next));
                }
             }
-
             this.count = prevIdx + 1;
          }
-
          this.detected = true;
       }
 
-      public BTree.Builder<V> resolve(BTree.Builder.Resolver resolver) {
-         if(this.count > 0) {
+      public Builder<V> resolve(final Resolver resolver) {
+         if (this.count > 0) {
             int c = 0;
             int prev = 0;
-
-            for(int i = 1; i < this.count; ++i) {
-               if(this.comparator.compare(this.values[i], this.values[prev]) != 0) {
-                  this.values[c++] = resolver.resolve((Object[])this.values, prev, i);
+            for (int i = 1; i < this.count; ++i) {
+               if (this.comparator.compare((V)this.values[i], (V)this.values[prev]) != 0) {
+                  this.values[c++] = resolver.resolve(this.values, prev, i);
                   prev = i;
                }
             }
-
-            this.values[c++] = resolver.resolve((Object[])this.values, prev, this.count);
+            this.values[c++] = resolver.resolve(this.values, prev, this.count);
             this.count = c;
          }
-
          return this;
       }
 

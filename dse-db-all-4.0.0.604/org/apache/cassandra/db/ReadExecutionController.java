@@ -84,7 +84,7 @@ public class ReadExecutionController implements AutoCloseable {
 
    private static ColumnFamilyStore maybeGetIndexCfs(ColumnFamilyStore baseCfs, ReadCommand command) {
       Index index = command.getIndex(baseCfs);
-      return index == null?null:(ColumnFamilyStore)index.getBackingTable().orElse((Object)null);
+      return index == null?null:(ColumnFamilyStore)index.getBackingTable().orElse(null);
    }
 
    public TableMetadata metadata() {

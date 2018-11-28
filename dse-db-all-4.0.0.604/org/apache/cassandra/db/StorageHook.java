@@ -11,7 +11,7 @@ public interface StorageHook {
 
    void reportRead(TableId var1, DecoratedKey var2);
 
-   static default StorageHook createHook() {
+   public static StorageHook createHook() {
       String className = System.getProperty("cassandra.storage_hook");
       return className != null?(StorageHook)FBUtilities.construct(className, StorageHook.class.getSimpleName()):new StorageHook() {
          public void reportWrite(TableId tableId, PartitionUpdate partitionUpdate) {

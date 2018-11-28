@@ -380,7 +380,7 @@ public class ActiveRepairService implements IEndpointStateChangeSubscriber, IFai
       ColumnFamilyStore store = ColumnFamilyStore.getIfExists(desc.keyspace, desc.columnFamily);
       if(store == null) {
          logger.error("Table {}.{} was dropped during snapshot phase of repair", desc.keyspace, desc.columnFamily);
-         MessagingService.instance().send(Verbs.REPAIR.VALIDATION_COMPLETE.newRequest(from, (Object)(new ValidationComplete(desc))));
+         MessagingService.instance().send(Verbs.REPAIR.VALIDATION_COMPLETE.newRequest(from, (new ValidationComplete(desc))));
       } else {
          instance.consistent.local.maybeSetRepairing(desc.parentSessionId);
          Validator validator = new Validator(desc, from, request.nowInSec, this.isIncremental(desc.parentSessionId), this.previewKind(desc.parentSessionId));
@@ -536,23 +536,20 @@ public class ActiveRepairService implements IEndpointStateChangeSubscriber, IFai
       }
 
       public Predicate<SSTableReader> getPreviewPredicate() {
-         switch(null.$SwitchMap$org$apache$cassandra$streaming$PreviewKind[this.previewKind.ordinal()]) {
-         case 1:
-            return (s) -> {
-               return true;
-            };
-         case 2:
-            return (s) -> {
-               return s.isRepaired();
-            };
-         case 3:
-            return (s) -> {
-               return !s.isRepaired();
-            };
-         default:
-            throw new RuntimeException("Can't get preview predicate for preview kind " + this.previewKind);
+         switch (this.previewKind) {
+            case ALL: {
+               return s -> true;
+            }
+            case REPAIRED: {
+               return s -> s.isRepaired();
+            }
+            case UNREPAIRED: {
+               return s -> !s.isRepaired();
+            }
          }
+         throw new RuntimeException("Can't get preview predicate for preview kind " + (Object)((Object)this.previewKind));
       }
+
 
       public synchronized void maybeSnapshot(TableId tableId, UUID parentSessionId) {
          String snapshotName = parentSessionId.toString();
@@ -567,7 +564,7 @@ public class ActiveRepairService implements IEndpointStateChangeSubscriber, IFai
       }
 
       public Collection<ColumnFamilyStore> getColumnFamilyStores() {
-         return ImmutableSet.builder().addAll(this.columnFamilyStores.values()).build();
+         return ImmutableSet.<ColumnFamilyStore>builder().addAll(this.columnFamilyStores.values()).build();
       }
 
       public Set<TableId> getTableIds() {

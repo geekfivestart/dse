@@ -192,50 +192,41 @@ public class CompactionController implements AutoCloseable {
       return this.cfs.name;
    }
 
-   public LongPredicate getPurgeEvaluator(DecoratedKey key) {
-      if(!NEVER_PURGE_TOMBSTONES && this.compactingRepaired()) {
-         this.overlapIterator.update(key);
-         Set<SSTableReader> filteredSSTables = this.overlapIterator.overlaps();
-         Iterable<Memtable> memtables = this.cfs.getTracker().getView().getAllMemtables();
-         long minTimestampSeen = 9223372036854775807L;
-         boolean hasTimestamp = false;
-         Iterator var7 = filteredSSTables.iterator();
-
-         while(var7.hasNext()) {
-            SSTableReader sstable = (SSTableReader)var7.next();
-            if(sstable.couldContain(key)) {
-               minTimestampSeen = Math.min(minTimestampSeen, sstable.getMinTimestamp());
-               hasTimestamp = true;
-            }
-         }
-
-         var7 = memtables.iterator();
-
-         while(var7.hasNext()) {
-            Memtable memtable = (Memtable)var7.next();
-
-            try {
-               Partition partition = (Partition)memtable.getPartition(key).blockingLast((Object)null);
-               if(partition != null) {
-                  minTimestampSeen = Math.min(minTimestampSeen, partition.stats().minTimestamp);
-                  hasTimestamp = true;
-               }
-            } catch (Exception var10) {
-               throw new RuntimeException(var10);
-            }
-         }
-
-         return !hasTimestamp?(time) -> {
-            return true;
-         }:(time) -> {
-            return time < minTimestampSeen;
-         };
-      } else {
-         return (time) -> {
-            return false;
-         };
+   public LongPredicate getPurgeEvaluator(final DecoratedKey key) {
+      if (CompactionController.NEVER_PURGE_TOMBSTONES || !this.compactingRepaired()) {
+         return time -> false;
       }
+      this.overlapIterator.update(key);
+      final Set<SSTableReader> filteredSSTables = this.overlapIterator.overlaps();
+      final Iterable<Memtable> memtables = this.cfs.getTracker().getView().getAllMemtables();
+      long minTimestampSeen = Long.MAX_VALUE;
+      boolean hasTimestamp = false;
+      for (final SSTableReader sstable : filteredSSTables) {
+         if (sstable.couldContain(key)) {
+            minTimestampSeen = Math.min(minTimestampSeen, sstable.getMinTimestamp());
+            hasTimestamp = true;
+         }
+      }
+      for (final Memtable memtable : memtables) {
+         try {
+            final Partition partition = memtable.getPartition(key).blockingLast(null);
+            if (partition == null) {
+               continue;
+            }
+            minTimestampSeen = Math.min(minTimestampSeen, partition.stats().minTimestamp);
+            hasTimestamp = true;
+         }
+         catch (Exception e) {
+            throw new RuntimeException(e);
+         }
+      }
+      if (!hasTimestamp) {
+         return time -> true;
+      }
+      final long finalTimestamp = minTimestampSeen;
+      return time -> time < finalTimestamp;
    }
+
 
    public void close() {
       if(this.overlappingSSTables != null) {

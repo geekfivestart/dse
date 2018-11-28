@@ -29,7 +29,7 @@ public class SaslClientDigestCallbackHandler implements CallbackHandler {
       for(int var5 = 0; var5 < var4; ++var5) {
          Callback callback = var3[var5];
          if(cls.isInstance(callback)) {
-            return (Callback)cls.cast(callback);
+            return (T)cls.cast(callback);
          }
       }
 

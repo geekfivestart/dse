@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 
 public class SigarUtil {
    private static final Logger logger = LoggerFactory.getLogger(SigarUtil.class);
-   public static final Supplier<Sigar> sigar = Suppliers.memoize(Sigar::<init>);
+   public static final Supplier<Sigar> sigar = Suppliers.memoize(Sigar::new);
 
    public SigarUtil() {
    }

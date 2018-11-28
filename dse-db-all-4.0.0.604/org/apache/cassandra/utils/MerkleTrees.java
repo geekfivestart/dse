@@ -61,7 +61,7 @@ public class MerkleTrees implements Iterable<Entry<Range<Token>, MerkleTree>> {
    }
 
    public MerkleTree addMerkleTree(int maxsize, Range<Token> range) {
-      return this.addMerkleTree(maxsize, 126, range);
+      return this.addMerkleTree(maxsize, (byte)126, range);
    }
 
    @VisibleForTesting

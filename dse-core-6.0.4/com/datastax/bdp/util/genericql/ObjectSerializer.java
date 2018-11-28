@@ -66,7 +66,7 @@ public class ObjectSerializer<T> {
       public final AbstractType type;
       public final Function<T, Object> accessor;
 
-      FieldSerializer(AbstractType this$0, Function<T, Object> type) {
+      FieldSerializer(AbstractType type, Function<T, Object> accessor) {
          this.type = type;
          this.accessor = accessor;
       }

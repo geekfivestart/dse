@@ -13,71 +13,89 @@ public interface ByteSource {
    int NEXT_COMPONENT_NULL_REVERSED = 65;
    int LT_NEXT_COMPONENT = 32;
    int GT_NEXT_COMPONENT = 96;
-   ByteSource MAX;
-   ByteSource EMPTY;
+   public static final ByteSource MAX = new ByteSource() {
+         public int next() {
+            return 255;
+         }
+
+         public void reset() {
+         }
+
+         public String toString() {
+            return "MAX";
+         }
+      };
+   public static final ByteSource EMPTY = new ByteSource.WithToString() {
+         public int next() {
+            return -1;
+         }
+
+         public void reset() {
+         }
+      };
    int NONE = -2;
 
    int next();
 
    void reset();
 
-   static default ByteSource of(ByteBuffer buf) {
+   public static ByteSource of(ByteBuffer buf) {
       return new ByteSource.Reinterpreter(buf);
    }
 
-   static default ByteSource of(byte[] buf) {
+   public static ByteSource of(byte[] buf) {
       return new ByteSource.ReinterpreterArray(buf);
    }
 
-   static default ByteSource of(ByteSource... srcs) {
+   public static ByteSource of(ByteSource... srcs) {
       return new ByteSource.Multi(srcs);
    }
 
-   static default ByteSource withTerminator(int terminator, ByteSource... srcs) {
+   public static ByteSource withTerminator(int terminator, ByteSource... srcs) {
       return new ByteSource.Multi(srcs, terminator);
    }
 
-   static default ByteSource of(String s) {
+   public static ByteSource of(String s) {
       return new ByteSource.ReinterpreterArray(s.getBytes(StandardCharsets.UTF_8));
    }
 
-   static default ByteSource of(long value) {
+   public static ByteSource of(long value) {
       return new ByteSource.Number(value ^ -9223372036854775808L, 8);
    }
 
-   static default ByteSource of(int value) {
+   public static ByteSource of(int value) {
       return new ByteSource.Number((long)value ^ 2147483648L, 4);
    }
 
-   static default ByteSource optionalSignedFixedLengthNumber(ByteBuffer b) {
+   public static ByteSource optionalSignedFixedLengthNumber(ByteBuffer b) {
       return b.hasRemaining()?signedFixedLengthNumber(b):null;
    }
 
-   static default ByteSource signedFixedLengthNumber(ByteBuffer b) {
+   public static ByteSource signedFixedLengthNumber(ByteBuffer b) {
       return new ByteSource.SignedFixedLengthNumber(b);
    }
 
-   static default ByteSource optionalSignedFixedLengthFloat(ByteBuffer b) {
+   public static ByteSource optionalSignedFixedLengthFloat(ByteBuffer b) {
       return b.hasRemaining()?signedFixedLengthFloat(b):null;
    }
 
-   static default ByteSource signedFixedLengthFloat(ByteBuffer b) {
+   public static ByteSource signedFixedLengthFloat(ByteBuffer b) {
       return new ByteSource.SignedFixedLengthFloat(b);
    }
 
-   static default ByteSource empty() {
+   public static ByteSource empty() {
       return EMPTY;
    }
 
-   static default ByteSource separatorPrefix(ByteSource prevMax, ByteSource currMin) {
+   public static ByteSource separatorPrefix(ByteSource prevMax, ByteSource currMin) {
       return new ByteSource.Separator(prevMax, currMin, true);
    }
 
-   static default ByteSource separatorGt(ByteSource prevMax, ByteSource currMin) {
+   public static ByteSource separatorGt(ByteSource prevMax, ByteSource currMin) {
       return new ByteSource.Separator(prevMax, currMin, false);
    }
 
-   static default int compare(ByteSource bs1, ByteSource bs2) {
+   public static int compare(ByteSource bs1, ByteSource bs2) {
       if(bs1 != null && bs2 != null) {
          bs1.reset();
          bs2.reset();
@@ -98,30 +116,28 @@ public interface ByteSource {
       }
    }
 
-   static default ByteSource oneByte(final int i) {
-      if(null.$assertionsDisabled || i >= 0 && i <= 255) {
-         return new ByteSource.WithToString() {
-            boolean given = false;
+   public static ByteSource oneByte(final int i) {
+      assert i >= 0 && i <= 255;
+      return new WithToString() {
+         boolean given = false;
 
-            public int next() {
-               if(this.given) {
-                  return -1;
-               } else {
-                  this.given = true;
-                  return i;
-               }
+         @Override
+         public int next() {
+            if (this.given) {
+               return -1;
             }
+            this.given = true;
+            return i;
+         }
 
-            public void reset() {
-               this.given = false;
-            }
-         };
-      } else {
-         throw new AssertionError();
-      }
+         @Override
+         public void reset() {
+            this.given = false;
+         }
+      };
    }
 
-   static default ByteSource cut(final ByteSource src, final int cutoff) {
+   public static ByteSource cut(final ByteSource src, final int cutoff) {
       return new ByteSource.WithToString() {
          int pos = 0;
 
@@ -136,7 +152,7 @@ public interface ByteSource {
       };
    }
 
-   static default int diffPoint(ByteSource s1, ByteSource s2) {
+   public static int diffPoint(ByteSource s1, ByteSource s2) {
       s1.reset();
       s2.reset();
 
@@ -149,15 +165,15 @@ public interface ByteSource {
       return pos;
    }
 
-   static default ByteSource max() {
+   public static ByteSource max() {
       return MAX;
    }
 
-   static default ByteSource optionalFixedLength(ByteBuffer b) {
+   public static ByteSource optionalFixedLength(ByteBuffer b) {
       return b.hasRemaining()?fixedLength(b):null;
    }
 
-   static default ByteSource fixedLength(final ByteBuffer b) {
+   public static ByteSource fixedLength(final ByteBuffer b) {
       return new ByteSource.WithToString() {
          int pos = b.position() - 1;
 
@@ -171,7 +187,7 @@ public interface ByteSource {
       };
    }
 
-   static default ByteSource fourBit(final ByteSource s) {
+   public static ByteSource fourBit(final ByteSource s) {
       return new ByteSource.WithToString() {
          int pos = 0;
          int v = 0;
@@ -192,7 +208,7 @@ public interface ByteSource {
       };
    }
 
-   static default ByteSource splitBytes(final ByteSource s, final int bitCount) {
+   public static ByteSource splitBytes(final ByteSource s, final int bitCount) {
       return new ByteSource.WithToString() {
          int pos = 8;
          int v = 0;
@@ -218,32 +234,7 @@ public interface ByteSource {
       };
    }
 
-   static default {
-      if(null.$assertionsDisabled) {
-         ;
-      }
 
-      MAX = new ByteSource() {
-         public int next() {
-            return 255;
-         }
-
-         public void reset() {
-         }
-
-         public String toString() {
-            return "MAX";
-         }
-      };
-      EMPTY = new ByteSource.WithToString() {
-         public int next() {
-            return -1;
-         }
-
-         public void reset() {
-         }
-      };
-   }
 
    public static class Separator extends ByteSource.WithToString {
       final ByteSource prev;

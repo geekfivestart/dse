@@ -36,14 +36,9 @@ public abstract class VerbGroup<V extends Enum<V> & Version<V>> implements Itera
       this.isInternal = isInternal;
       this.versionClass = versionClass;
       this.versionedSerializers = new EnumMap(versionClass);
-      Enum[] var4 = (Enum[])versionClass.getEnumConstants();
-      int var5 = var4.length;
-
-      for(int var6 = 0; var6 < var5; ++var6) {
-         V v = var4[var6];
-         this.versionedSerializers.put(v, new VersionSerializers(id.name(), (Version)v));
+      for (V v : versionClass.getEnumConstants()) {
+         this.versionedSerializers.put(v, new VersionSerializers(id.name(), (Version)((Object)v)));
       }
-
    }
 
    public Verbs.Group id() {
@@ -108,8 +103,8 @@ public abstract class VerbGroup<V extends Enum<V> & Version<V>> implements Itera
          Field field = klass.getField("serializers");
          if(field.getType().equals(Versioned.class) && Modifier.isStatic(field.getModifiers())) {
             Versioned<V, Serializer<T>> versioned = (Versioned)field.get((Object)null);
-            return (x$0) -> {
-               return (Serializer)versioned.get((Enum)x$0);
+            return (x) -> {
+               return (Serializer)versioned.get(x);
             };
          } else {
             return null;
@@ -169,8 +164,8 @@ public abstract class VerbGroup<V extends Enum<V> & Version<V>> implements Itera
       }
 
       public class MonitoredRequestResponseBuilder<P extends Monitorable, Q> extends VerbGroup<V>.RegistrationHelper.VerbBuilder<P, Q, VerbGroup<V>.RegistrationHelper.MonitoredRequestResponseBuilder<P, Q>> {
-         private MonitoredRequestResponseBuilder(String this$1, int name, Class<P> groupIdx, Class<Q> requestClass) {
-            super(name, groupIdx, false, requestClass, responseClass, null);
+         private MonitoredRequestResponseBuilder(String name, int groupIdx, Class<P> requestClass, Class<Q> responseClass) {
+            super(name, groupIdx, false, requestClass, responseClass);
          }
 
          public Verb.RequestResponse<P, Q> handler(VerbHandlers.MonitoredRequestResponse<P, Q> handler) {
@@ -183,8 +178,8 @@ public abstract class VerbGroup<V extends Enum<V> & Version<V>> implements Itera
       }
 
       public class RequestResponseBuilder<P, Q> extends VerbGroup<V>.RegistrationHelper.VerbBuilder<P, Q, VerbGroup<V>.RegistrationHelper.RequestResponseBuilder<P, Q>> {
-         private RequestResponseBuilder(String this$1, int name, Class<P> groupIdx, Class<Q> requestClass, boolean responseClass) {
-            super(name, groupIdx, false, requestClass, responseClass, null);
+         private RequestResponseBuilder(String name, int groupIdx, Class<P> requestClass, Class<Q> responseClass, boolean executeOnIOScheduler) {
+            super(name, groupIdx, false, requestClass, responseClass);
          }
 
          public Verb.RequestResponse<P, Q> handler(VerbHandlers.RequestResponse<P, Q> handler) {
@@ -197,8 +192,8 @@ public abstract class VerbGroup<V extends Enum<V> & Version<V>> implements Itera
       }
 
       public class AckedRequestBuilder<P> extends VerbGroup<V>.RegistrationHelper.VerbBuilder<P, EmptyPayload, VerbGroup<V>.RegistrationHelper.AckedRequestBuilder<P>> {
-         private AckedRequestBuilder(String this$1, int name, Class<P> groupIdx) {
-            super(name, groupIdx, false, requestClass, EmptyPayload.class, null);
+         private AckedRequestBuilder(String name, int groupIdx, Class<P> requestClass) {
+            super(name, groupIdx, false, requestClass, EmptyPayload.class);
          }
 
          public Verb.AckedRequest<P> handler(VerbHandlers.AckedRequest<P> handler) {
@@ -211,8 +206,8 @@ public abstract class VerbGroup<V extends Enum<V> & Version<V>> implements Itera
       }
 
       public class OneWayBuilder<P> extends VerbGroup<V>.RegistrationHelper.VerbBuilder<P, NoResponse, VerbGroup<V>.RegistrationHelper.OneWayBuilder<P>> {
-         private OneWayBuilder(String this$1, int name, Class<P> groupIdx) {
-            super(name, groupIdx, true, requestClass, NoResponse.class, null);
+         private OneWayBuilder(final String name, final int groupIdx, final Class<P> requestClass) {
+            super(name, groupIdx, true, (Class)requestClass, (Class)NoResponse.class);
          }
 
          public Verb.OneWay<P> handler(VerbHandler<P, NoResponse> handler) {
@@ -241,22 +236,22 @@ public abstract class VerbGroup<V extends Enum<V> & Version<V>> implements Itera
          private V untilVersion;
          private boolean supportsBackPressure;
 
-         private VerbBuilder(String this$1, int name, boolean groupIdx, Class<P> isOneWay, Class<Q> requestClass) {
+         private VerbBuilder(final String name, final int groupIdx, final boolean isOneWay, final Class<P> requestClass, final Class<Q> responseClass) {
             this.errorHandler = ErrorHandler.DEFAULT;
             this.name = name;
             this.groupIdx = groupIdx;
             this.isOneWay = isOneWay;
-            this.requestExecutor = VerbGroup.maybeGetRequestExecutor(requestClass, RegistrationHelper.this.defaultStage);
-            this.responseExecutor = VerbGroup.maybeGetResponseExecutor(requestClass, VerbGroup.this.isInternal);
-            this.requestSerializer = VerbGroup.maybeGetSerializer(requestClass);
-            this.responseSerializer = VerbGroup.maybeGetSerializer(responseClass);
+            this.requestExecutor = (ExecutorSupplier<P>)maybeGetRequestExecutor((Class<Object>)requestClass, RegistrationHelper.this.defaultStage);
+            this.responseExecutor = (ExecutorSupplier<P>)maybeGetResponseExecutor((Class<Object>)requestClass, VerbGroup.this.isInternal);
+            this.requestSerializer = (Serializer<P>)maybeGetSerializer((Class<Object>)requestClass);
+            this.responseSerializer = (Serializer<Q>)maybeGetSerializer((Class<Object>)responseClass);
             this.requestSerializerFct = VerbGroup.this.maybeGetVersionedSerializers(requestClass);
             this.responseSerializerFct = VerbGroup.this.maybeGetVersionedSerializers(responseClass);
             this.droppedGroup = RegistrationHelper.this.defaultDroppedGroup;
          }
 
          private T us() {
-            return this;
+            return (T)this;
          }
 
          public T timeout(TimeoutSupplier<P> supplier) {
@@ -378,34 +373,26 @@ public abstract class VerbGroup<V extends Enum<V> & Version<V>> implements Itera
 
          <X extends Verb<P, Q>> X add(X verb) {
             VerbGroup.this.verbs.add(verb);
-            Enum[] var2 = (Enum[])VerbGroup.this.versionClass.getEnumConstants();
-            int var3 = var2.length;
-
-            for(int var4 = 0; var4 < var3; ++var4) {
-               V v = var2[var4];
-               if(this.sinceVersion == null || v.compareTo(this.sinceVersion) >= 0) {
-                  if(this.untilVersion != null && v.compareTo(this.untilVersion) > 0) {
+            for (final V v : VerbGroup.this.versionClass.getEnumConstants()) {
+               if (this.sinceVersion == null || (v).compareTo(this.sinceVersion) >= 0) {
+                  if (this.untilVersion != null && (v).compareTo(this.untilVersion) > 0) {
                      break;
                   }
-
-                  int code = RegistrationHelper.this.versionCodes[v.ordinal()]++;
-                  Serializer<P> reqSerializer = this.requestSerializerFct == null?this.requestSerializer:(Serializer)this.requestSerializerFct.apply(v);
-                  if(reqSerializer == null) {
-                     throw new IllegalStateException(String.format("No request serializer defined for verb %s and no default one found.", new Object[]{this.name}));
+                  final int code = RegistrationHelper.this.versionCodes[((java.lang.Enum)v).ordinal()]++;
+                  final Serializer<P> reqSerializer = (this.requestSerializerFct == null) ? this.requestSerializer : this.requestSerializerFct.apply(v);
+                  if (reqSerializer == null) {
+                     throw new IllegalStateException(String.format("No request serializer defined for verb %s and no default one found.", this.name));
                   }
-
                   Serializer<Q> respSerializer = null;
-                  if(!this.isOneWay) {
-                     respSerializer = this.responseSerializerFct == null?this.responseSerializer:(Serializer)this.responseSerializerFct.apply(v);
-                     if(respSerializer == null) {
-                        throw new IllegalStateException(String.format("No response serializer defined for verb %s and no default one found.", new Object[]{this.name}));
+                  if (!this.isOneWay) {
+                     respSerializer = ((this.responseSerializerFct == null) ? this.responseSerializer : this.responseSerializerFct.apply(v));
+                     if (respSerializer == null) {
+                        throw new IllegalStateException(String.format("No response serializer defined for verb %s and no default one found.", this.name));
                      }
                   }
-
-                  ((VersionSerializers)VerbGroup.this.versionedSerializers.get(v)).add(verb, code, reqSerializer, respSerializer);
+                  VerbGroup.this.versionedSerializers.get(v).add(verb, code, reqSerializer, respSerializer);
                }
             }
-
             return verb;
          }
       }

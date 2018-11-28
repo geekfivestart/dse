@@ -35,55 +35,55 @@ public class ServerConnection extends Connection {
 
    public Single<QueryState> validateNewMessage(Message.Request request, ProtocolVersion version) {
       Message.Type type = request.type;
-      switch(null.$SwitchMap$org$apache$cassandra$transport$ServerConnection$State[this.state.ordinal()]) {
-      case 1:
-         if(type != Message.Type.STARTUP && type != Message.Type.OPTIONS) {
+      switch (this.state) {
+         case UNINITIALIZED: {
+            if (type == Message.Type.STARTUP || type == Message.Type.OPTIONS) break;
             throw new ProtocolException(String.format("Unexpected message %s, expecting STARTUP or OPTIONS", new Object[]{type}));
          }
-         break;
-      case 2:
-         if(type != Message.Type.AUTH_RESPONSE) {
+         case AUTHENTICATION: {
+            if (type == Message.Type.AUTH_RESPONSE) break;
             throw new ProtocolException(String.format("Unexpected message %s, expecting SASL_RESPONSE", new Object[]{type}));
          }
-         break;
-      case 3:
-         if(type == Message.Type.STARTUP) {
+         case READY: {
+            if (type != Message.Type.STARTUP) break;
             throw new ProtocolException("Unexpected message STARTUP, the connection is already initialized");
          }
-         break;
-      default:
-         throw new AssertionError();
+         default: {
+            throw new AssertionError();
+         }
       }
-
-      return this.clientState.getUser() == null?Single.just(new QueryState(this.clientState, request.getStreamId(), (UserRolesAndPermissions)null)):DatabaseDescriptor.getAuthManager().getUserRolesAndPermissions(this.clientState.getUser()).map((u) -> {
-         return new QueryState(this.clientState, request.getStreamId(), u);
-      });
+      if (this.clientState.getUser() == null) {
+         return Single.just(new QueryState(this.clientState, request.getStreamId(), null));
+      }
+      return DatabaseDescriptor.getAuthManager().getUserRolesAndPermissions(this.clientState.getUser()).map(u -> new QueryState(this.clientState, request.getStreamId(), (UserRolesAndPermissions)u));
    }
 
    public void applyStateTransition(Message.Type requestType, Message.Type responseType) {
-      switch(null.$SwitchMap$org$apache$cassandra$transport$ServerConnection$State[this.state.ordinal()]) {
-      case 1:
-         if(requestType == Message.Type.STARTUP) {
-            if(responseType == Message.Type.AUTHENTICATE) {
-               this.state = ServerConnection.State.AUTHENTICATION;
-            } else if(responseType == Message.Type.READY) {
-               this.state = ServerConnection.State.READY;
+      switch (this.state) {
+         case UNINITIALIZED: {
+            if (requestType != Message.Type.STARTUP) break;
+            if (responseType == Message.Type.AUTHENTICATE) {
+               this.state = State.AUTHENTICATION;
+               break;
             }
+            if (responseType != Message.Type.READY) break;
+            this.state = State.READY;
+            break;
          }
-         break;
-      case 2:
-         assert requestType == Message.Type.AUTH_RESPONSE;
-
-         if(responseType == Message.Type.AUTH_SUCCESS) {
-            this.state = ServerConnection.State.READY;
+         case AUTHENTICATION: {
+            assert (requestType == Message.Type.AUTH_RESPONSE);
+            if (responseType != Message.Type.AUTH_SUCCESS) break;
+            this.state = State.READY;
             this.saslNegotiator = null;
+            break;
          }
-      case 3:
-         break;
-      default:
-         throw new AssertionError();
+         case READY: {
+            break;
+         }
+         default: {
+            throw new AssertionError();
+         }
       }
-
    }
 
    public IAuthenticator.SaslNegotiator getSaslNegotiator() {
@@ -117,7 +117,7 @@ public class ServerConnection extends Connection {
       }
 
       if(this.inFlightRequests.get() == 0L) {
-         return CompletableFuture.completedFuture((Object)null);
+         return CompletableFuture.completedFuture(null);
       } else {
          CompletableFuture<Void> ret = new CompletableFuture();
          StageManager.getScheduler(Stage.REQUEST_RESPONSE).scheduleDirect(() -> {
@@ -129,7 +129,7 @@ public class ServerConnection extends Connection {
 
    private void checkInFlightRequests(CompletableFuture<Void> fut) {
       if(this.inFlightRequests.get() == 0L) {
-         fut.complete((Object)null);
+         fut.complete(null);
       } else {
          StageManager.getScheduler(Stage.REQUEST_RESPONSE).scheduleDirect(() -> {
             this.checkInFlightRequests(fut);

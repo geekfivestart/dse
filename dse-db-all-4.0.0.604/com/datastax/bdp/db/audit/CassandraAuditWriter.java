@@ -171,7 +171,7 @@ public class CassandraAuditWriter implements IAuditWriter {
    @VisibleForTesting
    CassandraAuditWriter(int retentionPeriod, ConsistencyLevel cl, CassandraAuditWriter.BatchingOptions batchingOptions) {
       this.state = new AtomicReference(CassandraAuditWriter.State.NOT_STARTED);
-      this.feature = VersionDependentFeature.createForSchemaUpgrade("CassandraAuditWriter", new CassandraVersion("3.11.0"), new CassandraAuditWriter.Legacy(null), new CassandraAuditWriter.Native(null), new SchemaUpgrade(CassandraAuditKeyspace.metadata(), CassandraAuditKeyspace.tablesIfNotExist(), true), logger, "Preparing upgrade to DSE 5.1/6.0 audit log entries.", "Unlocking DSE 5.1/6.0 audit log entries.", "Using DSE 5.0 compatible audit log entries - DSE 5.1 compatible audit log entries will be written when all nodes are on DSE 5.1 or newer and automatic schema upgrade has finished.");
+      this.feature = VersionDependentFeature.createForSchemaUpgrade("CassandraAuditWriter", new CassandraVersion("3.11.0"), new CassandraAuditWriter.Legacy(), new CassandraAuditWriter.Native(), new SchemaUpgrade(CassandraAuditKeyspace.metadata(), CassandraAuditKeyspace.tablesIfNotExist(), true), logger, "Preparing upgrade to DSE 5.1/6.0 audit log entries.", "Unlocking DSE 5.1/6.0 audit log entries.", "Using DSE 5.0 compatible audit log entries - DSE 5.1 compatible audit log entries will be written when all nodes are on DSE 5.1 or newer and automatic schema upgrade has finished.");
       this.retentionPeriod = (int)TimeUnit.SECONDS.convert((long)retentionPeriod, TimeUnit.HOURS);
       this.writeConsistency = cl;
       this.batchingOptions = batchingOptions;
@@ -257,7 +257,7 @@ public class CassandraAuditWriter implements IAuditWriter {
 
          this.stmt = stmt;
          this.event = event;
-         this.partition = new CassandraAuditWriter.EventPartition(event, null);
+         this.partition = new CassandraAuditWriter.EventPartition(event);
          this.bindings = versionDepentent.newEventBindings(event, this.partition);
       }
 
@@ -324,7 +324,7 @@ public class CassandraAuditWriter implements IAuditWriter {
 
    private final class Native extends CassandraAuditWriter.VersionDepentent {
       private Native() {
-         super(null);
+         super();
       }
 
       String insertStatement() {
@@ -345,7 +345,7 @@ public class CassandraAuditWriter implements IAuditWriter {
 
    private final class Legacy extends CassandraAuditWriter.VersionDepentent {
       private Legacy() {
-         super(null);
+         super();
       }
 
       String insertStatement() {
@@ -382,7 +382,7 @@ public class CassandraAuditWriter implements IAuditWriter {
 
       final Completable recordEvent(AuditableEvent event) {
          ModificationStatement stmt = this.insertStatement;
-         CassandraAuditWriter.EventBindings bindings = CassandraAuditWriter.this.new EventBindings(stmt, event, this, null);
+         CassandraAuditWriter.EventBindings bindings = CassandraAuditWriter.this.new EventBindings(stmt, event, this);
          if(CassandraAuditWriter.this.isSynchronous()) {
             return stmt.execute(QueryState.forInternalCalls(), bindings.getBindings(), System.nanoTime()).toCompletable();
          } else {

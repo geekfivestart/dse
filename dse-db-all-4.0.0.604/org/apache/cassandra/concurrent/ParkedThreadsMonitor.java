@@ -15,11 +15,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ParkedThreadsMonitor {
-   public static final Supplier<ParkedThreadsMonitor> instance = Suppliers.memoize(ParkedThreadsMonitor::<init>);
+   public static final Supplier<ParkedThreadsMonitor> instance = Suppliers.memoize(ParkedThreadsMonitor::new);
    private static final Logger LOGGER = LoggerFactory.getLogger(ParkedThreadsMonitor.class);
    private static final long SLEEP_INTERVAL_NS = Long.getLong("dse.thread_monitor_sleep_nanos", 50000L).longValue();
-   private static final boolean AUTO_CALIBRATE;
-   private static final ParkedThreadsMonitor.Sleeper SLEEPER;
+   private static final boolean AUTO_CALIBRATE = Boolean.parseBoolean(System.getProperty("dse.thread_monitor_auto_calibrate", "true")) && SLEEP_INTERVAL_NS > 0L;
+   private static final ParkedThreadsMonitor.Sleeper SLEEPER = (ParkedThreadsMonitor.Sleeper)(AUTO_CALIBRATE?new ParkedThreadsMonitor.CalibratingSleeper(SLEEP_INTERVAL_NS):new ParkedThreadsMonitor.Sleeper());
    private final MpscUnboundedArrayQueue<Runnable> commands = new MpscUnboundedArrayQueue(128);
    private final ArrayList<ParkedThreadsMonitor.MonitorableThread> monitoredThreads = new ArrayList(Runtime.getRuntime().availableProcessors() * 2);
    private final ArrayList<Runnable> loopActions = new ArrayList(4);
@@ -124,10 +124,6 @@ public class ParkedThreadsMonitor {
       return !this.watcherThread.isAlive();
    }
 
-   static {
-      AUTO_CALIBRATE = Boolean.parseBoolean(System.getProperty("dse.thread_monitor_auto_calibrate", "true")) && SLEEP_INTERVAL_NS > 0L;
-      SLEEPER = (ParkedThreadsMonitor.Sleeper)(AUTO_CALIBRATE?new ParkedThreadsMonitor.CalibratingSleeper(SLEEP_INTERVAL_NS):new ParkedThreadsMonitor.Sleeper());
-   }
 
    @VisibleForTesting
    public static class CalibratingSleeper extends ParkedThreadsMonitor.Sleeper {

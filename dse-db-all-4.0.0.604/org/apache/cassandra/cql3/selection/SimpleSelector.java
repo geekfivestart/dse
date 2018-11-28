@@ -21,7 +21,7 @@ public final class SimpleSelector extends Selector {
       protected Selector deserialize(DataInputPlus in, ReadVerbs.ReadVersion version, TableMetadata metadata) throws IOException {
          ColumnMetadata column = metadata.getColumn(ByteBufferUtil.readWithVIntLength(in));
          int idx = in.readInt();
-         return new SimpleSelector(column, idx, null);
+         return new SimpleSelector(column, idx);
       }
    };
    public final ColumnMetadata column;
@@ -30,7 +30,7 @@ public final class SimpleSelector extends Selector {
    private boolean isSet;
 
    public static Selector.Factory newFactory(ColumnMetadata def, int idx) {
-      return new SimpleSelector.SimpleSelectorFactory(idx, def, null);
+      return new SimpleSelector.SimpleSelectorFactory(idx, def);
    }
 
    public void addFetchedColumns(ColumnFilter.Builder builder) {
@@ -117,7 +117,7 @@ public final class SimpleSelector extends Selector {
       }
 
       public Selector newInstance(QueryOptions options) {
-         return new SimpleSelector(this.column, this.idx, null);
+         return new SimpleSelector(this.column, this.idx);
       }
 
       public boolean isSimpleSelectorFactory() {

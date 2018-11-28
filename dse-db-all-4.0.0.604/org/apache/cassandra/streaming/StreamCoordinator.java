@@ -210,7 +210,7 @@ public class StreamCoordinator {
    private StreamCoordinator.HostStreamingData getOrCreateHostData(InetAddress peer) {
       StreamCoordinator.HostStreamingData data = (StreamCoordinator.HostStreamingData)this.peerSessions.get(peer);
       if(data == null) {
-         data = new StreamCoordinator.HostStreamingData(null);
+         data = new StreamCoordinator.HostStreamingData();
          this.peerSessions.put(peer, data);
       }
 

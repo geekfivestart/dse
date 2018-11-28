@@ -51,9 +51,7 @@ public class ChecksummedSequentialWriter extends SequentialWriter {
 
       protected void doPrepare() {
          ChecksummedSequentialWriter.this.syncInternal();
-         Optional var10000 = ChecksummedSequentialWriter.this.digestFile;
-         ChecksumWriter var10001 = ChecksummedSequentialWriter.this.crcMetadata;
-         var10000.ifPresent(var10001::writeFullChecksum);
+         ChecksummedSequentialWriter.this.digestFile.ifPresent(ChecksummedSequentialWriter.this.crcMetadata::writeFullChecksum);
          ChecksummedSequentialWriter.this.crcWriter.prepareToCommit();
       }
    }

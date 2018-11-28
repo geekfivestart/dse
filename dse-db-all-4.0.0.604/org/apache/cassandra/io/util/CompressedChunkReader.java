@@ -73,25 +73,23 @@ public abstract class CompressedChunkReader extends AbstractReaderFileProxy impl
       }
 
       public CompletableFuture<ByteBuffer> readChunk(long position, ByteBuffer uncompressed) {
-         CompletableFuture future = new CompletableFuture();
-
+         CompletableFuture<ByteBuffer> future = new CompletableFuture<ByteBuffer>();
          try {
             future.complete(this.doReadChunk(position, uncompressed));
-         } catch (Throwable var6) {
-            if(TPCUtils.isWouldBlockException(var6)) {
+         }
+         catch (Throwable t) {
+            if (TPCUtils.isWouldBlockException(t)) {
                TPC.ioScheduler().execute(() -> {
                   try {
                      future.complete(this.doReadChunk(position, uncompressed));
-                  } catch (Throwable var6) {
-                     future.completeExceptionally(var6);
                   }
-
+                  catch (Throwable tt) {
+                     future.completeExceptionally(tt);
+                  }
                }, TPCTaskType.READ_DISK_ASYNC);
-            } else {
-               future.completeExceptionally(var6);
             }
+            future.completeExceptionally(t);
          }
-
          return future;
       }
 
@@ -165,26 +163,24 @@ public abstract class CompressedChunkReader extends AbstractReaderFileProxy impl
       }
 
       public CompletableFuture<ByteBuffer> readChunk(long position, ByteBuffer uncompressed) {
-         CompletableFuture<ByteBuffer> ret = new CompletableFuture();
+         CompletableFuture<ByteBuffer> ret = new CompletableFuture<ByteBuffer>();
          ChunkReader.BufferHandle bufferHandle = this.getScratchHandle();
-
          try {
             this.doReadChunk(position, uncompressed, ret, bufferHandle);
-         } catch (Throwable var7) {
-            if(TPCUtils.isWouldBlockException(var7)) {
+         }
+         catch (Throwable t) {
+            if (TPCUtils.isWouldBlockException(t)) {
                TPC.ioScheduler().execute(() -> {
                   try {
                      this.doReadChunk(position, uncompressed, ret, bufferHandle);
-                  } catch (Throwable var7) {
-                     this.error(var7, uncompressed, ret, bufferHandle);
                   }
-
+                  catch (Throwable tt) {
+                     this.error(tt, uncompressed, ret, bufferHandle);
+                  }
                }, TPCTaskType.READ_DISK_ASYNC);
-            } else {
-               this.error(var7, uncompressed, ret, bufferHandle);
             }
+            this.error(t, uncompressed, ret, bufferHandle);
          }
-
          return ret;
       }
 

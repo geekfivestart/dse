@@ -230,7 +230,7 @@ public class Slice {
       public Slice deserialize(DataInputPlus in, ClusteringVersion version, List<AbstractType<?>> types) throws IOException {
          ClusteringBound start = (ClusteringBound)ClusteringBound.serializer.deserialize(in, version, types);
          ClusteringBound end = (ClusteringBound)ClusteringBound.serializer.deserialize(in, version, types);
-         return new Slice(start, end, null);
+         return new Slice(start, end);
       }
    }
 }

@@ -46,13 +46,13 @@ public enum RequestFailureReason {
    }
 
    public boolean isSchemaRelated() {
-      switch(null.$SwitchMap$org$apache$cassandra$exceptions$RequestFailureReason[this.ordinal()]) {
-      case 1:
-      case 2:
-      case 3:
-         return true;
-      default:
-         return false;
+      switch (this) {
+         case UNKNOWN_TABLE:
+         case UNKNOWN_KEYSPACE:
+         case UNKNOWN_COLUMN: {
+            return true;
+         }
       }
+      return false;
    }
 }

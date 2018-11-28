@@ -490,7 +490,7 @@ public final class Duration {
       }
 
       public Duration build() {
-         return this.isNegative?new Duration(-this.months, -this.days, -this.nanoseconds, null):new Duration(this.months, this.days, this.nanoseconds, null);
+         return this.isNegative?new Duration(-this.months, -this.days, -this.nanoseconds):new Duration(this.months, this.days, this.nanoseconds);
       }
    }
 }

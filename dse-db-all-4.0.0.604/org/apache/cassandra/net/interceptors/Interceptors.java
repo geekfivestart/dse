@@ -136,7 +136,7 @@ public class Interceptors {
 
    public <P, Q, M extends Request<P, Q>> void interceptRequest(M request, Consumer<M> handler, MessageCallback<Q> responseCallback) {
       this.intercept(request, handler, (response) -> {
-         response.deliverTo(responseCallback);
+         response.deliverTo((MessageCallback)responseCallback);
       });
    }
 

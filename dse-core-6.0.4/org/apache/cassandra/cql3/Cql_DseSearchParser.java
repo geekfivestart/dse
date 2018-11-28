@@ -470,9 +470,8 @@ public class Cql_DseSearchParser extends Parser {
             this.match(this.input, 31, FOLLOW_K_ALTER_in_alterSearchIndexStatement255);
             this.match(this.input, 155, FOLLOW_K_SEARCH_in_alterSearchIndexStatement257);
             this.match(this.input, 89, FOLLOW_K_INDEX_in_alterSearchIndexStatement259);
-            int alt4 = true;
+            int alt4 = 2;
             int LA4_0 = this.input.LA(1);
-            byte alt4;
             if(LA4_0 == 152) {
                alt4 = 1;
             } else {
@@ -497,8 +496,8 @@ public class Cql_DseSearchParser extends Parser {
             this.pushFollow(FOLLOW_columnFamilyName_in_alterSearchIndexStatement283);
             cf = this.gCql.columnFamilyName();
             --this.state._fsp;
-            int alt8 = true;
-            int alt8 = this.dfa8.predict(this.input);
+            int alt8 = 5;
+            alt8 = this.dfa8.predict(this.input);
             byte alt7;
             int LA7_0;
             switch(alt8) {
@@ -675,8 +674,7 @@ public class Cql_DseSearchParser extends Parser {
 
       try {
          try {
-            int alt26 = true;
-            byte alt26;
+            int alt26 = 4;
             switch(this.input.LA(1)) {
             case 23:
                alt26 = 1;
@@ -1151,8 +1149,7 @@ public class Cql_DseSearchParser extends Parser {
 
       try {
          try {
-            int alt1 = true;
-            byte alt1;
+            int alt1 = 6;
             switch(this.input.LA(1)) {
             case 31:
                alt1 = 5;
@@ -1232,8 +1229,7 @@ public class Cql_DseSearchParser extends Parser {
 
       try {
          try {
-            int alt25 = true;
-            byte alt25;
+            int alt25 = 3;
             switch(this.input.LA(1)) {
             case 23:
                alt25 = 1;
@@ -1580,8 +1576,7 @@ public class Cql_DseSearchParser extends Parser {
 
       try {
          try {
-            int alt27 = true;
-            byte alt27;
+            int alt27 = 4;
             switch(this.input.LA(1)) {
             case 6:
             case 17:
@@ -1858,8 +1853,7 @@ public class Cql_DseSearchParser extends Parser {
 
       try {
          try {
-            int alt13 = true;
-            byte alt13;
+            int alt13 = 4;
             switch(this.input.LA(1)) {
             case 52:
                alt13 = 1;
@@ -2068,9 +2062,8 @@ public class Cql_DseSearchParser extends Parser {
 
       try {
          try {
-            int alt29 = true;
+            int alt29 = 2;
             int LA29_0 = this.input.LA(1);
-            byte alt29;
             if(LA29_0 == 23) {
                alt29 = 1;
             } else {
@@ -2179,8 +2172,7 @@ public class Cql_DseSearchParser extends Parser {
 
       try {
          try {
-            int alt28 = true;
-            byte alt28;
+            int alt28 = 3;
             switch(this.input.LA(1)) {
             case 23:
                alt28 = 1;
@@ -2495,9 +2487,8 @@ public class Cql_DseSearchParser extends Parser {
 
       try {
          try {
-            int alt30 = true;
+            int alt30 = 3;
             int LA30_0 = this.input.LA(1);
-            byte alt30;
             if(LA30_0 == 29) {
                alt30 = 1;
             } else {

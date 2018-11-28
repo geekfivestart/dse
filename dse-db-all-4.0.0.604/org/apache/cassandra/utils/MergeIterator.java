@@ -48,7 +48,7 @@ public abstract class MergeIterator<In, Out> extends AbstractIterator<Out> imple
       }
 
       protected Out computeNext() {
-         return !this.source.hasNext()?this.endOfData():this.source.next();
+         return !this.source.hasNext()?this.endOfData():(Out)this.source.next();
       }
    }
 

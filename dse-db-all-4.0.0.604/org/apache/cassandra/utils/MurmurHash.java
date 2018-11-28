@@ -17,7 +17,7 @@ public class MurmurHash {
       for(len_m = 0; len_m < len_4; ++len_m) {
          left = len_m << 2;
          int k = data.get(offset + left + 3);
-         int k = k << 8;
+         k = k << 8;
          k |= data.get(offset + left + 2) & 255;
          k <<= 8;
          k |= data.get(offset + left + 1) & 255;

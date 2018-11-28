@@ -46,7 +46,7 @@ public final class Throwables {
       } else if(fail instanceof RuntimeException) {
          throw (RuntimeException)fail;
       } else if(checked != null && checked.isInstance(fail)) {
-         throw (Throwable)checked.cast(fail);
+         throw checked.cast(fail);
       } else {
          return true;
       }
@@ -64,22 +64,22 @@ public final class Throwables {
       }
 
       if(failIfCanCast(accumulate, (Class)null)) {
-         throw (Exception)accumulate;
+         throw (E)accumulate;
       }
    }
 
-   public static <E extends Exception> void perform(Stream<? extends Throwables.DiscreteAction<? extends E>> stream, Throwables.DiscreteAction... extra) throws E {
+   public static <E extends Exception> void perform(Stream<? extends Throwables.DiscreteAction<? extends E>> stream, Throwables.DiscreteAction<? extends E>... extra) throws E {
       perform(Stream.concat(stream, Stream.of(extra)));
    }
 
    public static <E extends Exception> void perform(Stream<Throwables.DiscreteAction<? extends E>> actions) throws E {
       Throwable fail = perform((Throwable)null, actions);
       if(failIfCanCast(fail, (Class)null)) {
-         throw (Exception)fail;
+         throw (E)fail;
       }
    }
 
-   public static Throwable perform(Throwable accumulate, Throwables.DiscreteAction... actions) {
+   public static Throwable perform(Throwable accumulate, Throwables.DiscreteAction<?>... actions) {
       return perform(accumulate, Arrays.stream(actions));
    }
 
@@ -120,15 +120,26 @@ public final class Throwables {
       return perform(accumulate, filePath, opType, Arrays.stream(actions));
    }
 
-   public static Throwable perform(Throwable accumulate, String filePath, Throwables.FileOpType opType, Stream<Throwables.DiscreteAction<? extends IOException>> actions) {
-      return perform(accumulate, actions.map((action) -> {
-         return () -> {
-            try {
-               action.perform();
-            } catch (IOException var4) {
-               throw (Exception)(opType == Throwables.FileOpType.WRITE?new FSWriteError(var4, filePath):new FSReadError(var4, filePath));
-            }
-         };
+//   public static Throwable perform(Throwable accumulate, String filePath, Throwables.FileOpType opType, Stream<Throwables.DiscreteAction<? extends IOException>> actions) {
+//      return perform(accumulate, actions.map((action) -> {
+//         return () -> {
+//            try {
+//               action.perform();
+//            } catch (IOException var4) {
+//               throw (opType == Throwables.FileOpType.WRITE?new FSWriteError(var4, filePath):new FSReadError(var4, filePath));
+//            }
+//         };
+//      }));
+//   }
+
+   public static Throwable perform(Throwable accumulate, String filePath, FileOpType opType, Stream<DiscreteAction<? extends IOException>> actions) {
+      return Throwables.perform(accumulate, actions.map(action -> () -> {
+         try {
+            action.perform();
+         }
+         catch (IOException e) {
+            throw opType == FileOpType.WRITE ? new FSWriteError((Throwable)e, filePath) : new FSReadError((Throwable)e, filePath);
+         }
       }));
    }
 

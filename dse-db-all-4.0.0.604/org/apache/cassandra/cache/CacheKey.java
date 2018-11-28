@@ -14,10 +14,10 @@ public abstract class CacheKey implements IMeasurableMemory {
    }
 
    public CacheKey(TableMetadata metadata) {
-      this(metadata.id, (String)metadata.indexName().orElse((Object)null));
+      this(metadata.id, (String)metadata.indexName().orElse(null));
    }
 
    public boolean sameTable(TableMetadata tableMetadata) {
-      return this.tableId.equals(tableMetadata.id) && Objects.equals(this.indexName, tableMetadata.indexName().orElse((Object)null));
+      return this.tableId.equals(tableMetadata.id) && Objects.equals(this.indexName, tableMetadata.indexName().orElse(null));
    }
 }

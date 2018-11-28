@@ -33,6 +33,6 @@ public class Tries {
    }
 
    static <K> K cast(Object key) {
-      return key;
+      return (K)key;
    }
 }

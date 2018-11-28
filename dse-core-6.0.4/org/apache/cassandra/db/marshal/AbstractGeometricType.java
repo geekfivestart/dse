@@ -43,7 +43,7 @@ public abstract class AbstractGeometricType<T extends OgcGeometry> extends Abstr
    public AbstractGeometricType(GeometricType type) {
       super(ComparisonType.BYTE_ORDER);
       this.type = type;
-      this.klass = type.getGeoClass();
+      this.klass = (Class<T>)type.getGeoClass();
       this.geoSerializer = type.getSerializer();
    }
 
@@ -84,7 +84,7 @@ public abstract class AbstractGeometricType<T extends OgcGeometry> extends Abstr
       }
 
       geometry.validate();
-      return new Value(this.geoSerializer.toWellKnownBinary(geometry));
+      return new Value(this.geoSerializer.toWellKnownBinary((T)geometry));
    }
 
    public String toJSONString(ByteBuffer buffer, ProtocolVersion protocolVersion) {

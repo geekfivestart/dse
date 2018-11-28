@@ -160,7 +160,7 @@ public class JMXServerUtils {
 
       public Subject authenticate(Object credentials) {
          try {
-            JMXAuthenticator authenticator = ctorHandle.invoke(this.env);
+            JMXAuthenticator authenticator = (JMXAuthenticator)ctorHandle.invoke(this.env);
             return authenticator.authenticate(credentials);
          } catch (Throwable var3) {
             throw new RuntimeException(var3);

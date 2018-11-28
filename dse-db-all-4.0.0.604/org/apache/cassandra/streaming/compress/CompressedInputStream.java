@@ -129,7 +129,7 @@ public class CompressedInputStream extends InputStream {
       private final Iterator<CompressionMetadata.Chunk> chunks;
       private final BlockingQueue<byte[]> dataBuffer;
 
-      Reader(InputStream this$0, CompressionInfo source, BlockingQueue<byte[]> info) {
+      Reader(InputStream source, CompressionInfo info, BlockingQueue<byte[]> dataBuffer) {
          this.source = source;
          this.chunks = Iterators.forArray(info.chunks);
          this.dataBuffer = dataBuffer;

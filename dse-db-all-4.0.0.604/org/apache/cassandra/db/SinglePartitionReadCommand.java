@@ -413,7 +413,7 @@ public class SinglePartitionReadCommand extends ReadCommand {
          }));
       }
 
-      return Flow.concat((Iterable)iterators).toList().map((sources) -> {
+      return Flow.concat(iterators).toList().map((sources) -> {
          return this.mergeResult(cfs, sources, state.nonIntersectingSSTables, state.allTableCount, state.includedDueToTombstones);
       });
    }
@@ -804,7 +804,7 @@ public class SinglePartitionReadCommand extends ReadCommand {
                ((List)commands).sort(Comparator.comparing(SinglePartitionReadCommand::partitionKey));
             }
 
-            return Flow.fromIterable((Iterable)commands).flatMap((command) -> {
+            return Flow.fromIterable(commands).flatMap((command) -> {
                return command.executeLocally(monitor);
             });
          }

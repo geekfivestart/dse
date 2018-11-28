@@ -62,34 +62,37 @@ public abstract class VersionDependentFeature<I extends VersionDependentFeature.
    public synchronized void clusterVersionUpdated(ClusterVersionBarrier.ClusterVersionInfo versionInfo) {
       logger.trace("clusterVersionUpdated for {}/{}: {}", new Object[]{this.name, this.status, versionInfo});
       boolean minVersionOK = this.minimumVersion.compareTo(versionInfo.minOss) <= 0;
-      switch(null.$SwitchMap$com$datastax$bdp$db$upgrade$VersionDependentFeature$FeatureStatus[this.status.ordinal()]) {
-      case 1:
-      case 2:
-         if(minVersionOK && !this.ddlChangeRequired()) {
-            this.updateStatus(VersionDependentFeature.FeatureStatus.ACTIVATED);
-         } else if(minVersionOK) {
-            this.updateStatus(VersionDependentFeature.FeatureStatus.DEACTIVATED);
-            this.updateStatus(VersionDependentFeature.FeatureStatus.ACTIVATING);
-            this.scheduleCallback();
-         } else {
-            this.updateStatus(VersionDependentFeature.FeatureStatus.DEACTIVATED);
-         }
-         break;
-      case 3:
-         if(this.ddlChangeRequired()) {
-            if(versionInfo.schemaAgreement) {
-               this.maybeScheduleDDL();
+      switch (this.status) {
+         case UNKNOWN:
+         case DEACTIVATED: {
+            if (minVersionOK && !this.ddlChangeRequired()) {
+               this.updateStatus(FeatureStatus.ACTIVATED);
+               break;
             }
-         } else if(versionInfo.schemaAgreement) {
-            this.updateStatus(VersionDependentFeature.FeatureStatus.ACTIVATED);
+            if (minVersionOK) {
+               this.updateStatus(FeatureStatus.DEACTIVATED);
+               this.updateStatus(FeatureStatus.ACTIVATING);
+               this.scheduleCallback();
+               break;
+            }
+            this.updateStatus(FeatureStatus.DEACTIVATED);
+            break;
          }
-         break;
-      case 4:
-         if(!minVersionOK) {
-            this.updateStatus(VersionDependentFeature.FeatureStatus.DEACTIVATED);
+         case ACTIVATING: {
+            if (this.ddlChangeRequired()) {
+               if (!versionInfo.schemaAgreement) break;
+               this.maybeScheduleDDL();
+               break;
+            }
+            if (!versionInfo.schemaAgreement) break;
+            this.updateStatus(FeatureStatus.ACTIVATED);
+            break;
+         }
+         case ACTIVATED: {
+            if (minVersionOK) break;
+            this.updateStatus(FeatureStatus.DEACTIVATED);
          }
       }
-
    }
 
    private synchronized void maybeScheduleDDL() {
@@ -119,35 +122,36 @@ public abstract class VersionDependentFeature<I extends VersionDependentFeature.
       this.ddlFuture = null;
    }
 
-   private synchronized void updateStatus(VersionDependentFeature.FeatureStatus newStatus) {
-      if(this.status != newStatus) {
+   private synchronized void updateStatus(FeatureStatus newStatus) {
+      if (this.status != newStatus) {
          this.status = newStatus;
-         logger.debug("New status for '{}': {}", this.name, newStatus);
-         switch(null.$SwitchMap$com$datastax$bdp$db$upgrade$VersionDependentFeature$FeatureStatus[newStatus.ordinal()]) {
-         case 2:
-            if(!this.legacyInitialized) {
-               this.legacyImplementation.initialize();
-               this.legacyInitialized = true;
+         logger.debug("New status for '{}': {}", (Object)this.name, (Object)newStatus);
+         switch (newStatus) {
+            case ACTIVATED: {
+               if (!this.currentInitialized) {
+                  this.currentImplementation.initialize();
+                  this.currentInitialized = true;
+               }
+               this.onFeatureActivated();
+               break;
             }
-
-            this.onFeatureDeactivated();
-            break;
-         case 3:
-            this.onFeatureActivating();
-            break;
-         case 4:
-            if(!this.currentInitialized) {
-               this.currentImplementation.initialize();
-               this.currentInitialized = true;
+            case ACTIVATING: {
+               this.onFeatureActivating();
+               break;
             }
-
-            this.onFeatureActivated();
-            break;
-         default:
-            throw new RuntimeException("Unknown new status " + newStatus);
+            case DEACTIVATED: {
+               if (!this.legacyInitialized) {
+                  this.legacyImplementation.initialize();
+                  this.legacyInitialized = true;
+               }
+               this.onFeatureDeactivated();
+               break;
+            }
+            default: {
+               throw new RuntimeException("Unknown new status " + (Object)((Object)newStatus));
+            }
          }
       }
-
    }
 
    public I implementation() {

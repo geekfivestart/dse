@@ -95,15 +95,15 @@ public class HistogramInfoPlugin extends AbstractScheduledPlugin<SnapshotInfoBea
       }, new KeyspaceHistogramWriter(this.nodeAddress, ttl, "range_latency_histograms_ks")), Pair.create((ks) -> {
          return ks.metric.sstablesPerReadHistogram.getSnapshot().getValues();
       }, new KeyspaceHistogramWriter(this.nodeAddress, ttl, "sstables_per_read_histograms_ks")));
-      this.histograms = new ArrayList(Arrays.asList(new Pair[]{Pair.create((cfs) -> {
+      this.histograms = new ArrayList(Arrays.asList(new Pair[]{Pair.<CfsHistogramDataProvider,AbstractHistogramWriter>create((cfs) -> {
          return cfs.metric.readLatency.latency.getSnapshot().getValues();
-      }, new ReadLatencyHistogramWriter(this.nodeAddress, ttl)), Pair.create((cfs) -> {
+      }, new ReadLatencyHistogramWriter(this.nodeAddress, ttl)), Pair.<CfsHistogramDataProvider,AbstractHistogramWriter>create((cfs) -> {
          return cfs.metric.writeLatency.latency.getSnapshot().getValues();
-      }, new WriteLatencyHistogramWriter(this.nodeAddress, ttl)), Pair.create((cfs) -> {
+      }, new WriteLatencyHistogramWriter(this.nodeAddress, ttl)), Pair.<CfsHistogramDataProvider,AbstractHistogramWriter>create((cfs) -> {
          return (long[])cfs.metric.estimatedColumnCountHistogram.getValue();
-      }, new CellCountHistogramWriter(this.nodeAddress, ttl)), Pair.create((cfs) -> {
+      }, new CellCountHistogramWriter(this.nodeAddress, ttl)), Pair.<CfsHistogramDataProvider,AbstractHistogramWriter>create((cfs) -> {
          return (long[])cfs.metric.estimatedPartitionSizeHistogram.getValue();
-      }, new PartitionSizeHistogramWriter(this.nodeAddress, ttl)), Pair.create((cfs) -> {
+      }, new PartitionSizeHistogramWriter(this.nodeAddress, ttl)), Pair.<CfsHistogramDataProvider,AbstractHistogramWriter>create((cfs) -> {
          return cfs.metric.sstablesPerReadHistogram.getSnapshot().getValues();
       }, new SSTablesPerReadHistogramWriter(this.nodeAddress, ttl))}));
       this.histograms.forEach((pair) -> {

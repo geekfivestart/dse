@@ -30,6 +30,7 @@ import org.apache.cassandra.db.rows.UnfilteredRowIterator;
 import org.apache.cassandra.dht.AbstractBounds;
 import org.apache.cassandra.dht.Bounds;
 import org.apache.cassandra.dht.IPartitioner;
+import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.io.sstable.Component;
 import org.apache.cassandra.io.sstable.Descriptor;
@@ -224,113 +225,92 @@ public class SSTablePartitions {
       return !err;
    }
 
-   private static void processSstable(String[] keys, HashSet<String> excludes, SSTablePartitions.ExtendedDescriptor desc, long sizeThreshold, int cellCountThreshold, int tombstoneCountThreshold, boolean partitionsOnly, boolean csv, long currentTime) {
+   private static void processSstable(String[] keys, HashSet<String> excludes, ExtendedDescriptor desc, long sizeThreshold, int cellCountThreshold, int tombstoneCountThreshold, boolean partitionsOnly, boolean csv, long currentTime) {
       try {
-         long t0 = System.nanoTime();
-         TableMetadata metadata = Util.metadataFromSSTable(desc.descriptor, desc.keyspace, desc.table);
+         TableMetadata metadata;
+         SstableStatistics sstableStatistics;
+         long t0;
+         ArrayList<PartitionStatistics> matches;
+         t0 = System.nanoTime();
+         metadata = Util.metadataFromSSTable(desc.descriptor, desc.keyspace, desc.table);
          SSTableReader sstable = SSTableReader.openNoValidation(desc.descriptor, TableMetadataRef.forOfflineTools(metadata));
-         if(!csv) {
-            System.out.printf("%nProcessing %s (%d bytes uncompressed, %d bytes on disk)%n", new Object[]{desc, Long.valueOf(sstable.uncompressedLength()), Long.valueOf(sstable.onDiskLength())});
+         if (!csv) {
+            System.out.printf("%nProcessing %s (%d bytes uncompressed, %d bytes on disk)%n", desc, sstable.uncompressedLength(), sstable.onDiskLength());
          }
-
-         List<SSTablePartitions.PartitionStatistics> matches = new ArrayList();
-         SSTablePartitions.SstableStatistics sstableStatistics = new SSTablePartitions.SstableStatistics();
-
+         matches = new ArrayList<PartitionStatistics>();
+         sstableStatistics = new SstableStatistics();
          try {
             IPartitioner partitioner = sstable.getPartitioner();
             ISSTableScanner currentScanner = null;
-            if(keys != null && keys.length > 0) {
+            if (keys != null && keys.length > 0) {
                try {
-                  Stream var10000 = Arrays.stream(keys).filter((key) -> {
-                     return !excludes.contains(key);
-                  });
-                  AbstractType var10001 = metadata.partitionKeyType;
-                  metadata.partitionKeyType.getClass();
-                  var10000 = var10000.map(var10001::fromString);
-                  partitioner.getClass();
-                  List<AbstractBounds<PartitionPosition>> bounds = (List)var10000.map(partitioner::decorateKey).sorted().map(PartitionPosition::getToken).map((token) -> {
-                     return new Bounds(token.minKeyBound(), token.maxKeyBound());
-                  }).collect(Collectors.toList());
+                  List bounds = Arrays.stream(keys).filter(key -> !excludes.contains(key)).
+                          map(metadata.partitionKeyType::fromString).
+                          map(partitioner::decorateKey).sorted().
+                          map(PartitionPosition::getToken).
+                          map(token -> new Bounds(token.minKeyBound(), token.maxKeyBound())).collect(Collectors.toList());
                   currentScanner = sstable.getScanner(bounds.iterator());
-               } catch (RuntimeException var33) {
-                  System.err.printf("Cannot use one or more partition keys in %s for the partition key type ('%s') of the underlying table: %s%n", new Object[]{Arrays.toString(keys), metadata.partitionKeyType.asCQL3Type(), var33});
+               }
+               catch (RuntimeException e) {
+                  System.err.printf("Cannot use one or more partition keys in %s for the partition key type ('%s') of the underlying table: %s%n", Arrays.toString(keys), metadata.partitionKeyType.asCQL3Type(), e);
                }
             }
-
-            if(currentScanner == null) {
+            if (currentScanner == null) {
                currentScanner = sstable.getScanner();
             }
-
             try {
-               SSTablePartitions.PartitionStatistics statistics = null;
-
-               while(currentScanner.hasNext()) {
+               PartitionStatistics statistics = null;
+               while (currentScanner.hasNext()) {
                   UnfilteredRowIterator partition = (UnfilteredRowIterator)currentScanner.next();
-                  checkMatch(sizeThreshold, cellCountThreshold, tombstoneCountThreshold, csv, partitionsOnly, currentScanner, matches, sstableStatistics, statistics, metadata, desc);
-                  statistics = new SSTablePartitions.PartitionStatistics(partition.partitionKey().getKey(), currentScanner.getCurrentPosition(), partition.partitionLevelDeletion().isLive());
-                  if(!excludes.contains(metadata.partitionKeyType.getString(statistics.key)) && !partitionsOnly) {
-                     perPartitionDetails(desc, currentTime, statistics, partition);
-                  }
+                  SSTablePartitions.checkMatch(sizeThreshold, cellCountThreshold, tombstoneCountThreshold, csv, partitionsOnly, currentScanner, matches, sstableStatistics, statistics, metadata, desc);
+                  statistics = new PartitionStatistics(partition.partitionKey().getKey(), currentScanner.getCurrentPosition(), partition.partitionLevelDeletion().isLive());
+                  if (excludes.contains(metadata.partitionKeyType.getString(statistics.key)) || partitionsOnly) continue;
+                  SSTablePartitions.perPartitionDetails(desc, currentTime, (PartitionStatistics)statistics, partition);
                }
-
-               checkMatch(sizeThreshold, cellCountThreshold, tombstoneCountThreshold, csv, partitionsOnly, currentScanner, matches, sstableStatistics, statistics, metadata, desc);
-            } finally {
+               SSTablePartitions.checkMatch(sizeThreshold, cellCountThreshold, tombstoneCountThreshold, csv, partitionsOnly, currentScanner, matches, sstableStatistics, statistics, metadata, desc);
+            }
+            finally {
                currentScanner.close();
             }
-         } catch (RuntimeException var35) {
-            System.err.printf("Failure processing sstable %s: %s%n", new Object[]{desc.descriptor, var35});
-         } finally {
+         }
+         catch (RuntimeException e) {
+            System.err.printf("Failure processing sstable %s: %s%n", desc.descriptor, e);
+         }
+         finally {
             sstable.selfRef().release();
          }
-
          long t = System.nanoTime() - t0;
-         if(!csv) {
-            if(!matches.isEmpty()) {
-               System.out.printf("Summary of %s:%n  File: %s%n  %d partitions match%n  Keys:", new Object[]{desc, desc.descriptor.filenameFor(Component.DATA), Integer.valueOf(matches.size())});
-               Iterator var40 = matches.iterator();
-
-               while(var40.hasNext()) {
-                  SSTablePartitions.PartitionStatistics match = (SSTablePartitions.PartitionStatistics)var40.next();
-                  System.out.print(" " + maybeEscapeKeyForSummary(metadata, match.key));
+         if (!csv) {
+            if (!matches.isEmpty()) {
+               System.out.printf("Summary of %s:%n  File: %s%n  %d partitions match%n  Keys:", desc, desc.descriptor.filenameFor(Component.DATA), matches.size());
+               for (PartitionStatistics match : matches) {
+                  System.out.print(" " + SSTablePartitions.maybeEscapeKeyForSummary(metadata, match.key));
                }
-
                System.out.println();
             }
-
-            if(partitionsOnly) {
-               System.out.printf("        %20s%n", new Object[]{"Partition size"});
+            if (partitionsOnly) {
+               System.out.printf("        %20s%n", "Partition size");
             } else {
-               System.out.printf("        %20s %20s %20s %20s%n", new Object[]{"Partition size", "Row count", "Cell count", "Tombstone count"});
+               System.out.printf("        %20s %20s %20s %20s%n", "Partition size", "Row count", "Cell count", "Tombstone count");
             }
-
-            printPercentile(partitionsOnly, sstableStatistics, "p50", (h) -> {
-               return Long.valueOf(h.percentile(0.5D));
-            });
-            printPercentile(partitionsOnly, sstableStatistics, "p75", (h) -> {
-               return Long.valueOf(h.percentile(0.75D));
-            });
-            printPercentile(partitionsOnly, sstableStatistics, "p90", (h) -> {
-               return Long.valueOf(h.percentile(0.9D));
-            });
-            printPercentile(partitionsOnly, sstableStatistics, "p95", (h) -> {
-               return Long.valueOf(h.percentile(0.95D));
-            });
-            printPercentile(partitionsOnly, sstableStatistics, "p99", (h) -> {
-               return Long.valueOf(h.percentile(0.99D));
-            });
-            printPercentile(partitionsOnly, sstableStatistics, "p999", (h) -> {
-               return Long.valueOf(h.percentile(0.999D));
-            });
-            printPercentile(partitionsOnly, sstableStatistics, "min", EstimatedHistogram::min);
-            printPercentile(partitionsOnly, sstableStatistics, "max", EstimatedHistogram::max);
-            System.out.printf("  count %20d%n", new Object[]{Long.valueOf(sstableStatistics.partitionSizeHistogram.count())});
-            System.out.printf("  time  %20d%n", new Object[]{Long.valueOf(TimeUnit.NANOSECONDS.toMillis(t))});
+            SSTablePartitions.printPercentile(partitionsOnly, sstableStatistics, "p50", h -> h.percentile(0.5));
+            SSTablePartitions.printPercentile(partitionsOnly, sstableStatistics, "p75", h -> h.percentile(0.75));
+            SSTablePartitions.printPercentile(partitionsOnly, sstableStatistics, "p90", h -> h.percentile(0.9));
+            SSTablePartitions.printPercentile(partitionsOnly, sstableStatistics, "p95", h -> h.percentile(0.95));
+            SSTablePartitions.printPercentile(partitionsOnly, sstableStatistics, "p99", h -> h.percentile(0.99));
+            SSTablePartitions.printPercentile(partitionsOnly, sstableStatistics, "p999", h -> h.percentile(0.999));
+            SSTablePartitions.printPercentile(partitionsOnly, sstableStatistics, "min", EstimatedHistogram::min);
+            SSTablePartitions.printPercentile(partitionsOnly, sstableStatistics, "max", EstimatedHistogram::max);
+            System.out.printf("  count %20d%n", sstableStatistics.partitionSizeHistogram.count());
+            System.out.printf("  time  %20d%n", TimeUnit.NANOSECONDS.toMillis(t));
          }
-      } catch (IOException var37) {
-         var37.printStackTrace(System.err);
       }
-
+      catch (IOException e) {
+         e.printStackTrace(System.err);
+      }
    }
+
+
 
    private static void perPartitionDetails(SSTablePartitions.ExtendedDescriptor desc, long currentTime, SSTablePartitions.PartitionStatistics statistics, UnfilteredRowIterator partition) {
       label55:

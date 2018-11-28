@@ -120,7 +120,7 @@ public class CompactionManager implements CompactionManagerMBean {
    };
    private final CompactionManager.CompactionExecutor executor = new CompactionManager.CompactionExecutor();
    private final CompactionManager.CompactionExecutor validationExecutor = new CompactionManager.ValidationExecutor();
-   private final CompactionManager.CompactionExecutor antiCompactionExecutor = new CompactionManager.CompactionExecutor(1, "AntiCompactionExecutor", null);
+   private final CompactionManager.CompactionExecutor antiCompactionExecutor = new CompactionManager.CompactionExecutor(1, "AntiCompactionExecutor");
    private static final CompactionManager.CompactionExecutor cacheCleanupExecutor;
    private final CompactionManager.CompactionExecutor viewBuildExecutor = new CompactionManager.ViewBuildExecutor();
    private final CompactionMetrics metrics;
@@ -602,68 +602,54 @@ public class CompactionManager implements CompactionManagerMBean {
       return var8;
    }
 
+
    public void performAnticompaction(ColumnFamilyStore cfs, Collection<Range<Token>> ranges, Refs<SSTableReader> validatedForRepair, LifecycleTransaction txn, long repairedAt, UUID pendingRepair, UUID parentRepairSession) throws InterruptedException, IOException {
       try {
          ActiveRepairService.ParentRepairSession prs = ActiveRepairService.instance.getParentRepairSession(parentRepairSession);
-         Preconditions.checkArgument(!prs.isPreview(), "Cannot anticompact for previews");
-         logger.info("{} Starting anticompaction for {}.{} on {}/{} sstables", new Object[]{PreviewKind.NONE.logPrefix(parentRepairSession), cfs.keyspace.getName(), cfs.getTableName(), Integer.valueOf(validatedForRepair.size()), Integer.valueOf(cfs.getLiveSSTables().size())});
-         logger.trace("{} Starting anticompaction for ranges {}", PreviewKind.NONE.logPrefix(parentRepairSession), ranges);
-         Set<SSTableReader> sstables = new HashSet(validatedForRepair);
-         Set<SSTableReader> sstablesToMutateRepairStatus = new HashSet();
-         Set<SSTableReader> nonAnticompacting = new HashSet();
+         Preconditions.checkArgument((boolean)(!prs.isPreview()), (Object)"Cannot anticompact for previews");
+         logger.info("{} Starting anticompaction for {}.{} on {}/{} sstables", new Object[]{PreviewKind.NONE.logPrefix(parentRepairSession), cfs.keyspace.getName(), cfs.getTableName(), validatedForRepair.size(), cfs.getLiveSSTables().size()});
+         logger.trace("{} Starting anticompaction for ranges {}", (Object)PreviewKind.NONE.logPrefix(parentRepairSession), ranges);
+         HashSet<SSTableReader> sstables = new HashSet<SSTableReader>(validatedForRepair);
+         HashSet<SSTableReader> sstablesToMutateRepairStatus = new HashSet<SSTableReader>();
+         HashSet<SSTableReader> nonAnticompacting = new HashSet<SSTableReader>();
          Iterator<SSTableReader> sstableIterator = sstables.iterator();
-         List normalizedRanges = Range.normalize(ranges);
-
-         while(true) {
-            if(!sstableIterator.hasNext()) {
-               cfs.getCompactionStrategyManager().mutateRepaired(sstablesToMutateRepairStatus, repairedAt, pendingRepair);
-               cfs.metric.bytesMutatedAnticompaction.inc(SSTableReader.getTotalBytes(sstablesToMutateRepairStatus));
-               txn.cancel((Iterable)Sets.union(nonAnticompacting, sstablesToMutateRepairStatus));
-               validatedForRepair.release((Collection)Sets.union(nonAnticompacting, sstablesToMutateRepairStatus));
-
-               assert txn.originals().equals(sstables);
-
-               if(!sstables.isEmpty()) {
-                  this.doAntiCompaction(cfs, ranges, txn, repairedAt, pendingRepair);
-               }
-
-               txn.finish();
-               break;
-            }
-
-            SSTableReader sstable = (SSTableReader)sstableIterator.next();
-            Range<Token> sstableRange = new Range(sstable.first.getToken(), sstable.last.getToken());
+         List<Range<Token>> normalizedRanges = Range.normalize(ranges);
+         while (sstableIterator.hasNext()) {
+            SSTableReader sstable = sstableIterator.next();
+            Range<Token> sstableRange = new Range<Token>(sstable.first.getToken(), sstable.last.getToken());
             boolean shouldAnticompact = false;
-            Iterator var18 = normalizedRanges.iterator();
-
-            while(var18.hasNext()) {
-               Range<Token> r = (Range)var18.next();
-               if(r.contains((AbstractBounds)sstableRange)) {
+            for (Range<Token> r : normalizedRanges) {
+               if (r.contains(sstableRange)) {
                   logger.info("[repair #{}] SSTable {} fully contained in range {}, mutating repairedAt instead of anticompacting", new Object[]{parentRepairSession, sstable, r});
                   sstablesToMutateRepairStatus.add(sstable);
                   sstableIterator.remove();
                   shouldAnticompact = true;
                   break;
                }
-
-               if(sstableRange.intersects(r)) {
-                  logger.info("{} SSTable {} ({}) will be anticompacted on range {}", new Object[]{PreviewKind.NONE.logPrefix(parentRepairSession), sstable, sstableRange, r});
-                  shouldAnticompact = true;
-               }
+               if (!sstableRange.intersects((Range<Token>)r)) continue;
+               logger.info("{} SSTable {} ({}) will be anticompacted on range {}", new Object[]{PreviewKind.NONE.logPrefix(parentRepairSession), sstable, sstableRange, r});
+               shouldAnticompact = true;
             }
-
-            if(!shouldAnticompact) {
-               logger.info("{} SSTable {} ({}) does not intersect repaired ranges {}, not touching repairedAt.", new Object[]{PreviewKind.NONE.logPrefix(parentRepairSession), sstable, sstableRange, normalizedRanges});
-               nonAnticompacting.add(sstable);
-               sstableIterator.remove();
-            }
+            if (shouldAnticompact) continue;
+            logger.info("{} SSTable {} ({}) does not intersect repaired ranges {}, not touching repairedAt.", new Object[]{PreviewKind.NONE.logPrefix(parentRepairSession), sstable, sstableRange, normalizedRanges});
+            nonAnticompacting.add(sstable);
+            sstableIterator.remove();
          }
-      } finally {
+         cfs.getCompactionStrategyManager().mutateRepaired(sstablesToMutateRepairStatus, repairedAt, pendingRepair);
+         cfs.metric.bytesMutatedAnticompaction.inc(SSTableReader.getTotalBytes(sstablesToMutateRepairStatus));
+         txn.cancel((Iterable<SSTableReader>)Sets.union(nonAnticompacting, sstablesToMutateRepairStatus));
+         validatedForRepair.release((Collection<SSTableReader>)Sets.union(nonAnticompacting, sstablesToMutateRepairStatus));
+         assert (txn.originals().equals(sstables));
+         if (!sstables.isEmpty()) {
+            this.doAntiCompaction(cfs, ranges, txn, repairedAt, pendingRepair);
+         }
+         txn.finish();
+      }
+      finally {
          validatedForRepair.release();
          txn.close();
       }
-
-      logger.info("{} Completed anticompaction successfully", PreviewKind.NONE.logPrefix(parentRepairSession));
+      logger.info("{} Completed anticompaction successfully", (Object)PreviewKind.NONE.logPrefix(parentRepairSession));
    }
 
    public void performMaximal(ColumnFamilyStore cfStore, boolean splitOutput) {
@@ -1536,291 +1522,99 @@ public class CompactionManager implements CompactionManagerMBean {
 
    @VisibleForTesting
    synchronized Refs<SSTableReader> getSSTablesToValidate(ColumnFamilyStore cfs, Validator validator) {
+      Refs<SSTableReader> sstables;
       ActiveRepairService.ParentRepairSession prs = ActiveRepairService.instance.getParentRepairSession(validator.desc.parentSessionId);
-      if(prs == null) {
+      if (prs == null) {
          return null;
-      } else {
-         Set<SSTableReader> sstablesToValidate = new HashSet();
-         Predicate predicate;
-         if(prs.isPreview()) {
-            predicate = prs.getPreviewPredicate();
-         } else if(validator.isIncremental) {
-            predicate = (s) -> {
-               return validator.desc.parentSessionId.equals(s.getSSTableMetadata().pendingRepair);
-            };
-         } else {
-            predicate = (s) -> {
-               return !prs.isIncremental || !s.isRepaired();
-            };
-         }
-
-         ColumnFamilyStore.RefViewFragment sstableCandidates = cfs.selectAndReference(View.select(SSTableSet.CANONICAL, predicate));
-         Throwable var8 = null;
-
-         Refs sstables;
-         try {
-            Iterator var9 = sstableCandidates.sstables.iterator();
-
-            while(var9.hasNext()) {
-               SSTableReader sstable = (SSTableReader)var9.next();
-               if((new Bounds(sstable.first.getToken(), sstable.last.getToken())).intersects(validator.desc.ranges)) {
-                  sstablesToValidate.add(sstable);
-               }
-            }
-
-            sstables = Refs.tryRef((Iterable)sstablesToValidate);
-            if(sstables == null) {
-               logger.error("Could not reference sstables");
-               throw new RuntimeException("Could not reference sstables");
-            }
-         } catch (Throwable var18) {
-            var8 = var18;
-            throw var18;
-         } finally {
-            if(sstableCandidates != null) {
-               if(var8 != null) {
-                  try {
-                     sstableCandidates.close();
-                  } catch (Throwable var17) {
-                     var8.addSuppressed(var17);
-                  }
-               } else {
-                  sstableCandidates.close();
-               }
-            }
-
-         }
-
-         return sstables;
       }
+      HashSet<SSTableReader> sstablesToValidate = new HashSet<SSTableReader>();
+      Predicate<SSTableReader> predicate = prs.isPreview() ? prs.getPreviewPredicate() : (validator.isIncremental ? s -> validator.desc.parentSessionId.equals(s.getSSTableMetadata().pendingRepair) : s -> !prs.isIncremental || !s.isRepaired());
+      try (ColumnFamilyStore.RefViewFragment sstableCandidates = cfs.selectAndReference(View.select(SSTableSet.CANONICAL, predicate));){
+         for (SSTableReader sstable : sstableCandidates.sstables) {
+            if (!new Bounds<Token>(sstable.first.getToken(), sstable.last.getToken()).intersects(validator.desc.ranges)) continue;
+            sstablesToValidate.add(sstable);
+         }
+         sstables = Refs.tryRef(sstablesToValidate);
+         if (sstables == null) {
+            logger.error("Could not reference sstables");
+            throw new RuntimeException("Could not reference sstables");
+         }
+      }
+      return sstables;
    }
 
-   private void doAntiCompaction(ColumnFamilyStore cfs, Collection<Range<Token>> ranges, LifecycleTransaction repaired, long repairedAt, UUID pendingRepair) {
-      logger.info("Performing anticompaction on {} sstables", Integer.valueOf(repaired.originals().size()));
-      Set<SSTableReader> sstables = repaired.originals();
-      Set<SSTableReader> unrepairedSSTables = (Set)sstables.stream().filter((s) -> {
-         return !s.isRepaired();
-      }).collect(Collectors.toSet());
+   private void doAntiCompaction(final ColumnFamilyStore cfs, final Collection<Range<Token>> ranges, final LifecycleTransaction repaired, final long repairedAt, final UUID pendingRepair) {
+      CompactionManager.logger.info("Performing anticompaction on {} sstables", (Object)repaired.originals().size());
+      final Set<SSTableReader> sstables = repaired.originals();
+      final Set<SSTableReader> unrepairedSSTables = sstables.stream().filter(s -> !s.isRepaired()).collect(Collectors.toSet());
       cfs.metric.bytesAnticompacted.inc(SSTableReader.getTotalBytes(unrepairedSSTables));
-      Collection<Collection<SSTableReader>> groupedSSTables = cfs.getCompactionStrategyManager().groupSSTablesForAntiCompaction(unrepairedSSTables);
+      final Collection<Collection<SSTableReader>> groupedSSTables = cfs.getCompactionStrategyManager().groupSSTablesForAntiCompaction(unrepairedSSTables);
       int antiCompactedSSTableCount = 0;
-      Iterator var11 = groupedSSTables.iterator();
-
-      while(var11.hasNext()) {
-         Collection<SSTableReader> sstableGroup = (Collection)var11.next();
-         LifecycleTransaction txn = repaired.split(sstableGroup);
-         Throwable var14 = null;
-
-         try {
-            int antiCompacted = this.antiCompactGroup(cfs, ranges, txn, repairedAt, pendingRepair);
+      for (final Collection<SSTableReader> sstableGroup : groupedSSTables) {
+         try (final LifecycleTransaction txn = repaired.split(sstableGroup)) {
+            final int antiCompacted = this.antiCompactGroup(cfs, ranges, txn, repairedAt, pendingRepair);
             antiCompactedSSTableCount += antiCompacted;
-         } catch (Throwable var23) {
-            var14 = var23;
-            throw var23;
-         } finally {
-            if(txn != null) {
-               if(var14 != null) {
-                  try {
-                     txn.close();
-                  } catch (Throwable var22) {
-                     var14.addSuppressed(var22);
-                  }
-               } else {
-                  txn.close();
-               }
-            }
-
          }
       }
-
-      String format = "Anticompaction completed successfully, anticompacted from {} to {} sstable(s).";
-      logger.info(format, Integer.valueOf(repaired.originals().size()), Integer.valueOf(antiCompactedSSTableCount));
+      final String format = "Anticompaction completed successfully, anticompacted from {} to {} sstable(s).";
+      CompactionManager.logger.info(format, (Object)repaired.originals().size(), (Object)antiCompactedSSTableCount);
    }
 
-   private int antiCompactGroup(ColumnFamilyStore cfs, Collection<Range<Token>> ranges, LifecycleTransaction anticompactionGroup, long repairedAt, UUID pendingRepair) {
+   private int antiCompactGroup(final ColumnFamilyStore cfs, final Collection<Range<Token>> ranges, final LifecycleTransaction anticompactionGroup, final long repairedAt, final UUID pendingRepair) {
       long groupMaxDataAge = -1L;
-      Iterator i = anticompactionGroup.originals().iterator();
-
-      while(i.hasNext()) {
-         SSTableReader sstable = (SSTableReader)i.next();
-         if(groupMaxDataAge < sstable.maxDataAge) {
+      for (final SSTableReader sstable : anticompactionGroup.originals()) {
+         if (groupMaxDataAge < sstable.maxDataAge) {
             groupMaxDataAge = sstable.maxDataAge;
          }
       }
-
-      if(anticompactionGroup.originals().size() == 0) {
-         logger.info("No valid anticompactions for this group, All sstables were compacted and are no longer available");
+      if (anticompactionGroup.originals().size() == 0) {
+         CompactionManager.logger.info("No valid anticompactions for this group, All sstables were compacted and are no longer available");
          return 0;
-      } else {
-         logger.info("Anticompacting {}", anticompactionGroup);
-         Set<SSTableReader> sstableAsSet = anticompactionGroup.originals();
-         long writeSize = cfs.getExpectedCompactedFileSize(sstableAsSet, OperationType.ANTICOMPACTION);
-         File destination = cfs.getDirectories().getWriteableLocationAsFile(cfs, (SSTableReader)Iterables.get(sstableAsSet, 0), writeSize);
-         long repairedKeyCount = 0L;
-         long unrepairedKeyCount = 0L;
-         int nowInSec = FBUtilities.nowInSeconds();
-         CompactionStrategyManager strategy = cfs.getCompactionStrategyManager();
-
-         try {
-            SSTableRewriter repairedSSTableWriter = SSTableRewriter.constructWithoutEarlyOpening(anticompactionGroup, false, groupMaxDataAge);
-            Throwable var20 = null;
-
-            Throwable var32;
-            try {
-               SSTableRewriter unRepairedSSTableWriter = SSTableRewriter.constructWithoutEarlyOpening(anticompactionGroup, false, groupMaxDataAge);
-               Throwable var22 = null;
-
-               try {
-                  AbstractCompactionStrategy.ScannerList scanners = strategy.getScanners(anticompactionGroup.originals());
-                  Throwable var24 = null;
-
-                  try {
-                     CompactionController controller = new CompactionController(cfs, sstableAsSet, getDefaultGcBefore(cfs, nowInSec));
-                     Throwable var26 = null;
-
-                     try {
-                        CompactionIterator ci = new CompactionIterator(OperationType.ANTICOMPACTION, scanners.scanners, controller, nowInSec, UUIDGen.getTimeUUID(), this.metrics);
-                        Throwable var28 = null;
-
-                        try {
-                           int expectedBloomFilterSize = Math.max(cfs.metadata().params.minIndexInterval, (int)SSTableReader.getApproximateKeyCount(sstableAsSet));
-                           repairedSSTableWriter.switchWriter(createWriterForAntiCompaction(cfs, destination, expectedBloomFilterSize, repairedAt, pendingRepair, sstableAsSet, anticompactionGroup));
-                           unRepairedSSTableWriter.switchWriter(createWriterForAntiCompaction(cfs, destination, expectedBloomFilterSize, 0L, (UUID)null, sstableAsSet, anticompactionGroup));
-                           Range.OrderedRangeContainmentChecker containmentChecker = new Range.OrderedRangeContainmentChecker(ranges);
-
-                           while(ci.hasNext()) {
-                              UnfilteredRowIterator partition = ci.next();
-                              var32 = null;
-
-                              try {
-                                 if(containmentChecker.contains(partition.partitionKey().getToken())) {
-                                    repairedSSTableWriter.append(partition);
-                                    ++repairedKeyCount;
-                                 } else {
-                                    unRepairedSSTableWriter.append(partition);
-                                    ++unrepairedKeyCount;
-                                 }
-                              } catch (Throwable var187) {
-                                 var32 = var187;
-                                 throw var187;
-                              } finally {
-                                 if(partition != null) {
-                                    if(var32 != null) {
-                                       try {
-                                          partition.close();
-                                       } catch (Throwable var186) {
-                                          var32.addSuppressed(var186);
-                                       }
-                                    } else {
-                                       partition.close();
-                                    }
-                                 }
-
-                              }
-                           }
-
-                           List<SSTableReader> anticompactedSSTables = new ArrayList();
-                           anticompactionGroup.permitRedundantTransitions();
-                           repairedSSTableWriter.setRepairedAt(repairedAt).prepareToCommit();
-                           unRepairedSSTableWriter.prepareToCommit();
-                           anticompactedSSTables.addAll(repairedSSTableWriter.finished());
-                           anticompactedSSTables.addAll(unRepairedSSTableWriter.finished());
-                           repairedSSTableWriter.commit();
-                           unRepairedSSTableWriter.commit();
-                           logger.trace("Repaired {} keys out of {} for {}/{} in {}", new Object[]{Long.valueOf(repairedKeyCount), Long.valueOf(repairedKeyCount + unrepairedKeyCount), cfs.keyspace.getName(), cfs.getTableName(), anticompactionGroup});
-                           var32 = anticompactedSSTables.size();
-                        } catch (Throwable var189) {
-                           var28 = var189;
-                           throw var189;
-                        } finally {
-                           if(ci != null) {
-                              if(var28 != null) {
-                                 try {
-                                    ci.close();
-                                 } catch (Throwable var185) {
-                                    var28.addSuppressed(var185);
-                                 }
-                              } else {
-                                 ci.close();
-                              }
-                           }
-
-                        }
-                     } catch (Throwable var191) {
-                        var26 = var191;
-                        throw var191;
-                     } finally {
-                        if(controller != null) {
-                           if(var26 != null) {
-                              try {
-                                 controller.close();
-                              } catch (Throwable var184) {
-                                 var26.addSuppressed(var184);
-                              }
-                           } else {
-                              controller.close();
-                           }
-                        }
-
-                     }
-                  } catch (Throwable var193) {
-                     var24 = var193;
-                     throw var193;
-                  } finally {
-                     if(scanners != null) {
-                        if(var24 != null) {
-                           try {
-                              scanners.close();
-                           } catch (Throwable var183) {
-                              var24.addSuppressed(var183);
-                           }
-                        } else {
-                           scanners.close();
-                        }
-                     }
-
-                  }
-               } catch (Throwable var195) {
-                  var22 = var195;
-                  throw var195;
-               } finally {
-                  if(unRepairedSSTableWriter != null) {
-                     if(var22 != null) {
-                        try {
-                           unRepairedSSTableWriter.close();
-                        } catch (Throwable var182) {
-                           var22.addSuppressed(var182);
-                        }
-                     } else {
-                        unRepairedSSTableWriter.close();
-                     }
-                  }
-
+      }
+      CompactionManager.logger.info("Anticompacting {}", (Object)anticompactionGroup);
+      final Set<SSTableReader> sstableAsSet = anticompactionGroup.originals();
+      final long writeSize = cfs.getExpectedCompactedFileSize(sstableAsSet, OperationType.ANTICOMPACTION);
+      final File destination = cfs.getDirectories().getWriteableLocationAsFile(cfs, (SSTableReader)Iterables.get((Iterable)sstableAsSet, 0), writeSize);
+      long repairedKeyCount = 0L;
+      long unrepairedKeyCount = 0L;
+      final int nowInSec = FBUtilities.nowInSeconds();
+      final CompactionStrategyManager strategy = cfs.getCompactionStrategyManager();
+      try (final SSTableRewriter repairedSSTableWriter = SSTableRewriter.constructWithoutEarlyOpening(anticompactionGroup, false, groupMaxDataAge);
+           final SSTableRewriter unRepairedSSTableWriter = SSTableRewriter.constructWithoutEarlyOpening(anticompactionGroup, false, groupMaxDataAge);
+           final AbstractCompactionStrategy.ScannerList scanners = strategy.getScanners(anticompactionGroup.originals());
+           final CompactionController controller = new CompactionController(cfs, sstableAsSet, getDefaultGcBefore(cfs, nowInSec));
+           final CompactionIterator ci = new CompactionIterator(OperationType.ANTICOMPACTION, scanners.scanners, controller, nowInSec, UUIDGen.getTimeUUID(), this.metrics)) {
+         final int expectedBloomFilterSize = Math.max(cfs.metadata().params.minIndexInterval, (int)SSTableReader.getApproximateKeyCount(sstableAsSet));
+         repairedSSTableWriter.switchWriter(createWriterForAntiCompaction(cfs, destination, expectedBloomFilterSize, repairedAt, pendingRepair, sstableAsSet, anticompactionGroup));
+         unRepairedSSTableWriter.switchWriter(createWriterForAntiCompaction(cfs, destination, expectedBloomFilterSize, 0L, null, sstableAsSet, anticompactionGroup));
+         final Range.OrderedRangeContainmentChecker containmentChecker = new Range.OrderedRangeContainmentChecker(ranges);
+         while (ci.hasNext()) {
+            try (final UnfilteredRowIterator partition = ci.next()) {
+               if (containmentChecker.contains(partition.partitionKey().getToken())) {
+                  repairedSSTableWriter.append(partition);
+                  ++repairedKeyCount;
                }
-            } catch (Throwable var197) {
-               var20 = var197;
-               throw var197;
-            } finally {
-               if(repairedSSTableWriter != null) {
-                  if(var20 != null) {
-                     try {
-                        repairedSSTableWriter.close();
-                     } catch (Throwable var181) {
-                        var20.addSuppressed(var181);
-                     }
-                  } else {
-                     repairedSSTableWriter.close();
-                  }
+               else {
+                  unRepairedSSTableWriter.append(partition);
+                  ++unrepairedKeyCount;
                }
-
             }
-
-            return (int)var32;
-         } catch (Throwable var199) {
-            JVMStabilityInspector.inspectThrowable(var199);
-            logger.error("Error anticompacting " + anticompactionGroup, var199);
-            return 0;
          }
+         final List<SSTableReader> anticompactedSSTables = new ArrayList<SSTableReader>();
+         anticompactionGroup.permitRedundantTransitions();
+         repairedSSTableWriter.setRepairedAt(repairedAt).prepareToCommit();
+         unRepairedSSTableWriter.prepareToCommit();
+         anticompactedSSTables.addAll(repairedSSTableWriter.finished());
+         anticompactedSSTables.addAll(unRepairedSSTableWriter.finished());
+         repairedSSTableWriter.commit();
+         unRepairedSSTableWriter.commit();
+         CompactionManager.logger.trace("Repaired {} keys out of {} for {}/{} in {}", new Object[] { repairedKeyCount, repairedKeyCount + unrepairedKeyCount, cfs.keyspace.getName(), cfs.getTableName(), anticompactionGroup });
+         return anticompactedSSTables.size();
+      }
+      catch (Throwable e) {
+         JVMStabilityInspector.inspectThrowable(e);
+         CompactionManager.logger.error("Error anticompacting " + anticompactionGroup, e);
+         return 0;
       }
    }
 
@@ -2136,13 +1930,13 @@ public class CompactionManager implements CompactionManagerMBean {
 
    private static class CacheCleanupExecutor extends CompactionManager.CompactionExecutor {
       public CacheCleanupExecutor() {
-         super(1, "CacheCleanupExecutor", null);
+         super(1, "CacheCleanupExecutor");
       }
    }
 
    private static class ViewBuildExecutor extends CompactionManager.CompactionExecutor {
       public ViewBuildExecutor() {
-         super(DatabaseDescriptor.getConcurrentViewBuilders(), "ViewBuildExecutor", null);
+         super(DatabaseDescriptor.getConcurrentViewBuilders(), "ViewBuildExecutor");
       }
    }
 

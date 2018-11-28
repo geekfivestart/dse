@@ -141,6 +141,14 @@ public class RateSimulator {
          return String.format("%s.%s", new Object[]{ColumnIdentifier.maybeQuote(this.keyspace), ColumnIdentifier.maybeQuote(this.table)});
       }
 
+      public TimeValue getDeadlineTarget(){
+         return deadlineTarget;
+      }
+
+      public String getKeyspace(){return keyspace;}
+
+      public String getTable(){return table;}
+
       static RateSimulator.TableInfo fromStore(ColumnFamilyStore store) {
          TableMetadata table = store.metadata();
          return new RateSimulator.TableInfo(table.keyspace, table.name, store.keyspace.getReplicationStrategy().getReplicationFactor(), NodeSyncHelpers.isNodeSyncEnabled(store), SizeValue.of(NodeSyncHelpers.estimatedSizeOf(store), SizeUnit.BYTES), TimeValue.of(table.params.nodeSync.deadlineTarget(table, TimeUnit.SECONDS), TimeUnit.SECONDS));
@@ -216,13 +224,7 @@ public class RateSimulator {
    }
 
    public static class Info {
-      private static final Comparator<RateSimulator.TableInfo> COMPARATOR = Comparator.comparing((t) -> {
-         return t.deadlineTarget;
-      }).thenComparing((t) -> {
-         return t.keyspace;
-      }).thenComparing((t) -> {
-         return t.table;
-      });
+      private static final Comparator<RateSimulator.TableInfo> COMPARATOR = Comparator.comparing(TableInfo::getDeadlineTarget).thenComparing(TableInfo::getKeyspace).thenComparing(TableInfo::getTable);
       private final SortedSet<RateSimulator.TableInfo> tables;
 
       private Info(SortedSet<RateSimulator.TableInfo> tables) {

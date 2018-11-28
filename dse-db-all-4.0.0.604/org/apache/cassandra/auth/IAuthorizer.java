@@ -15,7 +15,7 @@ public interface IAuthorizer {
    }
 
    default <T extends IAuthorizer> T implementation() {
-      return this;
+      return (T)this;
    }
 
    default <T extends IAuthorizer> boolean isImplementationOf(Class<T> implClass) {

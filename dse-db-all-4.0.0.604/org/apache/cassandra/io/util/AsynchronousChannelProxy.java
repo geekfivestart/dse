@@ -189,7 +189,7 @@ public class AsynchronousChannelProxy extends AbstractChannelProxy<AsynchronousF
    }
 
    public AsynchronousChannelProxy maybeBatched(boolean vectored) {
-      return (AsynchronousChannelProxy)(this.epollChannel == null?this.sharedCopy():new AsynchronousChannelProxy.AIOEpollBatchedChannelProxy(this, vectored, null));
+      return (AsynchronousChannelProxy)(this.epollChannel == null?this.sharedCopy():new AsynchronousChannelProxy.AIOEpollBatchedChannelProxy(this, vectored));
    }
 
    static {
@@ -235,19 +235,20 @@ public class AsynchronousChannelProxy extends AbstractChannelProxy<AsynchronousF
       }
 
       public void submitBatch() {
-         if(batch.isSet()) {
-            Batch batch = (Batch)batch.get();
-
-            try {
-               if(batch.numRequests() > 0) {
-                  this.epollChannel.read(batch, (EpollEventLoop)TPC.bestIOEventLoop());
-               }
-            } catch (Throwable var6) {
-               batch.failed(var6);
-            } finally {
-               batch.remove();
+         if (!AIOEpollBatchedChannelProxy.batch.isSet()) {
+            return;
+         }
+         final Batch<ByteBuffer> batch = (Batch<ByteBuffer>)AIOEpollBatchedChannelProxy.batch.get();
+         try {
+            if (batch.numRequests() > 0) {
+               this.epollChannel.read((Batch)batch, (EpollEventLoop)TPC.bestIOEventLoop());
             }
-
+         }
+         catch (Throwable err) {
+            batch.failed(err);
+         }
+         finally {
+            AIOEpollBatchedChannelProxy.batch.remove();
          }
       }
    }

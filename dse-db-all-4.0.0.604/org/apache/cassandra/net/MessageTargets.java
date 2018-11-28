@@ -105,7 +105,7 @@ abstract class MessageTargets {
       private final Collection<MessageTargets.WithForwards> remotesWithForwards;
 
       WithForwarding(boolean hasLocal, List<InetAddress> nonForwardingRemotes, Collection<MessageTargets.WithForwards> remotesWithForwards) {
-         super(hasLocal, null);
+         super(hasLocal);
          this.nonForwardingRemotes = nonForwardingRemotes;
          this.remotesWithForwards = remotesWithForwards;
       }
@@ -131,7 +131,7 @@ abstract class MessageTargets {
       private final List<InetAddress> remotes;
 
       Simple(boolean hasLocal, List<InetAddress> remotes) {
-         super(hasLocal, null);
+         super(hasLocal);
          this.remotes = remotes;
       }
 

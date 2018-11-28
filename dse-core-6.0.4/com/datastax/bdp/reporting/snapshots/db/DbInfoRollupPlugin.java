@@ -88,36 +88,30 @@ public class DbInfoRollupPlugin extends AbstractScheduledPlugin<SnapshotInfoBean
 
    private void doRollup() {
       try {
-         List<Future<DatabaseInfo>> futures = (List)StorageService.instance.getTokenMetadata().getAllEndpoints().stream().map((peerAddress) -> {
-            return this.getThreadPool().submit(() -> {
-               return this.getTableSummaries(peerAddress);
-            });
-         }).collect(Collectors.toList());
-         List<DatabaseInfo> nodeViews = new ArrayList();
-         long timeout = Long.getLong("dse.db_info_rollup_node_query_timeout", 3000L).longValue();
-         Iterator var5 = futures.iterator();
-
-         while(var5.hasNext()) {
-            Future future = (Future)var5.next();
-
+         List<Future<DatabaseInfo>> futures = StorageService.instance.getTokenMetadata().getAllEndpoints().stream().map(peerAddress -> this.getThreadPool().submit(() -> this.getTableSummaries(peerAddress))).collect(Collectors.toList());
+         ArrayList<DatabaseInfo> nodeViews = new ArrayList<DatabaseInfo>();
+         long timeout = Long.getLong("dse.db_info_rollup_node_query_timeout", 3000L);
+         for (Future future : futures) {
             try {
-               nodeViews.add(future.get(timeout, TimeUnit.MILLISECONDS));
-            } catch (InterruptedException var8) {
+               nodeViews.add((DatabaseInfo)future.get(timeout, TimeUnit.MILLISECONDS));
+            }
+            catch (InterruptedException e) {
                Thread.currentThread().interrupt();
-               throw var8;
-            } catch (Exception var9) {
-               logger.info("Error retrieving node level db summary: {}", var9.getMessage());
+               throw e;
+            }
+            catch (Exception e) {
+               logger.info("Error retrieving node level db summary: {}", (Object)e.getMessage());
             }
          }
-
          DatabaseInfo aggregateView = new DatabaseInfo();
          aggregateView.aggregate(nodeViews);
          this.writeSummary(aggregateView);
-      } catch (Exception var10) {
-         logger.warn("Caught exception while rolling up db info", var10);
       }
-
+      catch (Exception e) {
+         logger.warn("Caught exception while rolling up db info", (Throwable)e);
+      }
    }
+
 
    private DatabaseInfo getTableSummaries(InetAddress peerAddress) {
       logger.debug("Fetching CQL table summaries from {}", peerAddress);

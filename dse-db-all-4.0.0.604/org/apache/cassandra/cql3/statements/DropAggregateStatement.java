@@ -90,7 +90,7 @@ public final class DropAggregateStatement extends SchemaAlteringStatement {
                   argTypes.add(this.prepareType("arguments", rawType));
                }
 
-               old = (Function)Schema.instance.findFunction(this.functionName, argTypes).orElse((Object)null);
+               old = (Function)Schema.instance.findFunction(this.functionName, argTypes).orElse(null);
             }
 
             if(old == null || !(old instanceof AggregateFunction)) {

@@ -211,6 +211,6 @@ public class MapSerializer<K, V> extends CollectionSerializer<Map<K, V>> {
    }
 
    public Class<Map<K, V>> getType() {
-      return Map.class;
+      return (Class) Map.class;
    }
 }

@@ -688,9 +688,8 @@ public class CqlParser extends Parser {
 
       try {
          try {
-            int alt4 = true;
+            int alt4 = 2;
             int LA4_0 = this.input.LA(1);
-            byte alt4;
             if(LA4_0 != 46 && LA4_0 != 146 && LA4_0 != 178) {
                if(LA4_0 != 31 && LA4_0 != 53 && LA4_0 != 59 && LA4_0 != 70 && (LA4_0 < 140 || LA4_0 > 141)) {
                   NoViableAltException nvae = new NoViableAltException("", 4, 0, this.input);
@@ -990,7 +989,6 @@ public class CqlParser extends Parser {
 
       try {
          try {
-            int alt3 = true;
             int alt3 = this.dfa3.predict(this.input);
             byte alt2;
             int LA2_0;
@@ -1094,7 +1092,6 @@ public class CqlParser extends Parser {
 
       try {
          try {
-            int alt5 = true;
             int alt5 = this.dfa5.predict(this.input);
             switch(alt5) {
             case 1:
@@ -1358,8 +1355,7 @@ public class CqlParser extends Parser {
 
       try {
          try {
-            int alt6 = true;
-            byte alt6;
+            int alt6 = 3;
             switch(this.input.LA(1)) {
             case 28:
             case 29:

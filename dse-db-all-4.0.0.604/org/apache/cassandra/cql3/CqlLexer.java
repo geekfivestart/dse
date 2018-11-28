@@ -482,7 +482,6 @@ public class CqlLexer extends Lexer {
    }
 
    public void mTokens() throws RecognitionException {
-      int alt1 = true;
       int alt1 = this.dfa1.predict(this.input);
       switch(alt1) {
       case 1:

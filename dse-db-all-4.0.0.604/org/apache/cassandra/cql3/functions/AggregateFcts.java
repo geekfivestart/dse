@@ -409,7 +409,7 @@ public abstract class AggregateFcts {
       };
       sumFunctionForLong = new NativeAggregateFunction("sum", LongType.instance, new AbstractType[]{LongType.instance}) {
          public AggregateFunction.Aggregate newAggregate() {
-            return new AggregateFcts.LongSumAggregate(null);
+            return new AggregateFcts.LongSumAggregate();
          }
       };
       avgFunctionForLong = new NativeAggregateFunction("avg", LongType.instance, new AbstractType[]{LongType.instance}) {
@@ -459,7 +459,7 @@ public abstract class AggregateFcts {
       };
       sumFunctionForCounter = new NativeAggregateFunction("sum", CounterColumnType.instance, new AbstractType[]{CounterColumnType.instance}) {
          public AggregateFunction.Aggregate newAggregate() {
-            return new AggregateFcts.LongSumAggregate(null);
+            return new AggregateFcts.LongSumAggregate();
          }
       };
       avgFunctionForCounter = new NativeAggregateFunction("avg", CounterColumnType.instance, new AbstractType[]{CounterColumnType.instance}) {

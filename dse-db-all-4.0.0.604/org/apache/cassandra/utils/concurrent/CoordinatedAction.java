@@ -55,11 +55,11 @@ public class CoordinatedAction<T> implements Supplier<CompletableFuture<T>> {
                      ((CompletableFuture)this.action.get()).whenComplete((r, e) -> {
                         if(e == null) {
                            this.futures.stream().forEach((f) -> {
-                              f.complete(r);
+                              f.complete((T)r);
                            });
                         } else {
                            this.futures.stream().forEach((f) -> {
-                              f.completeExceptionally(e);
+                              f.completeExceptionally((Throwable) e);
                            });
                         }
 

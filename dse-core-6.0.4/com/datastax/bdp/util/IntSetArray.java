@@ -91,7 +91,7 @@ public final class IntSetArray {
       private final int[] array;
 
       private IntArrayStorage() {
-         super(null);
+         super();
          this.array = new int[IntSetArray.this.numberOfSets * IntSetArray.this.maxSetSize];
          this.initArray();
       }
@@ -109,7 +109,7 @@ public final class IntSetArray {
       private final short[] array;
 
       private ShortArrayStorage() {
-         super(null);
+         super();
          this.array = new short[IntSetArray.this.numberOfSets * IntSetArray.this.maxSetSize];
          this.initArray();
       }
@@ -127,7 +127,7 @@ public final class IntSetArray {
       private final byte[] array;
 
       private ByteArrayStorage() {
-         super(null);
+         super();
          this.array = new byte[IntSetArray.this.numberOfSets * IntSetArray.this.maxSetSize];
          this.initArray();
       }

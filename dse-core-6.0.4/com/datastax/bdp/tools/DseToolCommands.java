@@ -65,6 +65,7 @@ import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.ParseException;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.map.SerializationConfig.Feature;
+import com.datastax.bdp.snitch.EndpointStateTrackerMXBean.NodeStatus;
 
 public class DseToolCommands implements ProxySource {
    public DseToolCommands() {
@@ -1083,37 +1084,39 @@ public class DseToolCommands implements ProxySource {
       public static final String VNODES = "VNodes";
       public static final String TOKEN = "Token";
       public static final String HEALTH = "Health [0,1]";
-      public final ImmutableMap<String, Pair<String, Function<EndpointStateTrackerMXBean.NodeStatus, String>>> NODESTATUS_FORMATTING = (new Builder()).put("Server ID", Pair.create("%-18s", (ns) -> {
-         return ns.getServerId();
-      })).put("Address", Pair.create("%-16s", (ns) -> {
+      public final ImmutableMap<String, Pair<String, Function<EndpointStateTrackerMXBean.NodeStatus, String>>> NODESTATUS_FORMATTING = (new Builder()).
+              put("Server ID", Pair.<String,Function<EndpointStateTrackerMXBean.NodeStatus, String>>create("%-18s", ns ->{
+                 return ns.getServerId();
+              }
+      )).put("Address", Pair.<String,Function<EndpointStateTrackerMXBean.NodeStatus, String>>create("%-16s", (ns) -> {
          return ns.getAddress();
-      })).put("DC", Pair.create("%-20s", (ns) -> {
+      })).put("DC", Pair.<String,Function<EndpointStateTrackerMXBean.NodeStatus, String>>create("%-20s", (ns) -> {
          return ns.getDc();
-      })).put("Rack", Pair.create("%-12s", (ns) -> {
+      })).put("Rack", Pair.<String,Function<EndpointStateTrackerMXBean.NodeStatus, String>>create("%-12s", (ns) -> {
          return ns.getRack();
-      })).put("Workload", Pair.create("%-20s", (ns) -> {
+      })).put("Workload", Pair.<String,Function<EndpointStateTrackerMXBean.NodeStatus, String>>create("%-20s", (ns) -> {
          return ns.getWorkload() + ns.getAnalyticsLabel();
-      })).put("Workload:", Pair.create("%-20s", (ns) -> {
+      })).put("Workload:", Pair.<String,Function<EndpointStateTrackerMXBean.NodeStatus, String>>create("%-20s", (ns) -> {
          return ns.getWorkload();
-      })).put("Graph", Pair.create("%-6s", (ns) -> {
+      })).put("Graph", Pair.<String,Function<EndpointStateTrackerMXBean.NodeStatus, String>>create("%-6s", (ns) -> {
          return ns.getIsGraphNode()?"yes":"no";
-      })).put("Status", Pair.create("%-7s", (ns) -> {
+      })).put("Status", Pair.<String,Function<EndpointStateTrackerMXBean.NodeStatus, String>>create("%-7s", (ns) -> {
          return ns.getStatus();
-      })).put("State", Pair.create("%-8s", (ns) -> {
+      })).put("State", Pair.<String,Function<EndpointStateTrackerMXBean.NodeStatus, String>>create("%-8s", (ns) -> {
          return ns.getState();
-      })).put("--", Pair.create("%-4s", (ns) -> {
+      })).put("--", Pair.<String,Function<EndpointStateTrackerMXBean.NodeStatus, String>>create("%-4s", (ns) -> {
          return ns.getStatus().substring(0, 1) + ns.getState().substring(0, 1);
-      })).put("Load", Pair.create("%-16s", (ns) -> {
+      })).put("Load", Pair.<String,Function<EndpointStateTrackerMXBean.NodeStatus, String>>create("%-16s", (ns) -> {
          return ns.getLoad();
-      })).put("Effective-Ownership", Pair.create("%-20s", (ns) -> {
+      })).put("Effective-Ownership", Pair.<String,Function<EndpointStateTrackerMXBean.NodeStatus, String>>create("%-20s", (ns) -> {
          return ns.getOwnership();
-      })).put("Owns", Pair.create("%-20s", (ns) -> {
+      })).put("Owns", Pair.<String,Function<EndpointStateTrackerMXBean.NodeStatus, String>>create("%-20s", (ns) -> {
          return "?";
-      })).put("VNodes", Pair.create("%-44s", (ns) -> {
+      })).put("VNodes", Pair.<String,Function<EndpointStateTrackerMXBean.NodeStatus, String>>create("%-44s", (ns) -> {
          return ns.getToken();
-      })).put("Token", Pair.create("%-44s", (ns) -> {
+      })).put("Token", Pair.<String,Function<EndpointStateTrackerMXBean.NodeStatus, String>>create("%-44s", (ns) -> {
          return ns.getToken();
-      })).put("Health [0,1]", Pair.create("%-12s", (ns) -> {
+      })).put("Health [0,1]", Pair.<String,Function<EndpointStateTrackerMXBean.NodeStatus, String>>create("%-12s", (ns) -> {
          return String.format("%.2f", new Object[]{Double.valueOf(ns.getHealth())});
       })).build();
 
@@ -1138,7 +1141,7 @@ public class DseToolCommands implements ProxySource {
          Arrays.stream(fields).filter((field) -> {
             return !field.isEmpty();
          }).forEach((field) -> {
-            out.printf((String)((Pair)this.NODESTATUS_FORMATTING.get(field)).left + " ", new Object[]{formatter.apply(field, ((Pair)this.NODESTATUS_FORMATTING.get(field)).right)});
+            out.printf((String)((Pair)this.NODESTATUS_FORMATTING.get(field)).left + " ", new Object[]{formatter.apply(field, (this.NODESTATUS_FORMATTING.get(field)).right)});
          });
          out.println("");
       }
@@ -1187,6 +1190,7 @@ public class DseToolCommands implements ProxySource {
             return lease.getHolder() == null?"None":lease.getHolder();
          }).findFirst().orElse("None");
       }
+
 
       public void maybePrintRingWarnings(PrintStream out, String partitioner, Collection<EndpointStateTrackerMXBean.NodeStatus> ring, Map<LeaseMonitorCore.LeaseId, Map<String, Boolean>> allLeasesStatus) {
          if(ring.size() > 0 && !((EndpointStateTrackerMXBean.NodeStatus)ring.iterator().next()).effective) {
@@ -1240,7 +1244,8 @@ public class DseToolCommands implements ProxySource {
                               return up.booleanValue();
                            }).count();
                            if(liveNodes <= (long)(replicas.size() / 2)) {
-                              out.printf("Warning: only %d of the %d replicas for the '%s.%s' lease are alive.  Sparkmaster nodes will not be elected until a quorum of live nodes is achieved.%s\nNode Status: %s\n", new Object[]{Long.valueOf(liveNodes), Integer.valueOf(replicas.size()), "Leader/master/6.0", dc, replicas.size() < 3?" Increasing the replication factor of the dse_leases keyspace for datacenter '" + dc + "' to 3 will increase reliability.":"", replicas.entrySet().stream().collect(Collectors.toMap((entry) -> {
+                              out.printf("Warning: only %d of the %d replicas for the '%s.%s' lease are alive.  Sparkmaster nodes will not be elected until a quorum of live nodes is achieved.%s\nNode Status: %s\n", new Object[]{Long.valueOf(liveNodes), Integer.valueOf(replicas.size()), "Leader/master/6.0", dc, replicas.size() < 3?" Increasing the replication factor of the dse_leases keyspace for datacenter '" + dc + "' to 3 will increase reliability.":"",
+                                      replicas.entrySet().stream().collect(Collectors.<Entry<String,Boolean>,String,String>toMap((entry) -> {
                                  return (String)entry.getKey();
                               }, (entry) -> {
                                  return ((Boolean)entry.getValue()).booleanValue()?"UP":"DOWN";

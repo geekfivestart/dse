@@ -60,21 +60,31 @@ public class LocalSyncTask extends SyncTask implements StreamEventHandler {
    }
 
    public void handleStreamEvent(StreamEvent event) {
-      if(this.state != null) {
-         switch(null.$SwitchMap$org$apache$cassandra$streaming$StreamEvent$Type[event.eventType.ordinal()]) {
-         case 1:
+      if (this.state == null) {
+         return;
+      }
+      switch (event.eventType) {
+         case STREAM_PREPARED: {
             StreamEvent.SessionPreparedEvent spe = (StreamEvent.SessionPreparedEvent)event;
             this.state.trace("Streaming session with {} prepared", (Object)spe.session.peer);
             break;
-         case 2:
-            StreamEvent.SessionCompleteEvent sce = (StreamEvent.SessionCompleteEvent)event;
-            this.state.trace("Streaming session with {} {}", sce.peer, sce.success?"completed successfully":"failed");
-            break;
-         case 3:
-            ProgressInfo pi = ((StreamEvent.ProgressEvent)event).progress;
-            this.state.trace("{}/{} ({}%) {} idx:{}{}", new Object[]{FBUtilities.prettyPrintMemory(pi.currentBytes), FBUtilities.prettyPrintMemory(pi.totalBytes), Long.valueOf(pi.currentBytes * 100L / pi.totalBytes), pi.direction == ProgressInfo.Direction.OUT?"sent to":"received from", Integer.valueOf(pi.sessionIndex), pi.peer});
          }
-
+         case STREAM_COMPLETE: {
+            StreamEvent.SessionCompleteEvent sce = (StreamEvent.SessionCompleteEvent)event;
+            this.state.trace("Streaming session with {} {}", (Object)sce.peer, (Object)(sce.success ? "completed successfully" : "failed"));
+            break;
+         }
+         case FILE_PROGRESS: {
+            ProgressInfo pi = ((StreamEvent.ProgressEvent)event).progress;
+            Object[] arrobject = new Object[6];
+            arrobject[0] = FBUtilities.prettyPrintMemory(pi.currentBytes);
+            arrobject[1] = FBUtilities.prettyPrintMemory(pi.totalBytes);
+            arrobject[2] = pi.currentBytes * 100L / pi.totalBytes;
+            arrobject[3] = pi.direction == ProgressInfo.Direction.OUT ? "sent to" : "received from";
+            arrobject[4] = pi.sessionIndex;
+            arrobject[5] = pi.peer;
+            this.state.trace("{}/{} ({}%) {} idx:{}{}", arrobject);
+         }
       }
    }
 

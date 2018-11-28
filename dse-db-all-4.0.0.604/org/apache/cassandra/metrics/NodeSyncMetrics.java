@@ -58,26 +58,31 @@ public class NodeSyncMetrics {
 
    public void addPageOutcomes(ValidationOutcome outcome, long pageCount) {
       this.processedPages.inc(pageCount);
-      switch(null.$SwitchMap$com$datastax$bdp$db$nodesync$ValidationOutcome[outcome.ordinal()]) {
-      case 1:
-         this.fullInSyncPages.inc(pageCount);
-         break;
-      case 2:
-         this.fullRepairedPages.inc(pageCount);
-         break;
-      case 3:
-         this.partialInSyncPages.inc(pageCount);
-         break;
-      case 4:
-         this.partialRepairedPages.inc(pageCount);
-         break;
-      case 5:
-         this.uncompletedPages.inc(pageCount);
-         break;
-      case 6:
-         this.failedPages.inc(pageCount);
+      switch (outcome) {
+         case FULL_IN_SYNC: {
+            this.fullInSyncPages.inc(pageCount);
+            break;
+         }
+         case FULL_REPAIRED: {
+            this.fullRepairedPages.inc(pageCount);
+            break;
+         }
+         case PARTIAL_IN_SYNC: {
+            this.partialInSyncPages.inc(pageCount);
+            break;
+         }
+         case PARTIAL_REPAIRED: {
+            this.partialRepairedPages.inc(pageCount);
+            break;
+         }
+         case UNCOMPLETED: {
+            this.uncompletedPages.inc(pageCount);
+            break;
+         }
+         case FAILED: {
+            this.failedPages.inc(pageCount);
+         }
       }
-
    }
 
    private CassandraMetricsRegistry.MetricName name(String name) {

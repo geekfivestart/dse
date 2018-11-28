@@ -71,7 +71,7 @@ public abstract class AbstractCommitLogSegmentManager {
                      return;
                   }
 
-                  Runnable callback = (Runnable)AbstractCommitLogSegmentManager.this.segmentPreparedCallback.getAndSet((Object)null);
+                  Runnable callback = (Runnable)AbstractCommitLogSegmentManager.this.segmentPreparedCallback.getAndSet(null);
                   if(callback != null) {
                      callback.run();
                   }
@@ -157,7 +157,7 @@ public abstract class AbstractCommitLogSegmentManager {
          }
 
          if(this.allocatingFrom != old) {
-            return CompletableFuture.completedFuture((Object)null);
+            return CompletableFuture.completedFuture(null);
          }
 
          ourAdvancer = new AbstractCommitLogSegmentManager.SegmentAdvancer(old);
@@ -173,19 +173,23 @@ public abstract class AbstractCommitLogSegmentManager {
    }
 
    void runWhenSegmentIsAvailable(Runnable runnable) {
-      assert runnable != null;
-
-      Runnable combined;
       Runnable prev;
+      Runnable combined;
+      Runnable runnable2;
+      assert (runnable != null);
       do {
-         prev = (Runnable)this.segmentPreparedCallback.get();
-         combined = prev != null?() -> {
-            prev.run();
-            runnable.run();
-         }:runnable;
-      } while(!this.segmentPreparedCallback.compareAndSet(prev, combined));
+         Runnable other = prev = this.segmentPreparedCallback.get();
+         if (prev != null) {
+            runnable2 = () -> {
+               other.run();
+               runnable.run();
+            };
+            continue;
+         }
+         runnable2 = runnable;
+      } while (!this.segmentPreparedCallback.compareAndSet(prev, combined = runnable2));
 
-      if(this.availableSegment.get() != null && this.segmentPreparedCallback.compareAndSet(combined, (Object)null)) {
+      if(this.availableSegment.get() != null && this.segmentPreparedCallback.compareAndSet(combined, null)) {
          combined.run();
       }
 
@@ -334,7 +338,7 @@ public abstract class AbstractCommitLogSegmentManager {
    }
 
    private void discardAvailableSegment() {
-      CommitLogSegment next = (CommitLogSegment)this.availableSegment.getAndSet((Object)null);
+      CommitLogSegment next = (CommitLogSegment)this.availableSegment.getAndSet(null);
       if(next != null) {
          next.discard(true);
       }
@@ -404,7 +408,7 @@ public abstract class AbstractCommitLogSegmentManager {
       public void run() {
          assert AbstractCommitLogSegmentManager.this.allocatingFrom == this.oldSegment;
 
-         CommitLogSegment next = (CommitLogSegment)AbstractCommitLogSegmentManager.this.availableSegment.getAndSet((Object)null);
+         CommitLogSegment next = (CommitLogSegment)AbstractCommitLogSegmentManager.this.availableSegment.getAndSet(null);
          if(next == null) {
             AbstractCommitLogSegmentManager.logger.warn("Available segment callback without available segment. This is only expected to happen while running commit log tests.");
             AbstractCommitLogSegmentManager.this.runWhenSegmentIsAvailable(this);
@@ -412,7 +416,7 @@ public abstract class AbstractCommitLogSegmentManager {
             AbstractCommitLogSegmentManager.this.activeSegments.add(next);
             AbstractCommitLogSegmentManager.this.allocatingFrom = next;
             AbstractCommitLogSegmentManager.this.wakeManager();
-            this.complete((Object)null);
+            this.complete(null);
             if(this.oldSegment != null) {
                AbstractCommitLogSegmentManager.this.commitLog.archiver.maybeArchive(this.oldSegment);
                this.oldSegment.discardUnusedTail();

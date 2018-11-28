@@ -138,7 +138,7 @@ public final class AuthManager {
       while(var3.hasNext()) {
          InetAddress endpoint = (InetAddress)var3.next();
          if(!endpoint.equals(FBUtilities.getBroadcastAddress()) && MessagingService.instance().versionAtLeast(endpoint, MessagingVersion.DSE_60)) {
-            MessagingService.instance().send(Verbs.AUTH.INVALIDATE.newRequest(endpoint, (Object)invalidation));
+            MessagingService.instance().send(Verbs.AUTH.INVALIDATE.newRequest(endpoint, invalidation));
          }
       }
 
@@ -180,7 +180,7 @@ public final class AuthManager {
       }
 
       public <T extends IAuthorizer> T implementation() {
-         return this.authorizer;
+         return (T)this.authorizer;
       }
 
       public boolean requireAuthorization() {
@@ -254,7 +254,7 @@ public final class AuthManager {
       }
 
       public <T extends IRoleManager> T implementation() {
-         return this.roleManager;
+         return (T)this.roleManager;
       }
 
       public Set<IRoleManager.Option> supportedOptions() {

@@ -49,27 +49,27 @@ public abstract class RangeIterator<K extends Comparable<K>, T extends CombinedV
    public final T skipTo(K nextToken) {
       if(this.min != null && this.max != null) {
          if(this.current.compareTo(nextToken) >= 0) {
-            return this.next == null?this.recomputeNext():(CombinedValue)this.next;
+            return this.next == null?this.recomputeNext():(T)this.next;
          } else if(this.max.compareTo(nextToken) < 0) {
-            return (CombinedValue)this.endOfData();
+            return (T)this.endOfData();
          } else {
             this.performSkipTo(nextToken);
             return this.recomputeNext();
          }
       } else {
-         return (CombinedValue)this.endOfData();
+         return (T)this.endOfData();
       }
    }
 
    protected abstract void performSkipTo(K var1);
 
    protected T recomputeNext() {
-      return this.tryToComputeNext()?(CombinedValue)this.peek():(CombinedValue)this.endOfData();
+      return this.tryToComputeNext()?(T)this.peek():(T)this.endOfData();
    }
 
    protected boolean tryToComputeNext() {
       boolean hasNext = super.tryToComputeNext();
-      this.current = hasNext?(Comparable)((CombinedValue)this.next).get():this.getMaximum();
+      this.current = hasNext?(K)((CombinedValue)this.next).get():this.getMaximum();
       return hasNext;
    }
 
@@ -99,7 +99,7 @@ public abstract class RangeIterator<K extends Comparable<K>, T extends CombinedV
 
       public Builder(RangeIterator.Builder.IteratorType type) {
          this.statistics = new RangeIterator.Builder.Statistics(type);
-         this.ranges = new PriorityQueue(16, (a, b) -> {
+         this.ranges = new PriorityQueue<RangeIterator<K,D>>(16, (a, b) -> {
             return a.getCurrent().compareTo(b.getCurrent());
          });
       }
@@ -162,22 +162,24 @@ public abstract class RangeIterator<K extends Comparable<K>, T extends CombinedV
          }
 
          public void update(RangeIterator<K, D> range) {
-            switch(null.$SwitchMap$org$apache$cassandra$index$sasi$utils$RangeIterator$Builder$IteratorType[this.iteratorType.ordinal()]) {
-            case 1:
-               this.min = RangeIterator.nullSafeMin(this.min, range.getMinimum());
-               this.max = RangeIterator.nullSafeMax(this.max, range.getMaximum());
-               break;
-            case 2:
-               this.min = RangeIterator.nullSafeMax(this.min, range.getMinimum());
-               this.max = RangeIterator.nullSafeMin(this.max, range.getMaximum());
-               break;
-            default:
-               throw new IllegalStateException("Unknown iterator type: " + this.iteratorType);
+            switch (this.iteratorType) {
+               case UNION: {
+                  this.min = RangeIterator.nullSafeMin(this.min, range.getMinimum());
+                  this.max = RangeIterator.nullSafeMax(this.max, range.getMaximum());
+                  break;
+               }
+               case INTERSECTION: {
+                  this.min = RangeIterator.nullSafeMax(this.min, range.getMinimum());
+                  this.max = RangeIterator.nullSafeMin(this.max, range.getMaximum());
+                  break;
+               }
+               default: {
+                  throw new IllegalStateException("Unknown iterator type: " + (Object)((Object)this.iteratorType));
+               }
             }
-
             this.isOverlapping &= RangeIterator.isOverlapping(this.min, this.max, range);
-            this.minRange = this.minRange == null?range:this.min(this.minRange, range);
-            this.maxRange = this.maxRange == null?range:this.max(this.maxRange, range);
+            this.minRange = this.minRange == null ? range : this.min(this.minRange, range);
+            this.maxRange = this.maxRange == null ? range : this.max(this.maxRange, range);
             this.tokenCount += range.getCount();
          }
 
@@ -200,11 +202,11 @@ public abstract class RangeIterator<K extends Comparable<K>, T extends CombinedV
 
       public static class EmptyRangeIterator<K extends Comparable<K>, D extends CombinedValue<K>> extends RangeIterator<K, D> {
          EmptyRangeIterator() {
-            super((Comparable)null, (Comparable)null, 0L);
+            super(null, null, 0L);
          }
 
          public D computeNext() {
-            return (CombinedValue)this.endOfData();
+            return this.endOfData();
          }
 
          protected void performSkipTo(K nextToken) {

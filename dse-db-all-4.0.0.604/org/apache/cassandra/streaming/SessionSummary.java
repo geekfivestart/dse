@@ -19,7 +19,7 @@ import org.apache.cassandra.utils.versioning.VersionDependent;
 import org.apache.cassandra.utils.versioning.Versioned;
 
 public class SessionSummary implements Serializable {
-   public static final Versioned<RepairVerbs.RepairVersion, Serializer<SessionSummary>> serializers = RepairVerbs.RepairVersion.versioned(SessionSummary.SessionSummarySerializer::<init>);
+   public static final Versioned<RepairVerbs.RepairVersion, Serializer<SessionSummary>> serializers = RepairVerbs.RepairVersion.versioned(SessionSummary.SessionSummarySerializer::new);
    public final InetAddress coordinator;
    public final InetAddress peer;
    public final Collection<StreamSummary> receivingSummaries;
@@ -90,20 +90,15 @@ public class SessionSummary implements Serializable {
          InetAddress coordinator = InetAddressSerializer.instance.deserialize(ByteBufferUtil.readWithLength(in));
          InetAddress peer = InetAddressSerializer.instance.deserialize(ByteBufferUtil.readWithLength(in));
          int numRcvd = in.readInt();
-         List<StreamSummary> receivingSummaries = new ArrayList(numRcvd);
-
-         int numSent;
-         for(numSent = 0; numSent < numRcvd; ++numSent) {
-            receivingSummaries.add(((Serializer)StreamSummary.serializers.get(((RepairVerbs.RepairVersion)this.version).streamVersion)).deserialize(in));
+         ArrayList<StreamSummary> receivingSummaries = new ArrayList<StreamSummary>(numRcvd);
+         for (int i = 0; i < numRcvd; ++i) {
+            receivingSummaries.add(StreamSummary.serializers.get(((RepairVerbs.RepairVersion)this.version).streamVersion).deserialize(in));
          }
-
-         numSent = in.readInt();
-         List<StreamSummary> sendingSummaries = new ArrayList(numRcvd);
-
-         for(int i = 0; i < numSent; ++i) {
-            sendingSummaries.add(((Serializer)StreamSummary.serializers.get(((RepairVerbs.RepairVersion)this.version).streamVersion)).deserialize(in));
+         int numSent = in.readInt();
+         ArrayList<StreamSummary> sendingSummaries = new ArrayList<StreamSummary>(numRcvd);
+         for (int i = 0; i < numSent; ++i) {
+            sendingSummaries.add(StreamSummary.serializers.get(((RepairVerbs.RepairVersion)this.version).streamVersion).deserialize(in));
          }
-
          return new SessionSummary(coordinator, peer, receivingSummaries, sendingSummaries);
       }
 

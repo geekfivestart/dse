@@ -357,7 +357,7 @@ public abstract class UserRolesAndPermissions {
 
    private static final class NormalUserRoles extends UserRolesAndPermissions {
       public NormalUserRoles(String name, String authenticatedName, Set<RoleResource> roles) {
-         super(name, authenticatedName, roles, null);
+         super(name, authenticatedName, roles);
       }
 
       public boolean hasGrantPermission(IResource resource, Permission perm) {
@@ -385,7 +385,7 @@ public abstract class UserRolesAndPermissions {
       private Map<IResource, PermissionSets> additionalPermissions;
 
       public NormalUserWithPermissions(String name, String authenticatedName, Set<RoleResource> roles, Map<RoleResource, Map<IResource, PermissionSets>> permissions) {
-         super(name, authenticatedName, roles, null);
+         super(name, authenticatedName, roles);
          this.permissions = permissions;
       }
 
@@ -620,7 +620,7 @@ public abstract class UserRolesAndPermissions {
 
    private static final class SuperUserRoleAndPermissions extends UserRolesAndPermissions {
       public SuperUserRoleAndPermissions(String name, String authenticatedName, Set<RoleResource> roles) {
-         super(name, authenticatedName, roles, null);
+         super(name, authenticatedName, roles);
       }
 
       public boolean isSuper() {

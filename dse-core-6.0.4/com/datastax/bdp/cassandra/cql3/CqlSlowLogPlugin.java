@@ -122,7 +122,7 @@ public class CqlSlowLogPlugin extends AbstractPlugin {
    private void enableRefresh() {
       if(this.thresholdRefresher.get() == null) {
          ScheduledFuture<?> newJob = this.threadPool.scheduleAtFixedRate(this::adjustEffectiveThreshold, 0L, 1L, TimeUnit.SECONDS);
-         if(this.thresholdRefresher.compareAndSet((Object)null, newJob)) {
+         if(this.thresholdRefresher.compareAndSet(null, newJob)) {
             logger.info("Background refresh enabled");
          } else {
             newJob.cancel(true);

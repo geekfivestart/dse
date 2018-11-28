@@ -78,7 +78,7 @@ public class LogReplicaSet implements AutoCloseable {
    boolean readRecords(Set<LogRecord> records) {
       Map<LogReplica, List<String>> linesByReplica = (Map)this.replicas().stream().collect(Collectors.toMap(Function.identity(), LogReplica::readLines, (k, v) -> {
          throw new IllegalStateException("Duplicated key: " + k);
-      }, LinkedHashMap::<init>));
+      }, LinkedHashMap::new));
       int maxNumLines = ((Integer)linesByReplica.values().stream().map(List::size).reduce(Integer.valueOf(0), Integer::max)).intValue();
 
       for(int i = 0; i < maxNumLines; ++i) {
@@ -160,28 +160,22 @@ public class LogReplicaSet implements AutoCloseable {
    void append(LogRecord record) {
       Throwable err = null;
       int failed = 0;
-      Iterator var4 = this.replicas().iterator();
-
-      while(var4.hasNext()) {
-         LogReplica replica = (LogReplica)var4.next();
-
+      for (LogReplica replica : this.replicas()) {
          try {
             replica.append(record);
-         } catch (Throwable var7) {
-            logger.warn("Failed to add record to a replica: {}", var7.getMessage());
-            err = Throwables.merge(err, var7);
+         }
+         catch (Throwable t) {
+            logger.warn("Failed to add record to a replica: {}", (Object)t.getMessage());
+            err = Throwables.merge(err, t);
             ++failed;
          }
       }
-
-      if(err != null) {
-         if(!record.isFinal() || failed == this.replicas().size()) {
+      if (err != null) {
+         if (!record.isFinal() || failed == this.replicas().size()) {
             Throwables.maybeFail(err);
          }
-
          logger.error("Failed to add record '{}' to some replicas '{}'", new Object[]{record, this, err});
       }
-
    }
 
    boolean exists() {
@@ -190,9 +184,7 @@ public class LogReplicaSet implements AutoCloseable {
    }
 
    public void close() {
-      Throwables.maybeFail(Throwables.perform((Throwable)null, (Stream)this.replicas().stream().map((r) -> {
-         return r::close;
-      })));
+      Throwables.maybeFail(Throwables.perform(null, this.replicas().stream().map(r -> r::close)));
    }
 
    public String toString() {

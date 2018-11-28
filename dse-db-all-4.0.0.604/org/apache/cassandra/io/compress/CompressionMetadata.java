@@ -168,10 +168,10 @@ public class CompressionMetadata implements AutoCloseable {
       }
 
       Memory offsets = Memory.allocate((long)chunkCount * 8L);
-      byte i = 0;
+      int i = 0;
 
       try {
-         for(int i = 0; i < chunkCount; ++i) {
+         for(i = 0; i < chunkCount; ++i) {
             offsets.setLong((long)i * 8L, input.readLong());
          }
 
@@ -449,7 +449,7 @@ public class CompressionMetadata implements AutoCloseable {
             compressedLength = tOffsets.getLong((long)tCount * 8L);
          }
 
-         return new CompressionMetadata(this.filePath, this.parameters, tOffsets, (long)tCount * 8L, dataLength, compressedLength, null);
+         return new CompressionMetadata(this.filePath, this.parameters, tOffsets, (long)tCount * 8L, dataLength, compressedLength);
       }
 
       public long chunkOffsetBy(int chunkIndex) {

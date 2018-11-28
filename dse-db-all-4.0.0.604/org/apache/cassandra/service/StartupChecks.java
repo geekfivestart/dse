@@ -626,9 +626,13 @@ public class StartupChecks {
    }
 
    private static void warnOnNettyComponentUnavailable(String component, Throwable cause, Logger logger) {
-      Throwable cause = cause == null?new UnknownError(String.format("%s unavailable due to unknown cause", new Object[]{component})):Throwables.getRootCause(cause);
-      boolean libaioInstalled = libaioIsInstalled(logger);
-      logger.warn("{} doesn't seem to be available: this may result in subpar performance. Libaio {} to be installed.", new Object[]{component, libaioInstalled?"appears":"doesn't appear", cause});
+      cause = cause == null ? new UnknownError(String.format("%s unavailable due to unknown cause", component)) : Throwables.getRootCause((Throwable)cause);
+      boolean libaioInstalled = StartupChecks.libaioIsInstalled(logger);
+      Object[] arrobject = new Object[3];
+      arrobject[0] = component;
+      arrobject[1] = libaioInstalled ? "appears" : "doesn't appear";
+      arrobject[2] = cause;
+      logger.warn("{} doesn't seem to be available: this may result in subpar performance. Libaio {} to be installed.", arrobject);
    }
 
    private static boolean libaioIsInstalled(Logger logger) {
@@ -705,62 +709,33 @@ public class StartupChecks {
    }
 
    static void verifyCpu(Logger logger, Supplier<FBUtilities.CpuInfo> cpuInfoSupplier) {
-      FBUtilities.CpuInfo cpuInfo = (FBUtilities.CpuInfo)cpuInfoSupplier.get();
-      if(cpuInfo != null && !cpuInfo.getProcessors().isEmpty()) {
-         logger.info("CPU information: {} physical processors: {}", Integer.valueOf(cpuInfo.getProcessors().size()), cpuInfo.getProcessors().stream().map((p) -> {
-            return p.getName() + " (" + p.getCores() + " cores, " + p.getThreadsPerCore() + " threads-per-core, " + p.getCacheSize() + " cache)";
-         }).collect(Collectors.joining(", ")));
-         Stream var10000 = cpuInfo.getProcessors().stream().flatMap((p) -> {
-            return p.cpuIds().boxed();
-         });
-         cpuInfo.getClass();
-         Map<String, List<Integer>> governors = (Map)var10000.collect(Collectors.groupingBy(cpuInfo::fetchCpuScalingGovernor));
-         Map<String, List<Integer>> governors = new TreeMap(governors);
-         logger.info("CPU scaling governors: {}", governors.entrySet().stream().map((e) -> {
-            return "CPUs " + FBUtilities.CpuInfo.niceCpuIdList((List)e.getValue()) + ": " + (String)e.getKey();
-         }).collect(Collectors.joining(", ")));
-         if(governors.size() == 1) {
-            String governor = (String)governors.keySet().iterator().next();
-            byte var6 = -1;
-            switch(governor.hashCode()) {
-            case -1480388560:
-               if(governor.equals("performance")) {
-                  var6 = 0;
-               }
+      FBUtilities.CpuInfo cpuInfo = cpuInfoSupplier.get();
+      if (cpuInfo == null || cpuInfo.getProcessors().isEmpty()) {
+         logger.warn("Could not get any CPU information from /proc/cpuinfo");
+         return;
+      }
+      logger.info("CPU information: {} physical processors: {}", (Object)cpuInfo.getProcessors().size(), (Object)cpuInfo.getProcessors().stream().map(p -> p.getName() + " (" + p.getCores() + " cores, " + p.getThreadsPerCore() + " threads-per-core, " + p.getCacheSize() + " cache)").collect(Collectors.joining(", ")));
+      Map<String, List<Integer>> governors = cpuInfo.getProcessors().stream().flatMap(p -> p.cpuIds().boxed()).collect(Collectors.groupingBy(cpuInfo::fetchCpuScalingGovernor));
+      governors = new TreeMap<String, List<Integer>>(governors);
+      logger.info("CPU scaling governors: {}", (Object)governors.entrySet().stream().map(e -> "CPUs " + FBUtilities.CpuInfo.niceCpuIdList((List)e.getValue()) + ": " + (String)e.getKey()).collect(Collectors.joining(", ")));
+      if (governors.size() == 1) {
+         String governor;
+         switch (governor = governors.keySet().iterator().next()) {
+            case "performance": {
                break;
-            case -841873492:
-               if(governor.equals("no_scaling_governor")) {
-                  var6 = 2;
-               }
-               break;
-            case -284840886:
-               if(governor.equals("unknown")) {
-                  var6 = 3;
-               }
-               break;
-            case 143845282:
-               if(governor.equals("no_cpufreq")) {
-                  var6 = 1;
-               }
             }
-
-            switch(var6) {
-            case 0:
-               break;
-            case 1:
-            case 2:
+            case "no_cpufreq":
+            case "no_scaling_governor": {
                logger.warn("CPU scaling governors could not be inquired, as /sys/devices/system/cpu/cpu*/cpufreq is not readable.");
                break;
-            case 3:
-            default:
-               logger.warn("CPU scaling governors are all set to {}, but 'performance' is recommended (see above)", governor);
             }
-         } else {
-            logger.warn(governors.containsKey("performance")?"Not all CPU scaling governors not set to 'performance' (see above)":"None of the CPU scaling governors are set to 'performance' (see above)");
+            default: {
+               logger.warn("CPU scaling governors are all set to {}, but 'performance' is recommended (see above)", (Object)governor);
+               break;
+            }
          }
-
       } else {
-         logger.warn("Could not get any CPU information from /proc/cpuinfo");
+         logger.warn(governors.containsKey("performance") ? "Not all CPU scaling governors not set to 'performance' (see above)" : "None of the CPU scaling governors are set to 'performance' (see above)");
       }
    }
 
@@ -787,23 +762,13 @@ public class StartupChecks {
 
    static void verifyLimits(Logger logger, List<String> limits) {
       Pattern twoSpaces = Pattern.compile("[ ][ ]+");
-      Stream var10000 = limits.stream().skip(1L);
-      twoSpaces.getClass();
-      Map<String, List<String>> limitsMap = (Map)var10000.map(twoSpaces::split).map((arr) -> {
-         return (List)Arrays.stream(arr).map(String::trim).collect(Collectors.toList());
-      }).collect(Collectors.toMap((l) -> {
-         return (String)l.get(0);
-      }, (l) -> {
-         return l.subList(1, l.size());
-      }));
-      boolean ok = verifyLimit(logger, limitsMap, "Max locked memory", "memlock", 2147483647);
-      ok &= verifyLimit(logger, limitsMap, "Max open files", "nofile", 100000);
-      ok &= verifyLimit(logger, limitsMap, "Max processes", "nproc", '耀');
-      ok &= verifyLimit(logger, limitsMap, "Max address space", "as", 2147483647);
-      if(ok) {
+      Map<String, List<String>> limitsMap = limits.stream().skip(1L).map(twoSpaces::split).map(arr -> Arrays.stream(arr).map(String::trim).collect(Collectors.toList())).collect(Collectors.toMap(l -> (String)l.get(0), l -> l.subList(1, l.size())));
+      boolean ok = StartupChecks.verifyLimit(logger, limitsMap, "Max locked memory", "memlock", Integer.MAX_VALUE);
+      ok &= StartupChecks.verifyLimit(logger, limitsMap, "Max open files", "nofile", 100000);
+      ok &= StartupChecks.verifyLimit(logger, limitsMap, "Max processes", "nproc", 32768);
+      if (ok &= StartupChecks.verifyLimit(logger, limitsMap, "Max address space", "as", Integer.MAX_VALUE)) {
          logger.info("Limits configured according to recommended production settings");
       }
-
    }
 
    static void verifyThpDefrag(Logger logger, String defrag) {

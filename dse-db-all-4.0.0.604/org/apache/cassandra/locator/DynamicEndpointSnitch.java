@@ -253,41 +253,32 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
 
    @VisibleForTesting
    public void updateScores() {
-      if(DatabaseDescriptor.isTPCInitialized()) {
-         if(StorageService.instance.isGossipActive()) {
-            if(!this.registered && MessagingService.instance() != null) {
-               MessagingService.instance().register(this);
-               this.registered = true;
-            }
-
-            double maxLatency = 1.0D;
-            Map<InetAddress, Snapshot> snapshots = (Map)this.samples.entrySet().stream().collect(Collectors.toMap(Entry::getKey, (entry) -> {
-               return ((Histogram)entry.getValue()).getSnapshot();
-            }));
-            HashMap<InetAddress, Double> newScores = new HashMap();
-            Iterator var5 = snapshots.entrySet().iterator();
-
-            Entry entry;
-            double score;
-            while(var5.hasNext()) {
-               entry = (Entry)var5.next();
-               score = ((Snapshot)entry.getValue()).getValue(0.9D);
-               if(score > maxLatency) {
-                  maxLatency = score;
-               }
-            }
-
-            for(var5 = snapshots.entrySet().iterator(); var5.hasNext(); newScores.put(entry.getKey(), Double.valueOf(score))) {
-               entry = (Entry)var5.next();
-               score = ((Snapshot)entry.getValue()).getValue(0.9D) / maxLatency;
-               if(USE_SEVERITY) {
-                  score += this.getSeverity((InetAddress)entry.getKey());
-               }
-            }
-
-            this.scores = newScores;
-         }
+      if (!DatabaseDescriptor.isTPCInitialized()) {
+         return;
       }
+      if (!StorageService.instance.isGossipActive()) {
+         return;
+      }
+      if (!this.registered && MessagingService.instance() != null) {
+         MessagingService.instance().register(this);
+         this.registered = true;
+      }
+      double maxLatency = 1.0;
+      Map<InetAddress, Snapshot> snapshots = this.samples.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, entry -> ((Histogram)entry.getValue()).getSnapshot()));
+      HashMap<InetAddress, Double> newScores = new HashMap<InetAddress, Double>();
+      for (Map.Entry<InetAddress, Snapshot> entry2 : snapshots.entrySet()) {
+         double mean = entry2.getValue().getValue(0.9);
+         if (mean <= maxLatency) continue;
+         maxLatency = mean;
+      }
+      for (Map.Entry<InetAddress, Snapshot> entry2 : snapshots.entrySet()) {
+         double score = entry2.getValue().getValue(0.9) / maxLatency;
+         if (USE_SEVERITY) {
+            score += this.getSeverity(entry2.getKey());
+         }
+         newScores.put(entry2.getKey(), score);
+      }
+      this.scores = newScores;
    }
 
    private void reset() {

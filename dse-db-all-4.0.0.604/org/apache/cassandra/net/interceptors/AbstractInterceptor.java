@@ -214,17 +214,15 @@ public abstract class AbstractInterceptor implements Interceptor, AbstractInterc
    }
 
    private <T extends Enum<T>> ImmutableSet<T> setInterceptedEnum(String interceptedString, Class<T> klass) {
-      if(!this.allowModifyingIntercepted()) {
+      if (!this.allowModifyingIntercepted()) {
          throw new ConfigurationException("Cannot update/configure what this interceptor intercepts");
-      } else {
-         try {
-            Iterable<String> splits = Splitter.on(',').trimResults().omitEmptyStrings().split(interceptedString);
-            return Sets.immutableEnumSet(Iterables.transform(splits, (str) -> {
-               return Enum.valueOf(klass, str.toUpperCase());
-            }));
-         } catch (Exception var4) {
-            throw new ConfigurationException(String.format("Invalid value '%s' for intercepted directions", new Object[]{interceptedString}));
-         }
+      }
+      try {
+         Iterable<String> splits = Splitter.on((char)',').trimResults().omitEmptyStrings().split((CharSequence)interceptedString);
+         return Sets.immutableEnumSet((Iterable)Iterables.transform(splits, str -> Enum.valueOf(klass, str.toUpperCase())));
+      }
+      catch (Exception e) {
+         throw new ConfigurationException(String.format("Invalid value '%s' for intercepted directions", interceptedString));
       }
    }
 

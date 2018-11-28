@@ -290,7 +290,7 @@ public class SchemaTool {
 
          while(var3.hasNext()) {
             UserType expectedType = (UserType)var3.next();
-            UserType definedType = (UserType)defined.types.get(expectedType.name).orElse((Object)null);
+            UserType definedType = (UserType)defined.types.get(expectedType.name).orElse(null);
             if(definedType == null) {
                migrations.add(MigrationManager.announceNewType(expectedType, false));
             } else if(!expectedType.equals(definedType)) {
@@ -309,7 +309,7 @@ public class SchemaTool {
                }
 
                expectedTable = (TableMetadata)var3.next();
-               definedTable = (TableMetadata)defined.tables.get(expectedTable.name).orElse((Object)null);
+               definedTable = (TableMetadata)defined.tables.get(expectedTable.name).orElse(null);
             } while(definedTable != null && definedTable.equals(expectedTable));
 
             migrations.add(MigrationManager.forceAnnounceNewTable(expectedTable));
@@ -462,15 +462,16 @@ public class SchemaTool {
    }
 
    public static AbstractType<?> getElementType(CollectionType type) {
-      switch(null.$SwitchMap$org$apache$cassandra$db$marshal$CollectionType$Kind[type.kind.ordinal()]) {
-      case 1:
-      case 2:
-         return type.valueComparator();
-      case 3:
-         return type.nameComparator();
-      default:
-         throw new IllegalStateException("Unexpected collection type: " + type);
+      switch (type.kind) {
+         case MAP:
+         case LIST: {
+            return type.valueComparator();
+         }
+         case SET: {
+            return type.nameComparator();
+         }
       }
+      throw new IllegalStateException("Unexpected collection type: " + (Object)type);
    }
 
    public static AbstractType<?> getTupleSubFieldType(String solrFieldName, AbstractType<?> parentType, boolean returnElementType) {

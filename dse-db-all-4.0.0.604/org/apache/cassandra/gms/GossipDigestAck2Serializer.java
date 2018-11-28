@@ -16,18 +16,15 @@ class GossipDigestAck2Serializer implements Serializer<GossipDigestAck2> {
    GossipDigestAck2Serializer() {
    }
 
-   public void serialize(GossipDigestAck2 ack2, DataOutputPlus out) throws IOException {
-      out.writeInt(ack2.epStateMap.size());
-      Iterator var3 = ack2.epStateMap.entrySet().iterator();
 
-      while(var3.hasNext()) {
-         Entry<InetAddress, EndpointState> entry = (Entry)var3.next();
-         InetAddress ep = (InetAddress)entry.getKey();
-         CompactEndpointSerializationHelper.serialize(ep, out);
-         EndpointState.serializer.serialize(entry.getValue(), out);
-      }
-
-   }
+    public void serialize(GossipDigestAck2 ack2, DataOutputPlus out) throws IOException {
+        out.writeInt(ack2.epStateMap.size());
+        for (Map.Entry<InetAddress, EndpointState> entry : ack2.epStateMap.entrySet()) {
+            InetAddress ep = entry.getKey();
+            CompactEndpointSerializationHelper.serialize(ep, out);
+            EndpointState.serializer.serialize(entry.getValue(), out);
+        }
+    }
 
    public GossipDigestAck2 deserialize(DataInputPlus in) throws IOException {
       int size = in.readInt();
@@ -43,13 +40,10 @@ class GossipDigestAck2Serializer implements Serializer<GossipDigestAck2> {
    }
 
    public long serializedSize(GossipDigestAck2 ack2) {
-      long size = (long)TypeSizes.sizeof(ack2.epStateMap.size());
-
-      Entry entry;
-      for(Iterator var4 = ack2.epStateMap.entrySet().iterator(); var4.hasNext(); size += (long)CompactEndpointSerializationHelper.serializedSize((InetAddress)entry.getKey()) + EndpointState.serializer.serializedSize(entry.getValue())) {
-         entry = (Entry)var4.next();
+      long size = TypeSizes.sizeof(ack2.epStateMap.size());
+      for (Map.Entry<InetAddress, EndpointState> entry : ack2.epStateMap.entrySet()) {
+         size += (long)CompactEndpointSerializationHelper.serializedSize(entry.getKey()) + EndpointState.serializer.serializedSize(entry.getValue());
       }
-
       return size;
    }
 }

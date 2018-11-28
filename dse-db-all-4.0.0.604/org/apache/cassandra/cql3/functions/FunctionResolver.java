@@ -27,99 +27,83 @@ public final class FunctionResolver {
    }
 
    public static Function get(String keyspace, FunctionName name, List<? extends AssignmentTestable> providedArgs, String receiverKs, String receiverCf, AbstractType<?> receiverType) throws InvalidRequestException {
-      if(name.equalsNativeFunction(TOKEN_FUNCTION_NAME)) {
-         Function tokenFct = new TokenFct(Schema.instance.getTableMetadata(receiverKs, receiverCf));
+      Collection<Function> candidates;
+      if (name.equalsNativeFunction(TOKEN_FUNCTION_NAME)) {
+         TokenFct tokenFct = new TokenFct(Schema.instance.getTableMetadata(receiverKs, receiverCf));
          int requiredNumberOfArguments = tokenFct.argTypes().size();
-         if(requiredNumberOfArguments != providedArgs.size()) {
-            throw new InvalidRequestException(String.format("Invalid number of arguments for %s() function: %d required but %d provided", new Object[]{TOKEN_FUNCTION_NAME, Integer.valueOf(requiredNumberOfArguments), Integer.valueOf(providedArgs.size())}));
-         } else {
-            return tokenFct;
+         if (requiredNumberOfArguments != providedArgs.size()) {
+            throw new InvalidRequestException(String.format("Invalid number of arguments for %s() function: %d required but %d provided", TOKEN_FUNCTION_NAME, requiredNumberOfArguments, providedArgs.size()));
          }
-      } else if(name.equalsNativeFunction(ToJsonFct.NAME)) {
+         return tokenFct;
+      }
+      if (name.equalsNativeFunction(ToJsonFct.NAME)) {
          throw new InvalidRequestException("toJson() may only be used within the selection clause of SELECT statements");
-      } else if(name.equalsNativeFunction(FromJsonFct.NAME)) {
-         if(receiverType == null) {
+      }
+      if (name.equalsNativeFunction(FromJsonFct.NAME)) {
+         if (receiverType == null) {
             throw new InvalidRequestException("fromJson() cannot be used in the selection clause of a SELECT statement");
-         } else {
-            return FromJsonFct.getInstance(receiverType);
          }
+         return FromJsonFct.getInstance(receiverType);
+      }
+      if (!name.hasKeyspace()) {
+         candidates = new ArrayList();
+         candidates.addAll(Schema.instance.getFunctions(name.asNativeFunction()));
+         candidates.addAll(Schema.instance.getFunctions(new FunctionName(keyspace, name.name)));
       } else {
-         Object candidates;
-         if(!name.hasKeyspace()) {
-            candidates = new ArrayList();
-            ((Collection)candidates).addAll(Schema.instance.getFunctions(name.asNativeFunction()));
-            ((Collection)candidates).addAll(Schema.instance.getFunctions(new FunctionName(keyspace, name.name)));
-         } else {
-            candidates = Schema.instance.getFunctions(name);
-         }
-
-         if(((Collection)candidates).isEmpty()) {
-            return null;
-         } else if(((Collection)candidates).size() == 1) {
-            Function fun = (Function)((Collection)candidates).iterator().next();
-            validateTypes(keyspace, fun, providedArgs, receiverKs, receiverCf);
-            return fun;
-         } else {
-            List<Function> compatibles = null;
-            Iterator var8 = ((Collection)candidates).iterator();
-
-            Function toTest;
-            while(var8.hasNext()) {
-               toTest = (Function)var8.next();
-               if(matchReturnType(toTest, receiverType)) {
-                  AssignmentTestable.TestResult r = matchAguments(keyspace, toTest, providedArgs, receiverKs, receiverCf);
-                  switch(null.$SwitchMap$org$apache$cassandra$cql3$AssignmentTestable$TestResult[r.ordinal()]) {
-                  case 1:
-                     return toTest;
-                  case 2:
-                     if(compatibles == null) {
-                        compatibles = new ArrayList();
-                     }
-
-                     compatibles.add(toTest);
-                  }
-               }
+         candidates = Schema.instance.getFunctions(name);
+      }
+      if (candidates.isEmpty()) {
+         return null;
+      }
+      if (candidates.size() == 1) {
+         Function fun = (Function)candidates.iterator().next();
+         FunctionResolver.validateTypes(keyspace, fun, providedArgs, receiverKs, receiverCf);
+         return fun;
+      }
+      ArrayList<Function> compatibles = null;
+      for (Function toTest : candidates) {
+         if (!FunctionResolver.matchReturnType(toTest, receiverType)) continue;
+         AssignmentTestable.TestResult r = FunctionResolver.matchAguments(keyspace, toTest, providedArgs, receiverKs, receiverCf);
+         switch (r) {
+            case EXACT_MATCH: {
+               return toTest;
             }
-
-            if(compatibles == null) {
-               if(OperationFcts.isOperation(name)) {
-                  throw RequestValidations.invalidRequest("the '%s' operation is not supported between %s and %s", new Object[]{Character.valueOf(OperationFcts.getOperator(name)), providedArgs.get(0), providedArgs.get(1)});
-               } else {
-                  throw RequestValidations.invalidRequest("Invalid call to function %s, none of its type signatures match (known type signatures: %s)", new Object[]{name, format((Collection)candidates)});
+            case WEAKLY_ASSIGNABLE: {
+               if (compatibles == null) {
+                  compatibles = new ArrayList<Function>();
                }
-            } else if(compatibles.size() > 1) {
-               if(!OperationFcts.isOperation(name)) {
-                  if(OperationFcts.isNegation(name)) {
-                     throw RequestValidations.invalidRequest("Ambiguous negation: use type casts to disambiguate");
-                  } else {
-                     throw RequestValidations.invalidRequest("Ambiguous call to function %s (can be matched by following signatures: %s): use type casts to disambiguate", new Object[]{name, format(compatibles)});
-                  }
-               } else {
-                  if(receiverType != null && !containsMarkers(providedArgs)) {
-                     var8 = compatibles.iterator();
-
-                     while(var8.hasNext()) {
-                        toTest = (Function)var8.next();
-                        List<AbstractType<?>> argTypes = toTest.argTypes();
-                        if(receiverType.equals(argTypes.get(0)) && receiverType.equals(argTypes.get(1))) {
-                           return toTest;
-                        }
-                     }
-                  }
-
-                  throw RequestValidations.invalidRequest("Ambiguous '%s' operation with args %s and %s: use type casts to disambiguate", new Object[]{Character.valueOf(OperationFcts.getOperator(name)), providedArgs.get(0), providedArgs.get(1)});
-               }
-            } else {
-               return (Function)compatibles.get(0);
+               compatibles.add(toTest);
             }
          }
       }
+      if (compatibles == null) {
+         if (OperationFcts.isOperation(name)) {
+            throw RequestValidations.invalidRequest("the '%s' operation is not supported between %s and %s", Character.valueOf(OperationFcts.getOperator(name)), providedArgs.get(0), providedArgs.get(1));
+         }
+         throw RequestValidations.invalidRequest("Invalid call to function %s, none of its type signatures match (known type signatures: %s)", name, FunctionResolver.format(candidates));
+      }
+      if (compatibles.size() > 1) {
+         if (OperationFcts.isOperation(name)) {
+            if (receiverType != null && !FunctionResolver.containsMarkers(providedArgs)) {
+               for (Function toTest : compatibles) {
+                  List<AbstractType<?>> argTypes = toTest.argTypes();
+                  if (!receiverType.equals(argTypes.get(0)) || !receiverType.equals(argTypes.get(1))) continue;
+                  return toTest;
+               }
+            }
+            throw RequestValidations.invalidRequest("Ambiguous '%s' operation with args %s and %s: use type casts to disambiguate", Character.valueOf(OperationFcts.getOperator(name)), providedArgs.get(0), providedArgs.get(1));
+         }
+         if (OperationFcts.isNegation(name)) {
+            throw RequestValidations.invalidRequest("Ambiguous negation: use type casts to disambiguate");
+         }
+         throw RequestValidations.invalidRequest("Ambiguous call to function %s (can be matched by following signatures: %s): use type casts to disambiguate", name, FunctionResolver.format((Collection<Function>)compatibles));
+      }
+      return (Function)compatibles.get(0);
    }
 
+
    private static boolean containsMarkers(List<? extends AssignmentTestable> args) {
-      Stream var10000 = args.stream();
-      AbstractMarker.Raw.class.getClass();
-      return var10000.anyMatch(AbstractMarker.Raw.class::isInstance);
+      return args.stream().anyMatch(AbstractMarker.Raw.class::isInstance);
    }
 
    private static boolean matchReturnType(Function fun, AbstractType<?> receiverType) {

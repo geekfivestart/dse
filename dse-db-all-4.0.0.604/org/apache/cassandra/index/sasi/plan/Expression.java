@@ -70,59 +70,71 @@ public class Expression {
       return this;
    }
 
-   public Expression add(Operator op, ByteBuffer value) {
+
+   public Expression add(final Operator op, final ByteBuffer value) {
       boolean lowerInclusive = false;
       boolean upperInclusive = false;
-      switch(null.$SwitchMap$org$apache$cassandra$cql3$Operator[op.ordinal()]) {
-      case 1:
-      case 7:
-      case 8:
-      case 9:
-      case 10:
-         this.lower = new Expression.Bound(value, true);
-         this.upper = this.lower;
-         this.operation = Expression.Op.valueOf(op);
-         break;
-      case 2:
-         if(this.operation == null) {
-            this.operation = Expression.Op.NOT_EQ;
-            this.lower = new Expression.Bound(value, true);
-            this.upper = this.lower;
-         } else {
-            this.exclusions.add(value);
-         }
-         break;
-      case 5:
-         if(this.index.getDefinition().isReversedType()) {
-            lowerInclusive = true;
-         } else {
-            upperInclusive = true;
-         }
-      case 3:
-         this.operation = Expression.Op.RANGE;
-         if(this.index.getDefinition().isReversedType()) {
-            this.lower = new Expression.Bound(value, lowerInclusive);
-         } else {
-            this.upper = new Expression.Bound(value, upperInclusive);
-         }
-         break;
-      case 6:
-         if(this.index.getDefinition().isReversedType()) {
-            upperInclusive = true;
-         } else {
-            lowerInclusive = true;
-         }
-      case 4:
-         this.operation = Expression.Op.RANGE;
-         if(this.index.getDefinition().isReversedType()) {
-            this.upper = new Expression.Bound(value, upperInclusive);
-         } else {
-            this.lower = new Expression.Bound(value, lowerInclusive);
+      Label_0247: {
+         switch (op) {
+            case EQ:
+            case LIKE_PREFIX:
+            case LIKE_SUFFIX:
+            case LIKE_CONTAINS:
+            case LIKE_MATCHES: {
+               this.lower = new Bound(value, true);
+               this.upper = this.lower;
+               this.operation = Op.valueOf(op);
+               break;
+            }
+            case NEQ: {
+               if (this.operation == null) {
+                  this.operation = Op.NOT_EQ;
+                  this.lower = new Bound(value, true);
+                  this.upper = this.lower;
+                  break;
+               }
+               this.exclusions.add(value);
+               break;
+            }
+            case LTE: {
+               if (this.index.getDefinition().isReversedType()) {
+                  lowerInclusive = true;
+                  break Label_0247;
+               }
+               upperInclusive = true;
+               break Label_0247;
+            }
+            case LT: {
+               this.operation = Op.RANGE;
+               if (this.index.getDefinition().isReversedType()) {
+                  this.lower = new Bound(value, lowerInclusive);
+                  break;
+               }
+               this.upper = new Bound(value, upperInclusive);
+               break;
+            }
+            case GTE: {
+               if (this.index.getDefinition().isReversedType()) {
+                  upperInclusive = true;
+                  break Label_0247;
+               }
+               lowerInclusive = true;
+               break Label_0247;
+            }
+            case GT: {
+               this.operation = Op.RANGE;
+               if (this.index.getDefinition().isReversedType()) {
+                  this.upper = new Bound(value, upperInclusive);
+                  break;
+               }
+               this.lower = new Bound(value, lowerInclusive);
+               break;
+            }
          }
       }
-
       return this;
    }
+
 
    public Expression addExclusion(ByteBuffer value) {
       this.exclusions.add(value);
@@ -183,38 +195,39 @@ public class Expression {
       return false;
    }
 
+
    private boolean validateStringValue(ByteBuffer columnValue, ByteBuffer requestedValue) {
       this.analyzer.reset(columnValue.duplicate());
-
-      boolean isMatch;
-      do {
-         if(!this.analyzer.hasNext()) {
-            return false;
-         }
-
+      while (this.analyzer.hasNext()) {
          ByteBuffer term = this.analyzer.next();
-         isMatch = false;
-         switch(null.$SwitchMap$org$apache$cassandra$index$sasi$plan$Expression$Op[this.operation.ordinal()]) {
-         case 1:
-         case 2:
-         case 3:
-            isMatch = this.validator.compare(term, requestedValue) == 0;
-            break;
-         case 4:
-            isMatch = this.isLowerSatisfiedBy(term) && this.isUpperSatisfiedBy(term);
-            break;
-         case 5:
-            isMatch = ByteBufferUtil.startsWith(term, requestedValue);
-            break;
-         case 6:
-            isMatch = ByteBufferUtil.endsWith(term, requestedValue);
-            break;
-         case 7:
-            isMatch = ByteBufferUtil.contains(term, requestedValue);
+         boolean isMatch = false;
+         switch (this.operation) {
+            case EQ:
+            case MATCH:
+            case NOT_EQ: {
+               isMatch = this.validator.compare(term, requestedValue) == 0;
+               break;
+            }
+            case RANGE: {
+               isMatch = this.isLowerSatisfiedBy(term) && this.isUpperSatisfiedBy(term);
+               break;
+            }
+            case PREFIX: {
+               isMatch = ByteBufferUtil.startsWith(term, requestedValue);
+               break;
+            }
+            case SUFFIX: {
+               isMatch = ByteBufferUtil.endsWith(term, requestedValue);
+               break;
+            }
+            case CONTAINS: {
+               isMatch = ByteBufferUtil.contains(term, requestedValue);
+            }
          }
-      } while(!isMatch);
-
-      return true;
+         if (!isMatch) continue;
+         return true;
+      }
+      return false;
    }
 
    public Expression.Op getOp() {
@@ -276,12 +289,15 @@ public class Expression {
    }
 
    public String toString() {
-      Object[] var10001 = new Object[]{this.index.getColumnName(), this.operation, this.lower == null?"null":this.validator.getString(this.lower.value), Boolean.valueOf(this.lower != null && this.lower.inclusive), this.upper == null?"null":this.validator.getString(this.upper.value), Boolean.valueOf(this.upper != null && this.upper.inclusive), null};
-      Iterator var10004 = this.exclusions.iterator();
-      AbstractType var10005 = this.validator;
-      this.validator.getClass();
-      var10001[6] = Iterators.toString(Iterators.transform(var10004, var10005::getString));
-      return String.format("Expression{name: %s, op: %s, lower: (%s, %s), upper: (%s, %s), exclusions: %s}", var10001);
+      Object[] arrobject = new Object[7];
+      arrobject[0] = this.index.getColumnName();
+      arrobject[1] = this.operation;
+      arrobject[2] = this.lower == null ? "null" : this.validator.getString(this.lower.value);
+      arrobject[3] = this.lower != null && this.lower.inclusive;
+      arrobject[4] = this.upper == null ? "null" : this.validator.getString(this.upper.value);
+      arrobject[5] = this.upper != null && this.upper.inclusive;
+      arrobject[6] = Iterators.toString((Iterator)Iterators.transform(this.exclusions.iterator(), this.validator::getString));
+      return String.format("Expression{name: %s, op: %s, lower: (%s, %s), upper: (%s, %s), exclusions: %s}", arrobject);
    }
 
    public int hashCode() {
@@ -337,28 +353,35 @@ public class Expression {
       private Op() {
       }
 
-      public static Expression.Op valueOf(Operator operator) {
-         switch(null.$SwitchMap$org$apache$cassandra$cql3$Operator[operator.ordinal()]) {
-         case 1:
-            return EQ;
-         case 2:
-            return NOT_EQ;
-         case 3:
-         case 4:
-         case 5:
-         case 6:
-            return RANGE;
-         case 7:
-            return PREFIX;
-         case 8:
-            return SUFFIX;
-         case 9:
-            return CONTAINS;
-         case 10:
-            return MATCH;
-         default:
-            throw new IllegalArgumentException("unknown operator: " + operator);
+
+      public static Op valueOf(Operator operator) {
+         switch (operator) {
+            case EQ: {
+               return EQ;
+            }
+            case NEQ: {
+               return NOT_EQ;
+            }
+            case LT:
+            case GT:
+            case LTE:
+            case GTE: {
+               return RANGE;
+            }
+            case LIKE_PREFIX: {
+               return PREFIX;
+            }
+            case LIKE_SUFFIX: {
+               return SUFFIX;
+            }
+            case LIKE_CONTAINS: {
+               return CONTAINS;
+            }
+            case LIKE_MATCHES: {
+               return MATCH;
+            }
          }
+         throw new IllegalArgumentException("unknown operator: " + (Object)((Object)operator));
       }
    }
 }

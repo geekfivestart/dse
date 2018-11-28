@@ -133,7 +133,7 @@ public class TupleType extends AbstractType<ByteBuffer> implements MultiCellType
    }
 
    public AbstractType<?> type(int i) {
-      return (AbstractType)this.types.get(i);
+      return this.types.get(i);
    }
 
    public int size() {

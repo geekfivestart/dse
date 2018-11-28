@@ -91,7 +91,7 @@ public abstract class MemtablePool {
 
          this.adjustAllocated(-size);
          CompletableFuture<Void> future = (CompletableFuture)MemtablePool.this.releaseFuture.getAndSet(new CompletableFuture());
-         future.complete((Object)null);
+         future.complete(null);
       }
 
       void reclaiming(long size) {

@@ -47,96 +47,81 @@ public abstract class AbstractReader implements SSTableReader.PartitionReader {
    }
 
    public Unfiltered next() throws IOException {
-      while(true) {
-         label91: {
-            label85:
-            while(true) {
-               RangeTombstoneMarker next;
-               label93: {
-                  label82:
-                  while(true) {
-                     switch(null.$SwitchMap$org$apache$cassandra$io$sstable$format$AbstractReader$Stage[this.stage.ordinal()]) {
-                     case 1:
-                        this.currentSlice += this.direction;
-                        if(this.currentSlice < 0 || this.currentSlice >= this.slices.size()) {
-                           return null;
-                        }
-
-                        assert this.pendingSlice == null;
-
-                        this.pendingSlice = this.slices.get(this.currentSlice);
-                        this.stage = AbstractReader.Stage.NEEDS_SET_FOR_SLICE;
-                     case 2:
-                        this.filePos = -1L;
-                        if(!this.setForSlice(this.pendingSlice)) {
-                           this.pendingSlice = null;
-                           this.stage = AbstractReader.Stage.NEEDS_SLICE;
-                           break;
-                        } else {
-                           this.pendingSlice = null;
-                           this.stage = AbstractReader.Stage.NEEDS_PRE_SLICE;
-                        }
-                     case 3:
-                        do {
-                           this.filePos = this.file.getFilePointer();
-                        } while(!this.preSliceStep());
-
-                        this.stage = AbstractReader.Stage.NEEDS_SLICE_PREP;
-                     case 4:
-                        while(!this.slicePrepStep()) {
-                           this.filePos = this.file.getFilePointer();
-                        }
-
-                        this.stage = AbstractReader.Stage.READY;
-                        next = this.sliceStartMarker();
-                        if(next != null) {
-                           return next;
-                        }
-                     case 5:
-                        break label82;
-                     case 6:
-                        break label93;
-                     case 7:
-                        break label85;
-                     case 8:
-                        break label91;
-                     }
+      while (true) {
+         Label_0311: {
+            switch (this.stage) {
+               case NEEDS_SLICE: {
+                  this.currentSlice += this.direction;
+                  if (this.currentSlice < 0 || this.currentSlice >= this.slices.size()) {
+                     return null;
                   }
-
-                  Unfiltered next = this.nextInSlice();
-                  this.filePos = this.file.getFilePointer();
-                  if(next != null) {
-                     return next;
-                  }
-
-                  this.stage = AbstractReader.Stage.NEEDS_BLOCK;
+                  assert this.pendingSlice == null;
+                  this.pendingSlice = this.slices.get(this.currentSlice);
+                  this.stage = Stage.NEEDS_SET_FOR_SLICE;
                }
-
-               if(!this.advanceBlock()) {
-                  this.stage = AbstractReader.Stage.NEEDS_SLICE;
-                  next = this.sliceEndMarker();
-                  if(next == null) {
+               case NEEDS_SET_FOR_SLICE: {
+                  this.filePos = -1L;
+                  if (!this.setForSlice(this.pendingSlice)) {
+                     this.pendingSlice = null;
+                     this.stage = Stage.NEEDS_SLICE;
                      continue;
                   }
-
-                  return next;
+                  this.pendingSlice = null;
+                  this.stage = Stage.NEEDS_PRE_SLICE;
+                  break Label_0311;
                }
-
-               this.stage = AbstractReader.Stage.NEEDS_PRE_BLOCK;
-               break;
+               case NEEDS_PRE_SLICE: {
+                  do {
+                     this.filePos = this.file.getFilePointer();
+                  } while (!this.preSliceStep());
+                  this.stage = Stage.NEEDS_SLICE_PREP;
+               }
+               case NEEDS_SLICE_PREP: {
+                  while (!this.slicePrepStep()) {
+                     this.filePos = this.file.getFilePointer();
+                  }
+                  this.stage = Stage.READY;
+                  final Unfiltered next = this.sliceStartMarker();
+                  if (next != null) {
+                     return next;
+                  }
+               }
+               case READY: {
+                  final Unfiltered next = this.nextInSlice();
+                  this.filePos = this.file.getFilePointer();
+                  if (next != null) {
+                     return next;
+                  }
+                  this.stage = Stage.NEEDS_BLOCK;
+               }
+               case NEEDS_BLOCK: {
+                  if (this.advanceBlock()) {
+                     this.stage = Stage.NEEDS_PRE_BLOCK;
+                     break Label_0311;
+                  }
+                  this.stage = Stage.NEEDS_SLICE;
+                  final Unfiltered next = this.sliceEndMarker();
+                  if (next != null) {
+                     return next;
+                  }
+                  continue;
+               }
+               case NEEDS_PRE_BLOCK: {
+                  do {
+                     this.filePos = this.file.getFilePointer();
+                  } while (!this.preBlockStep());
+                  this.stage = Stage.NEEDS_BLOCK_PREP;
+               }
+               case NEEDS_BLOCK_PREP: {
+                  while (!this.blockPrepStep()) {
+                     this.filePos = this.file.getFilePointer();
+                  }
+                  final Stage stage = this.stage;
+                  this.stage = Stage.READY;
+                  continue;
+               }
             }
-
-            do {
-               this.filePos = this.file.getFilePointer();
-            } while(!this.preBlockStep());
          }
-
-         for(this.stage = AbstractReader.Stage.NEEDS_BLOCK_PREP; !this.blockPrepStep(); this.filePos = this.file.getFilePointer()) {
-            ;
-         }
-
-         AbstractReader.Stage var10001 = this.stage;
-         this.stage = AbstractReader.Stage.READY;
       }
    }
 

@@ -7,7 +7,7 @@ import org.apache.cassandra.schema.TableMetadata;
 
 final class UnfilteredPartitions extends BasePartitions<UnfilteredRowIterator, UnfilteredPartitionIterator> implements UnfilteredPartitionIterator {
    public UnfilteredPartitions(UnfilteredPartitionIterator input) {
-      super((BasePartitionIterator)input);
+      super(input);
    }
 
    public TableMetadata metadata() {

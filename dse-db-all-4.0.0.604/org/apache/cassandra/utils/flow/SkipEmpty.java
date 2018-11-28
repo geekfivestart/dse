@@ -137,7 +137,7 @@ public class SkipEmpty {
       }
 
       void onContent(Flow<T> child) {
-         Object result;
+         U result;
          try {
             result = this.mapper.apply(child);
          } catch (Exception var4) {

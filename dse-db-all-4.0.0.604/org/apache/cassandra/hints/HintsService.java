@@ -215,22 +215,19 @@ public final class HintsService implements HintsServiceMBean {
       }
    }
 
-   public Future transferHints(Supplier<UUID> hostIdSupplier) {
-      Future flushFuture = this.writeExecutor.flushBufferPool(this.bufferPool);
-      Future closeFuture = this.writeExecutor.closeAllWriters();
 
+   public Future transferHints(Supplier<UUID> hostIdSupplier) {
+      Future<?> flushFuture = this.writeExecutor.flushBufferPool(this.bufferPool);
+      Future<?> closeFuture = this.writeExecutor.closeAllWriters();
       try {
          flushFuture.get();
          closeFuture.get();
-      } catch (ExecutionException | InterruptedException var5) {
-         throw new RuntimeException(var5);
       }
-
+      catch (InterruptedException | ExecutionException e) {
+         throw new RuntimeException(e);
+      }
       this.resumeDispatch();
-      Stream var10000 = this.catalog.stores();
-      HintsDispatchExecutor var10001 = this.dispatchExecutor;
-      this.dispatchExecutor.getClass();
-      var10000.forEach(var10001::completeDispatchBlockingly);
+      this.catalog.stores().forEach(this.dispatchExecutor::completeDispatchBlockingly);
       return this.dispatchExecutor.transfer(this.catalog, hostIdSupplier);
    }
 

@@ -54,7 +54,7 @@ public class DatacenterInfoWriter extends CqlWriter<DatacenterInfo> {
    }
 
    protected CqlWriter<DatacenterInfo>.WriterConfig createWriterConfig(CassandraVersion dseVersion) {
-      return new CqlWriter.WriterConfig(this.getInsertCQL(dseVersion), (dataCenterInfo) -> {
+      return new CqlWriter<DatacenterInfo>.WriterConfig(this.getInsertCQL(dseVersion), (dataCenterInfo) -> {
          return this.getVariables(dataCenterInfo, dseVersion);
       });
    }

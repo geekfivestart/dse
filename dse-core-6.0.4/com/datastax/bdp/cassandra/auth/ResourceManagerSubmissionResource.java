@@ -88,83 +88,97 @@ public class ResourceManagerSubmissionResource implements IResource {
    }
 
    public String getName() {
-      switch(null.$SwitchMap$com$datastax$bdp$cassandra$auth$ResourceManagerSubmissionResource$Level[this.level.ordinal()]) {
-      case 1:
-         return "any_submission_in_any_workpool_in_any_dc";
-      case 2:
-         return String.format("%s/%s", new Object[]{"any_submission_in_any_workpool_in_any_dc", this.dc});
-      case 3:
-         return String.format("%s/%s/%s", new Object[]{"any_submission_in_any_workpool_in_any_dc", this.dc, this.workPool});
-      case 4:
-         return String.format("%s/%s/%s/%s", new Object[]{"any_submission_in_any_workpool_in_any_dc", this.dc, this.workPool, this.submission});
-      default:
-         throw new AssertionError();
+      switch (this.level) {
+         case ANY_SUBMISSION: {
+            return ROOT_NAME;
+         }
+         case ANY_SUBMISSION_IN_DC: {
+            return String.format("%s/%s", ROOT_NAME, this.dc);
+         }
+         case ANY_SUBMISSION_IN_WORKPOOL: {
+            return String.format("%s/%s/%s", ROOT_NAME, this.dc, this.workPool);
+         }
+         case SUBMISSION_IN_WORKPOOL: {
+            return String.format("%s/%s/%s/%s", ROOT_NAME, this.dc, this.workPool, this.submission);
+         }
       }
+      throw new AssertionError();
    }
 
    public IResource getParent() {
-      switch(null.$SwitchMap$com$datastax$bdp$cassandra$auth$ResourceManagerSubmissionResource$Level[this.level.ordinal()]) {
-      case 2:
-         return root();
-      case 3:
-         return dc(this.dc);
-      case 4:
-         return workPool(this.dc, this.workPool);
-      default:
-         throw new IllegalStateException("Root-level resource can't have a parent");
+      switch (this.level) {
+         case ANY_SUBMISSION_IN_DC: {
+            return ResourceManagerSubmissionResource.root();
+         }
+         case ANY_SUBMISSION_IN_WORKPOOL: {
+            return ResourceManagerSubmissionResource.dc(this.dc);
+         }
+         case SUBMISSION_IN_WORKPOOL: {
+            return ResourceManagerSubmissionResource.workPool(this.dc, this.workPool);
+         }
       }
+      throw new IllegalStateException("Root-level resource can't have a parent");
    }
 
    public boolean hasParent() {
-      return this.level != ResourceManagerSubmissionResource.Level.ANY_SUBMISSION;
+      return this.level != Level.ANY_SUBMISSION;
    }
 
    public boolean exists() {
-      switch(null.$SwitchMap$com$datastax$bdp$cassandra$auth$ResourceManagerSubmissionResource$Level[this.level.ordinal()]) {
-      case 1:
-         return true;
-      case 2:
-         this.ensureInitialized.get();
-         return ((Boolean)((Function)this.workPoolVerifier.get()).apply(this.dc)).booleanValue();
-      case 3:
-         this.ensureInitialized.get();
-         return ((Boolean)((Function)this.workPoolVerifier.get()).apply(ResourceManagerWorkPoolResource.getSpec(this.dc, this.workPool))).booleanValue();
-      case 4:
-         this.ensureInitialized.get();
-         return ((ResourceManagerSubmissionResource.SubmissionVerifier)this.submissionVerifier.get()).verifySubmission(this.dc, this.workPool, this.submission).booleanValue();
-      default:
-         throw new AssertionError();
+      switch (this.level) {
+         case ANY_SUBMISSION: {
+            return true;
+         }
+         case ANY_SUBMISSION_IN_DC: {
+            this.ensureInitialized.get();
+            return (Boolean)((Function)this.workPoolVerifier.get()).apply(this.dc);
+         }
+         case ANY_SUBMISSION_IN_WORKPOOL: {
+            this.ensureInitialized.get();
+            return (Boolean)((Function)this.workPoolVerifier.get()).apply(ResourceManagerWorkPoolResource.getSpec(this.dc, this.workPool));
+         }
+         case SUBMISSION_IN_WORKPOOL: {
+            this.ensureInitialized.get();
+            return ((SubmissionVerifier)this.submissionVerifier.get()).verifySubmission(this.dc, this.workPool, this.submission);
+         }
       }
+      throw new AssertionError();
    }
 
    public Set<Permission> applicablePermissions() {
-      switch(null.$SwitchMap$com$datastax$bdp$cassandra$auth$ResourceManagerSubmissionResource$Level[this.level.ordinal()]) {
-      case 1:
-         return DEFAULT_PERMISSIONS;
-      case 2:
-         return DEFAULT_PERMISSIONS;
-      case 3:
-         return DEFAULT_PERMISSIONS;
-      case 4:
-         return DEFAULT_PERMISSIONS;
-      default:
-         throw new AssertionError();
+      switch (this.level) {
+         case ANY_SUBMISSION: {
+            return DEFAULT_PERMISSIONS;
+         }
+         case ANY_SUBMISSION_IN_DC: {
+            return DEFAULT_PERMISSIONS;
+         }
+         case ANY_SUBMISSION_IN_WORKPOOL: {
+            return DEFAULT_PERMISSIONS;
+         }
+         case SUBMISSION_IN_WORKPOOL: {
+            return DEFAULT_PERMISSIONS;
+         }
       }
+      throw new AssertionError();
    }
 
    public String toString() {
-      switch(null.$SwitchMap$com$datastax$bdp$cassandra$auth$ResourceManagerSubmissionResource$Level[this.level.ordinal()]) {
-      case 1:
-         return "<any submission in any work pool>";
-      case 2:
-         return String.format("<any submission in any work pool in %s>", new Object[]{this.dc});
-      case 3:
-         return String.format("<any submission in work pool %s in %s>", new Object[]{this.workPool, this.dc});
-      case 4:
-         return String.format("<submission %s in work pool %s in %s>", new Object[]{this.submission, this.workPool, this.dc});
-      default:
-         throw new AssertionError();
+      switch (this.level) {
+         case ANY_SUBMISSION: {
+            return "<any submission in any work pool>";
+         }
+         case ANY_SUBMISSION_IN_DC: {
+            return String.format("<any submission in any work pool in %s>", this.dc);
+         }
+         case ANY_SUBMISSION_IN_WORKPOOL: {
+            return String.format("<any submission in work pool %s in %s>", this.workPool, this.dc);
+         }
+         case SUBMISSION_IN_WORKPOOL: {
+            return String.format("<submission %s in work pool %s in %s>", this.submission, this.workPool, this.dc);
+         }
       }
+      throw new AssertionError();
    }
 
    public boolean equals(Object o) {

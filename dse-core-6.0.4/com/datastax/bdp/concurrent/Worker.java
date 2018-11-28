@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
 
 public class Worker implements Runnable {
    private static final Logger logger = LoggerFactory.getLogger(Worker.class);
-   private static final ThreadLocal<Worker.Context> currentWorkerContext = ThreadLocal.withInitial(Worker.Context::<init>);
+   private static final ThreadLocal<Worker.Context> currentWorkerContext = ThreadLocal.withInitial(Worker.Context::new);
    private final BlockingQueue<Task> queue;
    private final TimeSource timeSource;
    private volatile long latestTaskCreateTime;

@@ -31,7 +31,7 @@ import org.apache.cassandra.utils.versioning.Versioned;
 public class UserValidationOptions {
    private static final Splitter ON_COMMA = Splitter.on(',').omitEmptyStrings().trimResults();
    private static final Splitter ON_COLON = Splitter.on(':').omitEmptyStrings().trimResults();
-   public static final Versioned<NodeSyncVerbs.NodeSyncVersion, Serializer<UserValidationOptions>> serializers = NodeSyncVerbs.NodeSyncVersion.versioned(UserValidationOptions.OptionSerializer::<init>);
+   public static final Versioned<NodeSyncVerbs.NodeSyncVersion, Serializer<UserValidationOptions>> serializers = NodeSyncVerbs.NodeSyncVersion.versioned(UserValidationOptions.OptionSerializer::new);
    static final String ID = "id";
    static final String KEYSPACE_NAME = "keyspace";
    static final String TABLE_NAME = "table";

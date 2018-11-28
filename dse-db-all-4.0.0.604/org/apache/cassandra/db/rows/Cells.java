@@ -40,32 +40,35 @@ public abstract class Cells {
    }
 
    public static Cell reconcile(Cell c1, Cell c2, int nowInSec) {
-      if(c1 == null) {
-         return c2 == null?null:c2;
-      } else if(c2 == null) {
+      if (c1 == null) {
+         return c2 == null ? null : c2;
+      }
+      if (c2 == null) {
          return c1;
-      } else {
-         Conflicts.Resolution res;
-         if(!c1.isCounterCell() && !c2.isCounterCell()) {
-            res = Conflicts.resolveRegular(c1.timestamp(), c1.isLive(nowInSec), c1.localDeletionTime(), c1.value(), c2.timestamp(), c2.isLive(nowInSec), c2.localDeletionTime(), c2.value());
-
-            assert res != Conflicts.Resolution.MERGE;
-
-            return res == Conflicts.Resolution.LEFT_WINS?c1:c2;
-         } else {
-            res = Conflicts.resolveCounter(c1.timestamp(), c1.isLive(nowInSec), c1.value(), c2.timestamp(), c2.isLive(nowInSec), c2.value());
-            switch(null.$SwitchMap$org$apache$cassandra$db$Conflicts$Resolution[res.ordinal()]) {
-            case 1:
+      }
+      if (c1.isCounterCell() || c2.isCounterCell()) {
+         Conflicts.Resolution res = Conflicts.resolveCounter(c1.timestamp(), c1.isLive(nowInSec), c1.value(), c2.timestamp(), c2.isLive(nowInSec), c2.value());
+         switch (res) {
+            case LEFT_WINS: {
                return c1;
-            case 2:
+            }
+            case RIGHT_WINS: {
                return c2;
-            default:
-               ByteBuffer merged = Conflicts.mergeCounterValues(c1.value(), c2.value());
-               long timestamp = Math.max(c1.timestamp(), c2.timestamp());
-               return (Cell)(merged == c1.value() && timestamp == c1.timestamp()?c1:(merged == c2.value() && timestamp == c2.timestamp()?c2:new BufferCell(c1.column(), timestamp, 0, 2147483647, merged, c1.path())));
             }
          }
+         ByteBuffer merged = Conflicts.mergeCounterValues(c1.value(), c2.value());
+         long timestamp = Math.max(c1.timestamp(), c2.timestamp());
+         if (merged == c1.value() && timestamp == c1.timestamp()) {
+            return c1;
+         }
+         if (merged == c2.value() && timestamp == c2.timestamp()) {
+            return c2;
+         }
+         return new BufferCell(c1.column(), timestamp, 0, Integer.MAX_VALUE, merged, c1.path());
       }
+      Conflicts.Resolution res = Conflicts.resolveRegular(c1.timestamp(), c1.isLive(nowInSec), c1.localDeletionTime(), c1.value(), c2.timestamp(), c2.isLive(nowInSec), c2.localDeletionTime(), c2.value());
+      assert (res != Conflicts.Resolution.MERGE);
+      return res == Conflicts.Resolution.LEFT_WINS ? c1 : c2;
    }
 
    public static long reconcileComplex(ColumnMetadata column, Iterator<Cell> existing, Iterator<Cell> update, DeletionTime deletion, Row.Builder builder, int nowInSec) {

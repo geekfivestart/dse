@@ -54,7 +54,7 @@ abstract class ElementsSelector extends Selector {
             } else if(keyValue == ByteBufferUtil.UNSET_BYTE_BUFFER) {
                throw new InvalidRequestException("Invalid unset value for element selection on " + this.factory.getColumnName());
             } else {
-               return new ElementsSelector.ElementSelector(this.factory.newInstance(options), keyValue, null);
+               return new ElementsSelector.ElementSelector(this.factory.newInstance(options), keyValue);
             }
          }
 
@@ -83,7 +83,7 @@ abstract class ElementsSelector extends Selector {
             ByteBuffer fromValue = from.bindAndGet(options);
             ByteBuffer toValue = to.bindAndGet(options);
             if(fromValue != null && toValue != null) {
-               return new ElementsSelector.SliceSelector(this.factory.newInstance(options), from.bindAndGet(options), to.bindAndGet(options), null);
+               return new ElementsSelector.SliceSelector(this.factory.newInstance(options), from.bindAndGet(options), to.bindAndGet(options));
             } else {
                throw new InvalidRequestException("Invalid null value for slice selection on " + this.factory.getColumnName());
             }
@@ -128,7 +128,7 @@ abstract class ElementsSelector extends Selector {
             Selector selected = serializer.deserialize(in, metadata);
             ByteBuffer from = ByteBufferUtil.readWithVIntLength(in);
             ByteBuffer to = ByteBufferUtil.readWithVIntLength(in);
-            return new ElementsSelector.SliceSelector(selected, from, to, null);
+            return new ElementsSelector.SliceSelector(selected, from, to);
          }
       };
       private final CollectionType<?> type;
@@ -209,7 +209,7 @@ abstract class ElementsSelector extends Selector {
             Selector.Serializer serializer = (Selector.Serializer)Selector.serializers.get(version);
             Selector selected = serializer.deserialize(in, metadata);
             ByteBuffer key = ByteBufferUtil.readWithVIntLength(in);
-            return new ElementsSelector.ElementSelector(selected, key, null);
+            return new ElementsSelector.ElementSelector(selected, key);
          }
       };
       private final CollectionType<?> type;

@@ -325,7 +325,7 @@ public class ViewUpdateFlow {
             if(!this.updatesIter.hasNext()) {
                existing = this.consumeExisting();
                if(!this.updatesDeletion.currentDeletion().isLive() && !existing.isRangeTombstoneMarker()) {
-                  Row existingRow = (Row)existing;
+                  existingRow = (Row)existing;
                   return ViewUpdateFlow.RowUpdate.create(existingRow, ViewUpdateFlow.emptyRow(existingRow.clustering(), this.updatesDeletion.currentDeletion()), this.nowInSec);
                }
 

@@ -77,8 +77,8 @@ class ValidationExecutor implements Validator.PageProcessingListener {
       this.blockedOnNewTaskTimeNanos = new AtomicLong();
       this.waitingOnTaskThreads = new ConcurrentHashMap();
       this.scheduler = scheduler;
-      this.validationExecutor = DebuggableThreadPoolExecutor.createWithFixedPoolSize((ThreadFactory)(new ValidationExecutor.ValidationThread.Factory(null)), config.getMinThreads());
-      this.wrappingScheduler = new ValidationExecutor.NodeSyncStagedExecutor(null);
+      this.validationExecutor = DebuggableThreadPoolExecutor.createWithFixedPoolSize((ThreadFactory)(new ValidationExecutor.ValidationThread.Factory()), config.getMinThreads());
+      this.wrappingScheduler = new ValidationExecutor.NodeSyncStagedExecutor();
       this.config = config;
       this.maxInFlightValidations = config.getMinInflightValidations();
       this.controllerIntervalMs = controllerIntervalMs;
@@ -121,7 +121,7 @@ class ValidationExecutor implements Validator.PageProcessingListener {
             throw new IllegalStateException("Cannot restart a stopped ValidationExecutor");
          }
       } else {
-         this.controller = new ValidationExecutor.Controller(this.controllerIntervalMs, null);
+         this.controller = new ValidationExecutor.Controller(this.controllerIntervalMs);
          this.controller.updateValues();
 
          for(int i = 0; i < this.maxInFlightValidations; ++i) {
@@ -152,7 +152,7 @@ class ValidationExecutor implements Validator.PageProcessingListener {
       }
 
       if(this.inFlightValidations.get() == 0) {
-         this.shutdownFuture.complete((Object)null);
+         this.shutdownFuture.complete(null);
       }
 
       this.updaterExecutor.shutdown();
@@ -182,7 +182,7 @@ class ValidationExecutor implements Validator.PageProcessingListener {
       }
 
       if(value == 0 && this.isShutdown()) {
-         this.shutdownFuture.complete((Object)null);
+         this.shutdownFuture.complete(null);
       }
 
    }
@@ -290,7 +290,7 @@ class ValidationExecutor implements Validator.PageProcessingListener {
          }
 
          public Thread newThread(Runnable runnable) {
-            return new ValidationExecutor.ValidationThread("NodeSync-" + this.n.getAndIncrement(), runnable, null);
+            return new ValidationExecutor.ValidationThread("NodeSync-" + this.n.getAndIncrement(), runnable);
          }
       }
    }
@@ -359,10 +359,10 @@ class ValidationExecutor implements Validator.PageProcessingListener {
 
       private Controller(long controllerIntervalMs) {
          this.lastTickNanos = System.nanoTime();
-         this.processingWaitTimeMsDiff = new ValidationExecutor.DiffValue(null);
-         this.limiterWaitTimeMsDiff = new ValidationExecutor.DiffValue(null);
-         this.dataValidatedBytesDiff = new ValidationExecutor.DiffValue(null);
-         this.blockedOnNewTaskMsDiff = new ValidationExecutor.DiffValue(null);
+         this.processingWaitTimeMsDiff = new ValidationExecutor.DiffValue();
+         this.limiterWaitTimeMsDiff = new ValidationExecutor.DiffValue();
+         this.dataValidatedBytesDiff = new ValidationExecutor.DiffValue();
+         this.blockedOnNewTaskMsDiff = new ValidationExecutor.DiffValue();
          this.history = new History(12);
          this.lastMaxedOutWarn = -1L;
          this.threadWaitTimeThresholdMs = 10L * controllerIntervalMs / 100L;
@@ -458,49 +458,51 @@ class ValidationExecutor implements Validator.PageProcessingListener {
       }
 
       public void run() {
-         if(!ValidationExecutor.this.isShutdown()) {
-            this.updateValues();
-            double targetRate = (double)ValidationExecutor.this.config.getRate().in(RateUnit.B_S);
-            double recentRate = 1000.0D * (double)this.dataValidatedBytesDiff.currentDiff() / (double)this.lastIntervalMs;
-            ValidationExecutor.Action action = ValidationExecutor.Action.DO_NOTHING;
-            if(recentRate < targetRate * 0.95D) {
-               if(this.hasSignificantBlockOnNewTaskSinceLastCheck()) {
-                  action = this.pickDecreaseAction();
-               } else {
-                  action = this.pickIncreaseAction();
-                  if(action == ValidationExecutor.Action.MAXED_OUT) {
-                     this.maybeWarnOnMaxedOut(recentRate);
-                  }
+         if (ValidationExecutor.this.isShutdown()) {
+            return;
+         }
+         this.updateValues();
+         double targetRate = ValidationExecutor.this.config.getRate().in(RateUnit.B_S);
+         double recentRate = 1000.0 * (double)this.dataValidatedBytesDiff.currentDiff() / (double)this.lastIntervalMs;
+         Action action = Action.DO_NOTHING;
+         if (recentRate < targetRate * 0.95) {
+            if (this.hasSignificantBlockOnNewTaskSinceLastCheck()) {
+               action = this.pickDecreaseAction();
+            } else {
+               action = this.pickIncreaseAction();
+               if (action == Action.MAXED_OUT) {
+                  this.maybeWarnOnMaxedOut(recentRate);
                }
-            } else if(recentRate > targetRate * 1.05D) {
-               ValidationExecutor.logger.debug("Recent effective rate {} is higher than the configured rate {}; this may temporarily happen while the server warm up but shouldn't happen in general. If you see this with some regularity, please report", Units.toString((long)recentRate, RateUnit.B_S), Units.toString((long)targetRate, RateUnit.B_S));
-               action = this.pickDecreaseAction();
-            } else if(!this.hasRecentUnsuccessfulDecrease() && this.hasSignificantLimiterWaitTimeSinceLastCheck()) {
-               action = this.pickDecreaseAction();
             }
-
-            if(ValidationExecutor.logger.isDebugEnabled()) {
-               ValidationExecutor.logger.debug("NodeSync executor controller: recent rate={} (configured={}), {} thread(s) and {} maximum in-flight validation(s), ~{}% avg thread occupation: {}", new Object[]{Units.toString((long)recentRate, RateUnit.B_S), Units.toString((long)targetRate, RateUnit.B_S), Integer.valueOf(ValidationExecutor.this.validationExecutor.getCorePoolSize()), Integer.valueOf(ValidationExecutor.this.maxInFlightValidations), Integer.valueOf(this.threadAvgOccupationPercentage()), action});
-            }
-
-            switch(null.$SwitchMap$com$datastax$bdp$db$nodesync$ValidationExecutor$Action[action.ordinal()]) {
-            case 1:
+         } else if (recentRate > targetRate * 1.05) {
+            logger.debug("Recent effective rate {} is higher than the configured rate {}; this may temporarily happen while the server warm up but shouldn't happen in general. If you see this with some regularity, please report", (Object)Units.toString((long)recentRate, RateUnit.B_S), (Object)Units.toString((long)targetRate, RateUnit.B_S));
+            action = this.pickDecreaseAction();
+         } else if (!this.hasRecentUnsuccessfulDecrease() && this.hasSignificantLimiterWaitTimeSinceLastCheck()) {
+            action = this.pickDecreaseAction();
+         }
+         if (logger.isDebugEnabled()) {
+            logger.debug("NodeSync executor controller: recent rate={} (configured={}), {} thread(s) and {} maximum in-flight validation(s), ~{}% avg thread occupation: {}", new Object[]{Units.toString((long)recentRate, RateUnit.B_S), Units.toString((long)targetRate, RateUnit.B_S), ValidationExecutor.this.validationExecutor.getCorePoolSize(), ValidationExecutor.this.maxInFlightValidations, this.threadAvgOccupationPercentage(), action});
+         }
+         switch (action) {
+            case INCREASE_THREADS: {
                ValidationExecutor.this.validationExecutor.setCorePoolSize(ValidationExecutor.this.validationExecutor.getCorePoolSize() + 1);
                break;
-            case 2:
+            }
+            case INCREASE_INFLIGHT_VALIDATIONS: {
                ++ValidationExecutor.this.maxInFlightValidations;
                ValidationExecutor.this.submitNewValidation();
                break;
-            case 3:
+            }
+            case DECREASE_THREADS: {
                ValidationExecutor.this.validationExecutor.setCorePoolSize(ValidationExecutor.this.validationExecutor.getCorePoolSize() - 1);
                break;
-            case 4:
+            }
+            case DECREASE_INFLIGHT_VALIDATIONS: {
                --ValidationExecutor.this.maxInFlightValidations;
             }
-
-            this.history.add(action);
-            this.postRunCleanup();
          }
+         this.history.add(action);
+         this.postRunCleanup();
       }
 
       private void maybeWarnOnMaxedOut(double recentRate) {

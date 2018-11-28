@@ -167,54 +167,37 @@ public class Mutation implements IMutation, SchedulableMessage {
    }
 
    public static Mutation merge(List<Mutation> mutations) {
-      assert !mutations.isEmpty();
-
-      if(mutations.size() == 1) {
-         return (Mutation)mutations.get(0);
-      } else {
-         Set<TableId> updatedTables = new HashSet();
-         String ks = null;
-         DecoratedKey key = null;
-
-         Mutation mutation;
-         for(Iterator var4 = mutations.iterator(); var4.hasNext(); key = mutation.key) {
-            mutation = (Mutation)var4.next();
-            updatedTables.addAll(mutation.modifications.keySet());
-            if(ks != null && !ks.equals(mutation.keyspaceName)) {
-               throw new IllegalArgumentException();
-            }
-
-            if(key != null && !key.equals(mutation.key)) {
-               throw new IllegalArgumentException();
-            }
-
-            ks = mutation.keyspaceName;
-         }
-
-         List<PartitionUpdate> updates = new ArrayList(mutations.size());
-         Map<TableId, PartitionUpdate> modifications = new HashMap(updatedTables.size());
-         Iterator var6 = updatedTables.iterator();
-
-         while(var6.hasNext()) {
-            TableId table = (TableId)var6.next();
-            Iterator var8 = mutations.iterator();
-
-            while(var8.hasNext()) {
-               Mutation mutation = (Mutation)var8.next();
-               PartitionUpdate upd = (PartitionUpdate)mutation.modifications.get(table);
-               if(upd != null) {
-                  updates.add(upd);
-               }
-            }
-
-            if(!updates.isEmpty()) {
-               modifications.put(table, updates.size() == 1?(PartitionUpdate)updates.get(0):PartitionUpdate.merge(updates));
-               updates.clear();
-            }
-         }
-
-         return new Mutation(ks, key, modifications, TPCTaskType.WRITE_LOCAL);
+      assert (!mutations.isEmpty());
+      if (mutations.size() == 1) {
+         return mutations.get(0);
       }
+      HashSet<TableId> updatedTables = new HashSet<TableId>();
+      String ks = null;
+      DecoratedKey key = null;
+      for (Mutation mutation : mutations) {
+         updatedTables.addAll(mutation.modifications.keySet());
+         if (ks != null && !ks.equals(mutation.keyspaceName)) {
+            throw new IllegalArgumentException();
+         }
+         if (key != null && !key.equals(mutation.key)) {
+            throw new IllegalArgumentException();
+         }
+         ks = mutation.keyspaceName;
+         key = mutation.key;
+      }
+      ArrayList<PartitionUpdate> updates = new ArrayList<PartitionUpdate>(mutations.size());
+      HashMap<TableId, PartitionUpdate> modifications = new HashMap<TableId, PartitionUpdate>(updatedTables.size());
+      for (TableId table : updatedTables) {
+         for (Mutation mutation : mutations) {
+            PartitionUpdate upd = mutation.modifications.get(table);
+            if (upd == null) continue;
+            updates.add(upd);
+         }
+         if (updates.isEmpty()) continue;
+         modifications.put(table, updates.size() == 1 ? updates.get(0) : PartitionUpdate.merge(updates));
+         updates.clear();
+      }
+      return new Mutation(ks, key, modifications, TPCTaskType.WRITE_LOCAL);
    }
 
    public StagedScheduler getScheduler() {

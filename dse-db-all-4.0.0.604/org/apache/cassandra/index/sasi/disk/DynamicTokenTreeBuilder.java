@@ -148,7 +148,7 @@ public class DynamicTokenTreeBuilder extends AbstractTokenTreeBuilder {
    private class DynamicLeaf extends AbstractTokenTreeBuilder.Leaf {
       private final SortedMap<Long, LongSet> tokens;
 
-      DynamicLeaf(SortedMap<Long, LongSet> var1) {
+      DynamicLeaf(SortedMap<Long, LongSet> data) {
          super((Long)data.firstKey(), (Long)data.lastKey());
          this.tokens = data;
       }

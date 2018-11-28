@@ -10,12 +10,7 @@ import io.reactivex.functions.Consumer;
 import io.reactivex.internal.disposables.EmptyDisposable;
 import java.util.Iterator;
 import java.util.SortedMap;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -79,7 +74,7 @@ public class TPCUtils {
    public static <T> CompletableFuture<Void> toFutureVoid(Single<T> single) {
       CompletableFuture<Void> ret = new CompletableFuture();
       single.subscribe((result) -> {
-         ret.complete((Object)null);
+         ret.complete(null);
       }, ret::completeExceptionally);
       return ret;
    }
@@ -87,7 +82,7 @@ public class TPCUtils {
    public static CompletableFuture<Void> toFuture(Completable completable) {
       CompletableFuture<Void> ret = new CompletableFuture();
       completable.subscribe(() -> {
-         ret.complete((Object)null);
+         ret.complete(null);
       }, ret::completeExceptionally);
       return ret;
    }
@@ -125,7 +120,7 @@ public class TPCUtils {
    }
 
    public static CompletableFuture<Void> completedFuture() {
-      return CompletableFuture.completedFuture((Object)null);
+      return CompletableFuture.completedFuture(null);
    }
 
    public static <T> CompletableFuture<T> completedFuture(T value) {
@@ -174,34 +169,27 @@ public class TPCUtils {
    }
 
    public static <T> CompletableFuture<T> withLocks(SortedMap<Long, ExecutableLock> locks, long startTimeMillis, long timeoutMillis, Supplier<CompletableFuture<T>> onLocksAcquired, Function<TimeoutException, RuntimeException> onTimeout) {
-      CoordinatedAction<T> coordinator = new CoordinatedAction(onLocksAcquired, locks.size(), startTimeMillis, timeoutMillis, TimeUnit.MILLISECONDS);
-      CompletableFuture<T> first = new CompletableFuture();
-      CompletableFuture<T> prev = first;
+      CompletableFuture first;
+      CoordinatedAction<T> coordinator = new CoordinatedAction<T>(onLocksAcquired, locks.size(), startTimeMillis, timeoutMillis, TimeUnit.MILLISECONDS);
+      CompletableFuture prev = first = new CompletableFuture();
       CompletableFuture<T> result = null;
-
-      CompletableFuture current;
-      for(Iterator var11 = locks.values().iterator(); var11.hasNext(); prev = current) {
-         ExecutableLock lock = (ExecutableLock)var11.next();
-         current = new CompletableFuture();
-         result = prev.thenCompose((ignored) -> {
-            return lock.execute(() -> {
-               current.complete((Object)null);
-               return coordinator.get();
-            }, TPC.bestTPCScheduler().getExecutor());
-         });
+      for (ExecutableLock lock : locks.values()) {
+         CompletableFuture current = new CompletableFuture();
+         result = prev.thenCompose(ignored -> lock.execute(() -> {
+            current.complete(null);
+            return coordinator.get();
+         }, TPC.bestTPCScheduler().getExecutor()));
+         prev = current;
       }
-
-      first.complete((Object)null);
-      result = result.exceptionally((t) -> {
-         if(t instanceof CompletionException && t.getCause() != null) {
+      first.complete(null);
+      result = result.exceptionally(t -> {
+         if (t instanceof CompletionException && t.getCause() != null) {
             t = t.getCause();
          }
-
-         if(t instanceof TimeoutException) {
+         if (t instanceof TimeoutException) {
             throw (RuntimeException)onTimeout.apply((TimeoutException)t);
-         } else {
-            throw Throwables.propagate(t);
          }
+         throw Throwables.propagate((Throwable)t);
       });
       return result;
    }

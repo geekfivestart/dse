@@ -42,7 +42,7 @@ public class BufferPool {
    private static final BufferPoolMetrics metrics;
    private final FastThreadLocal<BufferPool.LocalPool> localPool = new FastThreadLocal<BufferPool.LocalPool>() {
       protected BufferPool.LocalPool initialValue() {
-         return new BufferPool.LocalPool(null);
+         return new BufferPool.LocalPool();
       }
    };
    private static final ConcurrentLinkedQueue<BufferPool.LocalPoolRef> localPoolReferences;
@@ -173,7 +173,7 @@ public class BufferPool {
    static {
       noSpamLogger = NoSpamLogger.getLogger(logger, 15L, TimeUnit.MINUTES);
       EMPTY_BUFFER = ByteBuffer.allocateDirect(0);
-      globalPool = new BufferPool.GlobalPool(null);
+      globalPool = new BufferPool.GlobalPool();
       metrics = new BufferPoolMetrics();
       localPoolReferences = new ConcurrentLinkedQueue();
       localPoolRefQueue = new ReferenceQueue();
@@ -321,39 +321,28 @@ public class BufferPool {
       }
 
       ByteBuffer get(int size) {
+         long candidate;
+         int index;
+         long cur;
          int slotCount = size - 1 + this.unit() >>> this.shift;
-         if(slotCount > 64) {
+         if (slotCount > 64) {
             return null;
-         } else {
-            long slotBits = -1L >>> 64 - slotCount;
-            long searchMask = 1229782938247303441L;
-            searchMask *= 15L >>> (slotCount - 1 & 3);
-            searchMask &= -1L >>> slotCount - 1;
-
-            long cur;
-            int index;
-            long candidate;
-            do {
-               cur = this.freeSlots;
-               index = Long.numberOfTrailingZeros(cur & searchMask);
-               if(index == 64) {
-                  return null;
-               }
-
-               searchMask ^= 1L << index;
-               candidate = slotBits << index;
-            } while((candidate & cur) != candidate);
-
-            do {
-               if(freeSlotsUpdater.compareAndSet(this, cur, cur & ~candidate)) {
-                  return this.get(index << this.shift, size);
-               }
-
-               cur = this.freeSlots;
-            } while($assertionsDisabled || (candidate & cur) == candidate);
-
-            throw new AssertionError();
          }
+         long slotBits = -1L >>> 64 - slotCount;
+         long searchMask = 0x1111111111111111L;
+         searchMask *= 15L >>> (slotCount - 1 & 3);
+         searchMask &= -1L >>> slotCount - 1;
+         do {
+            if ((index = Long.numberOfTrailingZeros((cur = this.freeSlots) & searchMask)) == 64) {
+               return null;
+            }
+            searchMask ^= 1L << index;
+         } while (((candidate = slotBits << index) & cur) != candidate);
+         while (!freeSlotsUpdater.compareAndSet(this, cur, cur & (candidate ^ -1L))) {
+            cur = this.freeSlots;
+            assert ((candidate & cur) == candidate);
+         }
+         return this.get(index << this.shift, size);
       }
 
       private ByteBuffer get(int offset, int size) {
@@ -666,19 +655,10 @@ public class BufferPool {
       }
 
       void check() {
-         Iterator var1 = this.allChunks.iterator();
-
-         BufferPool.Chunk chunk;
-         do {
-            if(!var1.hasNext()) {
-               ++this.recycleRound;
-               return;
-            }
-
-            chunk = (BufferPool.Chunk)var1.next();
-         } while($assertionsDisabled || chunk.lastRecycled == this.recycleRound);
-
-         throw new AssertionError();
+         for (Chunk chunk : this.allChunks) {
+            assert (chunk.lastRecycled == this.recycleRound);
+         }
+         ++this.recycleRound;
       }
    }
 }

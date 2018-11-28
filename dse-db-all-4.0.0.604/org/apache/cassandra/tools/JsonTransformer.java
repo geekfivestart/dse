@@ -428,7 +428,6 @@ public final class JsonTransformer {
             }
          } else {
             Short elementIndex;
-            Short elementIndex;
             if(type.isUDT() && type.isMultiCell()) {
                UserType ut = (UserType)type;
                this.json.writeFieldName("path");

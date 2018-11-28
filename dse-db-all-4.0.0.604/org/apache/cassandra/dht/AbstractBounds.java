@@ -215,8 +215,8 @@ public abstract class AbstractBounds<T extends RingPosition<T>> implements Seria
             endInclusive = (kind & 4) != 0;
          }
 
-         T left = (RingPosition)this.serializer.deserialize(in, p, version);
-         T right = (RingPosition)this.serializer.deserialize(in, p, version);
+         T left = (T)this.serializer.deserialize(in, p, version);
+         T right = (T)this.serializer.deserialize(in, p, version);
 
          assert isToken == (left instanceof Token);
 

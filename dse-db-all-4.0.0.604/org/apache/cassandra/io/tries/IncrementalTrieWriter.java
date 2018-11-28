@@ -14,7 +14,7 @@ public interface IncrementalTrieWriter<Value> {
 
    IncrementalTrieWriter.PartialTail makePartialRoot() throws IOException;
 
-   static default <Value> IncrementalTrieWriter<Value> construct(TrieSerializer<Value, ? super DataOutputPlus> trieSerializer, DataOutputPlus dest) {
+   public static <Value> IncrementalTrieWriter<Value> construct(TrieSerializer<Value, ? super DataOutputPlus> trieSerializer, DataOutputPlus dest) {
       return new IncrementalTrieWriterPageAware(trieSerializer, dest);
    }
 

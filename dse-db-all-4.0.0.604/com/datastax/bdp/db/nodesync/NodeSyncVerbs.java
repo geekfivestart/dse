@@ -30,25 +30,15 @@ public class NodeSyncVerbs extends VerbGroup<NodeSyncVerbs.NodeSyncVersion> {
    static final Serializer<Optional<UUID>> tracingSessionResultSerializer;
 
    public NodeSyncVerbs(Verbs.Group id) {
-      super(id, true, NodeSyncVerbs.NodeSyncVersion.class);
-      VerbGroup<NodeSyncVerbs.NodeSyncVersion>.RegistrationHelper helper = this.helper().stage(Stage.MISC).droppedGroup(DroppedMessages.Group.OTHER);
+      super(id, true, NodeSyncVersion.class);
+      VerbGroup.RegistrationHelper helper = this.helper().stage(Stage.MISC).droppedGroup(DroppedMessages.Group.OTHER);
       NodeSyncService service = StorageService.instance.nodeSyncService;
-      this.SUBMIT_VALIDATION = ((VerbGroup.RegistrationHelper.AckedRequestBuilder)helper.ackedRequest("SUBMIT_VALIDATION", UserValidationOptions.class).timeout(DatabaseDescriptor::getRpcTimeout)).syncHandler((from, options) -> {
-         service.startUserValidation(options);
-      });
-      this.CANCEL_VALIDATION = ((VerbGroup.RegistrationHelper.AckedRequestBuilder)helper.ackedRequest("CANCEL_VALIDATION", UserValidationID.class).timeout(DatabaseDescriptor::getRpcTimeout)).syncHandler((from, validationId) -> {
-         service.cancelUserValidation(validationId);
-      });
-      this.ENABLE_TRACING = ((VerbGroup.RegistrationHelper.AckedRequestBuilder)helper.ackedRequest("ENABLE_TRACING", TracingOptions.class).timeout(DatabaseDescriptor::getRpcTimeout)).syncHandler((from, options) -> {
-         service.enableTracing(options);
-      });
-      this.DISABLE_TRACING = ((VerbGroup.RegistrationHelper.AckedRequestBuilder)helper.ackedRequest("DISABLE_TRACING", EmptyPayload.class).timeout(DatabaseDescriptor::getRpcTimeout)).syncHandler((from, options) -> {
-         service.disableTracing();
-      });
-      Class<Optional<UUID>> optIdClass = Optional.empty().getClass();
-      this.TRACING_SESSION = ((VerbGroup.RegistrationHelper.RequestResponseBuilder)((VerbGroup.RegistrationHelper.RequestResponseBuilder)helper.requestResponse("TRACING_SESSION", EmptyPayload.class, optIdClass).withResponseSerializer(tracingSessionResultSerializer)).timeout(DatabaseDescriptor::getRpcTimeout)).syncHandler((from, p) -> {
-         return service.currentTracingSessionIfEnabled();
-      });
+      this.SUBMIT_VALIDATION = ((VerbGroup.RegistrationHelper.AckedRequestBuilder)((Object)helper.ackedRequest("SUBMIT_VALIDATION", UserValidationOptions.class).timeout(DatabaseDescriptor::getRpcTimeout))).syncHandler((from, options) -> service.startUserValidation((UserValidationOptions)options));
+      this.CANCEL_VALIDATION = ((VerbGroup.RegistrationHelper.AckedRequestBuilder)((Object)helper.ackedRequest("CANCEL_VALIDATION", UserValidationID.class).timeout(DatabaseDescriptor::getRpcTimeout))).syncHandler((from, validationId) -> service.cancelUserValidation((UserValidationID)validationId));
+      this.ENABLE_TRACING = ((VerbGroup.RegistrationHelper.AckedRequestBuilder)((Object)helper.ackedRequest("ENABLE_TRACING", TracingOptions.class).timeout(DatabaseDescriptor::getRpcTimeout))).syncHandler((from, options) -> service.enableTracing((TracingOptions)options));
+      this.DISABLE_TRACING = ((VerbGroup.RegistrationHelper.AckedRequestBuilder)((Object)helper.ackedRequest("DISABLE_TRACING", EmptyPayload.class).timeout(DatabaseDescriptor::getRpcTimeout))).syncHandler((from, options) -> service.disableTracing());
+      Class<?> optIdClass = Optional.empty().getClass();
+      this.TRACING_SESSION = ((VerbGroup.RegistrationHelper.RequestResponseBuilder)((Object)((VerbGroup.RegistrationHelper.RequestResponseBuilder)((Object)helper.requestResponse("TRACING_SESSION", EmptyPayload.class, optIdClass).withResponseSerializer(tracingSessionResultSerializer))).timeout(DatabaseDescriptor::getRpcTimeout))).syncHandler((from, p) -> service.currentTracingSessionIfEnabled());
    }
 
    static {

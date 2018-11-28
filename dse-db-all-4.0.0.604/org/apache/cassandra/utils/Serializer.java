@@ -7,24 +7,25 @@ import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.io.util.DataOutputPlus;
 
 public interface Serializer<T> {
-   static default <T> Serializer<Optional<T>> forOptional(final Serializer<T> serializer) {
-      return new Serializer<Optional<T>>() {
+   public static <T> Serializer<Optional<T>> forOptional(final Serializer<T> serializer) {
+      return new Serializer<Optional<T>>(){
+
+         @Override
          public void serialize(Optional<T> t, DataOutputPlus out) throws IOException {
             out.writeBoolean(t.isPresent());
-            if(t.isPresent()) {
+            if (t.isPresent()) {
                serializer.serialize(t.get(), out);
             }
-
          }
 
+         @Override
          public Optional<T> deserialize(DataInputPlus in) throws IOException {
-            return in.readBoolean()?Optional.of(serializer.deserialize(in)):Optional.empty();
+            return in.readBoolean() ? Optional.of(serializer.deserialize(in)) : Optional.empty();
          }
 
+         @Override
          public long serializedSize(Optional<T> t) {
-            Serializer var10002 = serializer;
-            serializer.getClass();
-            return 1L + ((Long)t.map(var10002::serializedSize).orElse(Long.valueOf(0L))).longValue();
+            return 1L + t.map(serializer::serializedSize).orElse(0L);
          }
       };
    }

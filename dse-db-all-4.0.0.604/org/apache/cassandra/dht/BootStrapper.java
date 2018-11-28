@@ -66,28 +66,28 @@ public class BootStrapper extends ProgressEventNotifierSupport {
          private final AtomicInteger totalFilesToReceive = new AtomicInteger();
 
          public void handleStreamEvent(StreamEvent event) {
-            ProgressEvent currentProgress;
-            switch(null.$SwitchMap$org$apache$cassandra$streaming$StreamEvent$Type[event.eventType.ordinal()]) {
-            case 1:
-               StreamEvent.SessionPreparedEvent prepared = (StreamEvent.SessionPreparedEvent)event;
-               int currentTotal = this.totalFilesToReceive.addAndGet((int)prepared.session.getTotalFilesToReceive());
-               ProgressEvent prepareProgress = new ProgressEvent(ProgressEventType.PROGRESS, this.receivedFiles.get(), currentTotal, "prepare with " + prepared.session.peer + " complete");
-               BootStrapper.this.fireProgressEvent("bootstrap", prepareProgress);
-               break;
-            case 2:
-               StreamEvent.ProgressEvent progress = (StreamEvent.ProgressEvent)event;
-               if(progress.progress.isCompleted()) {
-                  int received = this.receivedFiles.incrementAndGet();
-                  currentProgress = new ProgressEvent(ProgressEventType.PROGRESS, received, this.totalFilesToReceive.get(), "received file " + progress.progress.fileName);
-                  BootStrapper.this.fireProgressEvent("bootstrap", currentProgress);
+            switch (event.eventType) {
+               case STREAM_PREPARED: {
+                  StreamEvent.SessionPreparedEvent prepared = (StreamEvent.SessionPreparedEvent)event;
+                  int currentTotal = this.totalFilesToReceive.addAndGet((int)prepared.session.getTotalFilesToReceive());
+                  ProgressEvent prepareProgress = new ProgressEvent(ProgressEventType.PROGRESS, this.receivedFiles.get(), currentTotal, "prepare with " + prepared.session.peer + " complete");
+                  BootStrapper.this.fireProgressEvent("bootstrap", prepareProgress);
+                  break;
                }
-               break;
-            case 3:
-               StreamEvent.SessionCompleteEvent completeEvent = (StreamEvent.SessionCompleteEvent)event;
-               currentProgress = new ProgressEvent(ProgressEventType.PROGRESS, this.receivedFiles.get(), this.totalFilesToReceive.get(), "session with " + completeEvent.peer + " complete");
-               BootStrapper.this.fireProgressEvent("bootstrap", currentProgress);
+               case FILE_PROGRESS: {
+                  StreamEvent.ProgressEvent progress = (StreamEvent.ProgressEvent)event;
+                  if (!progress.progress.isCompleted()) break;
+                  int received = this.receivedFiles.incrementAndGet();
+                  ProgressEvent currentProgress = new ProgressEvent(ProgressEventType.PROGRESS, received, this.totalFilesToReceive.get(), "received file " + progress.progress.fileName);
+                  BootStrapper.this.fireProgressEvent("bootstrap", currentProgress);
+                  break;
+               }
+               case STREAM_COMPLETE: {
+                  StreamEvent.SessionCompleteEvent completeEvent = (StreamEvent.SessionCompleteEvent)event;
+                  ProgressEvent completeProgress = new ProgressEvent(ProgressEventType.PROGRESS, this.receivedFiles.get(), this.totalFilesToReceive.get(), "session with " + completeEvent.peer + " complete");
+                  BootStrapper.this.fireProgressEvent("bootstrap", completeProgress);
+               }
             }
-
          }
 
          public void onSuccess(StreamState streamState) {

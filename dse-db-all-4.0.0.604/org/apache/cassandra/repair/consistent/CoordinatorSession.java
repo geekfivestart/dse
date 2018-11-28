@@ -137,7 +137,7 @@ public class CoordinatorSession extends ConsistentSession implements IEndpointSt
 
       while(var2.hasNext()) {
          InetAddress participant = (InetAddress)var2.next();
-         this.send(Verbs.REPAIR.CONSISTENT_REQUEST.newRequest(participant, (Object)message));
+         this.send(Verbs.REPAIR.CONSISTENT_REQUEST.newRequest(participant, message));
       }
 
       return this.prepareFuture;
@@ -193,7 +193,7 @@ public class CoordinatorSession extends ConsistentSession implements IEndpointSt
          while(var2.hasNext()) {
             InetAddress participant = (InetAddress)var2.next();
             if(this.participantStates.get(participant) != ConsistentSession.State.FAILED && this.participantStates.get(participant) != ConsistentSession.State.FINALIZED) {
-               this.send(Verbs.REPAIR.FAILED_SESSION.newRequest(participant, (Object)message));
+               this.send(Verbs.REPAIR.FAILED_SESSION.newRequest(participant, message));
                this.setParticipantState(participant, ConsistentSession.State.FAILED);
             }
          }
@@ -241,7 +241,7 @@ public class CoordinatorSession extends ConsistentSession implements IEndpointSt
                   CoordinatorSession.logger.debug("Incremental repair {} prepare phase failed in {}", CoordinatorSession.this.sessionID, CoordinatorSession.formatDuration(CoordinatorSession.this.sessionStart, CoordinatorSession.this.repairStart));
                }
 
-               return Futures.immediateFuture((Object)null);
+               return Futures.immediateFuture(null);
             }
          }
       });
@@ -332,7 +332,7 @@ public class CoordinatorSession extends ConsistentSession implements IEndpointSt
       private final Consumer<Response> onSuccessResponse;
       private final SettableFuture<Boolean> successFuture;
 
-      public FinalizeCommitCallback(int var1, Consumer<Response> expectedResponses, SettableFuture<Boolean> onSuccessResponse) {
+      public FinalizeCommitCallback(int expectedResponses, Consumer<Response> onSuccessResponse, SettableFuture<Boolean> successFuture) {
          this.expectedResponses = expectedResponses;
          this.onSuccessResponse = onSuccessResponse;
          this.successFuture = successFuture;

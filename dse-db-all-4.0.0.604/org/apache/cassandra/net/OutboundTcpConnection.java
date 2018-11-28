@@ -73,16 +73,18 @@ public class OutboundTcpConnection extends FastThreadLocalThread implements Park
    private volatile Message.Serializer messageSerializer;
 
    private static int getMaxBackLogSize(Message.Kind kind) {
-      switch(null.$SwitchMap$org$apache$cassandra$net$Message$Kind[kind.ordinal()]) {
-      case 1:
-         return 2147483647;
-      case 2:
-         return SOFT_MAX_QUEUE_SIZE_SMALL;
-      case 3:
-         return SOFT_MAX_QUEUE_SIZE_LARGE;
-      default:
-         throw new IllegalStateException("Unsupported message kind: " + kind);
+      switch (kind) {
+         case GOSSIP: {
+            return Integer.MAX_VALUE;
+         }
+         case SMALL: {
+            return SOFT_MAX_QUEUE_SIZE_SMALL;
+         }
+         case LARGE: {
+            return SOFT_MAX_QUEUE_SIZE_LARGE;
+         }
       }
+      throw new IllegalStateException("Unsupported message kind: " + (Object)((Object)kind));
    }
 
    private static CoalescingStrategies.CoalescingStrategy newCoalescingStrategy(String displayName, OutboundTcpConnection owner) {
@@ -168,69 +170,58 @@ public class OutboundTcpConnection extends FastThreadLocalThread implements Park
    }
 
    public void run() {
-      if(this.thread == null) {
+      if (this.thread == null) {
          this.thread = Thread.currentThread();
       }
-
       ((ParkedThreadsMonitor)ParkedThreadsMonitor.instance.get()).addThreadToMonitor(this);
-      int drainedMessageSize = true;
-      ArrayList drainedMessages = new ArrayList(128);
-
-      label69:
-      while(!this.isStopped) {
+      int drainedMessageSize = 128;
+      ArrayList<QueuedMessage> drainedMessages = new ArrayList(128);
+      block5 : while (!this.isStopped) {
          try {
             this.cs.coalesce(this.backlog, drainedMessages, 128);
-         } catch (InterruptedException var8) {
-            throw new AssertionError(var8);
          }
-
+         catch (InterruptedException e) {
+            throw new AssertionError(e);
+         }
          int count = this.currentMsgBufferCount = drainedMessages.size();
-         this.numBacklogMessages.addAndGet(-count);
-         Iterator var4 = drainedMessages.iterator();
-
-         while(var4.hasNext()) {
-            OutboundTcpConnection.QueuedMessage qm = (OutboundTcpConnection.QueuedMessage)var4.next();
-
-            try {
-               Message m = qm.message;
-               if(m == Message.CLOSE_SENTINEL) {
-                  logger.trace("Disconnecting because CLOSE_SENTINEL detected");
-                  this.disconnect();
-                  if(this.isStopped) {
-                     break label69;
+         this.numBacklogMessages.addAndGet(- count);
+         for (QueuedMessage qm : drainedMessages) {
+            block11 : {
+               try {
+                  Message m = qm.message;
+                  if (m == Message.CLOSE_SENTINEL) {
+                     logger.trace("Disconnecting because CLOSE_SENTINEL detected");
+                     this.disconnect();
+                     if (!this.isStopped) continue;
+                     break block5;
                   }
-                  continue;
-               }
-
-               if(m.isTimedOut(ApproximateTime.currentTimeMillis())) {
-                  this.dropped.incrementAndGet();
-               } else {
-                  if(this.socket == null && !this.connect()) {
-                     int drained = this.backlog.drain((msg) -> {
-                     });
-                     this.dropped.addAndGet((long)drained);
-                     this.numBacklogMessages.addAndGet(-drained);
-                     break;
+                  if (m.isTimedOut(ApproximateTime.currentTimeMillis())) {
+                     this.dropped.incrementAndGet();
+                     break block11;
                   }
-
-                  this.writeConnected(qm, count == 1 && this.backlog.isEmpty());
+                  if (this.socket != null || this.connect()) {
+                     this.writeConnected(qm, count == 1 && this.backlog.isEmpty());
+                     break block11;
+                  }
+                  int drained = this.backlog.drain(msg -> {});
+                  this.dropped.addAndGet(drained);
+                  this.numBacklogMessages.addAndGet(- drained);
+                  break;
                }
-            } catch (OutboundTcpConnection.InternodeAuthFailed var9) {
-               logger.warn("Internode auth failed connecting to {}", this.poolReference.endPoint());
-               MessagingService.instance().destroyConnectionPool(this.poolReference.endPoint());
-            } catch (Exception var10) {
-               JVMStabilityInspector.inspectThrowable(var10);
-               logger.error("error processing a message intended for {}", this.poolReference.endPoint(), var10);
+               catch (InternodeAuthFailed e) {
+                  logger.warn("Internode auth failed connecting to {}", (Object)this.poolReference.endPoint());
+                  MessagingService.instance().destroyConnectionPool(this.poolReference.endPoint());
+               }
+               catch (Exception e) {
+                  JVMStabilityInspector.inspectThrowable(e);
+                  logger.error("error processing a message intended for {}", (Object)this.poolReference.endPoint(), (Object)e);
+               }
             }
-
-            --count;
-            this.currentMsgBufferCount = count;
+            this.currentMsgBufferCount = --count;
          }
-
-         this.dropped.addAndGet((long)this.currentMsgBufferCount);
+         this.dropped.addAndGet(this.currentMsgBufferCount);
          drainedMessages.clear();
       }
-
       ((ParkedThreadsMonitor)ParkedThreadsMonitor.instance.get()).removeThreadToMonitor(this);
    }
 
@@ -247,29 +238,33 @@ public class OutboundTcpConnection extends FastThreadLocalThread implements Park
    }
 
    private static boolean shouldCompressConnection(InetAddress endpoint) {
-      switch(null.$SwitchMap$org$apache$cassandra$config$Config$InternodeCompression[DatabaseDescriptor.internodeCompression().ordinal()]) {
-      case 1:
-         return false;
-      case 2:
-         return true;
-      case 3:
-         return !isLocalDC(endpoint);
-      default:
-         throw new AssertionError("internode-compression " + DatabaseDescriptor.internodeCompression());
+      switch (DatabaseDescriptor.internodeCompression()) {
+         case none: {
+            return false;
+         }
+         case all: {
+            return true;
+         }
+         case dc: {
+            return !OutboundTcpConnection.isLocalDC(endpoint);
+         }
       }
+      throw new AssertionError((Object)("internode-compression " + (Object)((Object)DatabaseDescriptor.internodeCompression())));
    }
 
    public static boolean shouldCompressConnection(String dc) {
-      switch(null.$SwitchMap$org$apache$cassandra$config$Config$InternodeCompression[DatabaseDescriptor.internodeCompression().ordinal()]) {
-      case 1:
-         return false;
-      case 2:
-         return true;
-      case 3:
-         return !isLocalDC(dc);
-      default:
-         throw new AssertionError("internode-compression " + DatabaseDescriptor.internodeCompression());
+      switch (DatabaseDescriptor.internodeCompression()) {
+         case none: {
+            return false;
+         }
+         case all: {
+            return true;
+         }
+         case dc: {
+            return !OutboundTcpConnection.isLocalDC(dc);
+         }
       }
+      throw new AssertionError((Object)("internode-compression " + (Object)((Object)DatabaseDescriptor.internodeCompression())));
    }
 
    private void writeConnected(OutboundTcpConnection.QueuedMessage qm, boolean flush) {
@@ -339,7 +334,7 @@ public class OutboundTcpConnection extends FastThreadLocalThread implements Park
       IInternodeAuthenticator var10000 = DatabaseDescriptor.getInternodeAuthenticator();
       OutboundTcpConnectionPool var10002 = this.poolReference;
       if(!var10000.authenticate(endpoint, OutboundTcpConnectionPool.portFor(endpoint))) {
-         throw new OutboundTcpConnection.InternodeAuthFailed(null);
+         throw new OutboundTcpConnection.InternodeAuthFailed();
       } else {
          logger.debug("Attempting to connect to {}", endpoint);
          long start = System.nanoTime();

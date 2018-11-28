@@ -19,7 +19,7 @@ public class LeafBTreeSearchIterator<K, V> implements BTreeSearchIterator<K, V> 
    }
 
    LeafBTreeSearchIterator(Object[] btree, Comparator<? super K> comparator, BTree.Dir dir, int lowerBound, int upperBound) {
-      this.keys = (Object[])btree;
+      this.keys = (K[])btree;
       this.forwards = dir == BTree.Dir.ASC;
       this.comparator = comparator;
       this.lowerBound = lowerBound;
@@ -31,7 +31,7 @@ public class LeafBTreeSearchIterator<K, V> implements BTreeSearchIterator<K, V> 
       if(!this.hasNext) {
          throw new NoSuchElementException();
       } else {
-         V elem = this.keys[this.nextPos];
+         V elem = (V)this.keys[this.nextPos];
          this.nextPos += this.forwards?1:-1;
          this.hasNext = this.nextPos >= this.lowerBound && this.nextPos <= this.upperBound;
          this.hasCurrent = true;
@@ -57,7 +57,7 @@ public class LeafBTreeSearchIterator<K, V> implements BTreeSearchIterator<K, V> 
          int find = this.searchNext(key);
          if(find >= 0) {
             this.hasCurrent = true;
-            result = this.keys[find];
+            result = (V)this.keys[find];
             this.nextPos = find + (this.forwards?1:-1);
          } else {
             this.nextPos = (this.forwards?-1:-2) - find;
@@ -74,7 +74,7 @@ public class LeafBTreeSearchIterator<K, V> implements BTreeSearchIterator<K, V> 
          throw new NoSuchElementException();
       } else {
          int current = this.forwards?this.nextPos - 1:this.nextPos + 1;
-         return this.keys[current];
+         return (V)this.keys[current];
       }
    }
 

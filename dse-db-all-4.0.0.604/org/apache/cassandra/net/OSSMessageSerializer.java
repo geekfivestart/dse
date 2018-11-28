@@ -230,72 +230,67 @@ public class OSSMessageSerializer implements Message.Serializer {
    }
 
    public Message deserialize(TrackedDataInputPlus in, int size, InetAddress from) throws IOException {
+      Verb verb;
+      boolean isResponse;
       MessagingService.validateMagic(in.readInt());
       int id = in.readInt();
       long timestamp = this.deserializeTimestampPre40(in, from);
       CompactEndpointSerializationHelper.deserialize(in);
-      OSSMessageSerializer.OSSVerb ossVerb = LEGACY_VERB_VALUES[in.readInt()];
+      OSSVerb ossVerb = LEGACY_VERB_VALUES[in.readInt()];
       int parameterCount = in.readInt();
-      Map<String, byte[]> rawParameters = new HashMap();
-
-      for(int i = 0; i < parameterCount; ++i) {
+      HashMap<String, byte[]> rawParameters = new HashMap<String, byte[]>();
+      for (int i = 0; i < parameterCount; ++i) {
          String key = in.readUTF();
          byte[] value = new byte[in.readInt()];
          in.readFully(value);
          rawParameters.put(key, value);
       }
-
       Tracing.SessionInfo tracingInfo = this.extractAndRemoveTracingInfo(rawParameters);
       int payloadSize = in.readInt();
       long startBytes = in.getBytesRead();
-      boolean isResponse = ossVerb == OSSMessageSerializer.OSSVerb.INTERNAL_RESPONSE || ossVerb == OSSMessageSerializer.OSSVerb.REQUEST_RESPONSE;
-      Message.Data data;
-      long timeoutMillis;
-      if(isResponse) {
+      boolean bl = isResponse = ossVerb == OSSVerb.INTERNAL_RESPONSE || ossVerb == OSSVerb.REQUEST_RESPONSE;
+      if (isResponse) {
          CallbackInfo<?> info = MessagingService.instance().getRegisteredCallback(id, false, from);
-         if(info == null) {
+         if (info == null) {
             in.skipBytesFully(payloadSize);
             return null;
-         } else {
-            Verb<?, ?> verb = info.verb;
-            timeoutMillis = 9223372036854775807L;
-            if(rawParameters.containsKey("FAIL")) {
-               rawParameters.remove("FAIL");
-               RequestFailureReason reason = rawParameters.containsKey("FAIL_REASON")?RequestFailureReason.fromCode(ByteBufferUtil.toShort(ByteBuffer.wrap((byte[])rawParameters.remove("FAIL_REASON")))):RequestFailureReason.UNKNOWN;
-               data = new Message.Data((Object)null, -1L, timestamp, timeoutMillis, MessageParameters.from(rawParameters), tracingInfo);
-               return new FailureResponse(from, FBUtilities.getBroadcastAddress(), id, verb, reason, data);
-            } else {
-               try {
-                  Object payload = this.version.serializer(verb).responseSerializer.deserialize(in);
-                  data = new Message.Data(payload, (long)payloadSize, timestamp, timeoutMillis, MessageParameters.from(rawParameters), tracingInfo);
-                  return new Response(from, FBUtilities.getBroadcastAddress(), id, verb, data);
-               } catch (Exception var21) {
-                  throw MessageDeserializationException.forResponsePayloadDeserializationException(var21, from, verb, payloadSize - (int)(in.getBytesRead() - startBytes));
-               }
-            }
          }
-      } else {
-         rawParameters.remove("FAIL_REASON");
-         Verb<?, ?> verb = ossVerb == OSSMessageSerializer.OSSVerb.REPAIR_MESSAGE?(Verb)repairVerbToLegacyCode.inverse().get(Integer.valueOf(in.readByte())):ossVerb.verb;
-
-         assert verb != null : "Unknown definition for verb " + ossVerb;
-
+         Verb verb2 = info.verb;
+         long timeoutMillis = Long.MAX_VALUE;
+         if (rawParameters.containsKey(FAILURE_RESPONSE_PARAM)) {
+            rawParameters.remove(FAILURE_RESPONSE_PARAM);
+            RequestFailureReason reason = rawParameters.containsKey(FAILURE_REASON_PARAM) ? RequestFailureReason.fromCode(ByteBufferUtil.toShort(ByteBuffer.wrap(rawParameters.remove(FAILURE_REASON_PARAM)))) : RequestFailureReason.UNKNOWN;
+            Message.Data<Object> data = new Message.Data<Object>(null, -1L, timestamp, timeoutMillis, MessageParameters.from(rawParameters), tracingInfo);
+            return new FailureResponse<Object>(from, FBUtilities.getBroadcastAddress(), id, verb2, reason, data);
+         }
          try {
-            Object payload = this.version.serializer(verb).requestSerializer.deserialize(in);
-            timeoutMillis = verb.isOneWay()?-1L:verb.timeoutSupplier().get(payload);
-            if(rawParameters.containsKey("FWD_FRM")) {
-               InetAddress replyTo = InetAddress.getByAddress((byte[])rawParameters.remove("FWD_FRM"));
-               data = new Message.Data(payload, (long)payloadSize, timestamp, timeoutMillis, MessageParameters.from(rawParameters), tracingInfo);
-               return new ForwardRequest(from, FBUtilities.getBroadcastAddress(), replyTo, id, verb, data);
-            } else {
-               List<Request.Forward> forwards = this.extractAndRemoveForwards(rawParameters);
-               data = new Message.Data(payload, (long)payloadSize, timestamp, timeoutMillis, MessageParameters.from(rawParameters), tracingInfo);
-               return (Message)(verb.isOneWay()?new OneWayRequest(from, Request.local, (Verb.OneWay)verb, data, forwards):new Request(from, Request.local, id, verb, data, forwards));
-            }
-         } catch (Exception var22) {
-            int remainingBytes = payloadSize - (int)(in.getBytesRead() - startBytes);
-            throw MessageDeserializationException.forRequestPayloadDeserializationException(var22, from, id, verb, timestamp, -1L, MessageParameters.from(rawParameters), tracingInfo, remainingBytes);
+            Object payload = this.version.serializer(verb2).responseSerializer.deserialize(in);
+            Message.Data data = new Message.Data(payload, payloadSize, timestamp, timeoutMillis, MessageParameters.from(rawParameters), tracingInfo);
+            return new Response(from, FBUtilities.getBroadcastAddress(), id, verb2, data);
          }
+         catch (Exception e) {
+            throw MessageDeserializationException.forResponsePayloadDeserializationException(e, from, verb2, payloadSize - (int)(in.getBytesRead() - startBytes));
+         }
+      }
+      rawParameters.remove(FAILURE_REASON_PARAM);
+      Verb verb3 = verb = ossVerb == OSSVerb.REPAIR_MESSAGE ? (Verb)repairVerbToLegacyCode.inverse().get((Object)Integer.valueOf(in.readByte())) : ossVerb.verb;
+      assert (verb != null);
+      try {
+         long timeoutMillis;
+         Object payload = this.version.serializer(verb).requestSerializer.deserialize(in);
+         long l = timeoutMillis = verb.isOneWay() ? -1L : verb.timeoutSupplier().get(payload);
+         if (rawParameters.containsKey(FORWARD_FROM)) {
+            InetAddress replyTo = InetAddress.getByAddress(rawParameters.remove(FORWARD_FROM));
+            Message.Data data = new Message.Data(payload, payloadSize, timestamp, timeoutMillis, MessageParameters.from(rawParameters), tracingInfo);
+            return new ForwardRequest(from, FBUtilities.getBroadcastAddress(), replyTo, id, verb, data);
+         }
+         List<Request.Forward> forwards = this.extractAndRemoveForwards(rawParameters);
+         Message.Data data = new Message.Data(payload, payloadSize, timestamp, timeoutMillis, MessageParameters.from(rawParameters), tracingInfo);
+         return verb.isOneWay() ? new OneWayRequest(from, Request.local, (Verb.OneWay)verb, data, forwards) : new Request(from, Request.local, id, verb, data, forwards);
+      }
+      catch (Exception e) {
+         int remainingBytes = payloadSize - (int)(in.getBytesRead() - startBytes);
+         throw MessageDeserializationException.forRequestPayloadDeserializationException(e, from, id, verb, timestamp, -1L, MessageParameters.from(rawParameters), tracingInfo, remainingBytes);
       }
    }
 
@@ -314,45 +309,24 @@ public class OSSMessageSerializer implements Message.Serializer {
    }
 
    private List<Request.Forward> extractAndRemoveForwards(Map<String, byte[]> parameters) {
-      if(!parameters.containsKey("FWD_TO")) {
+      if (!parameters.containsKey(FORWARD_TO)) {
          return Collections.emptyList();
-      } else {
-         try {
-            DataInputStream in = new DataInputStream(new FastByteArrayInputStream((byte[])parameters.remove("FWD_TO")));
-            Throwable var3 = null;
-
-            try {
-               int size = in.readInt();
-               List<Request.Forward> forwards = new ArrayList(size);
-
-               for(int i = 0; i < size; ++i) {
-                  InetAddress address = CompactEndpointSerializationHelper.deserialize(in);
-                  int id = in.readInt();
-                  forwards.add(new Request.Forward(address, id));
-               }
-
-               ArrayList var20 = forwards;
-               return var20;
-            } catch (Throwable var17) {
-               var3 = var17;
-               throw var17;
-            } finally {
-               if(in != null) {
-                  if(var3 != null) {
-                     try {
-                        in.close();
-                     } catch (Throwable var16) {
-                        var3.addSuppressed(var16);
-                     }
-                  } else {
-                     in.close();
-                  }
-               }
-
+      }
+      try {
+         try (DataInputStream in = new DataInputStream(new FastByteArrayInputStream(parameters.remove(FORWARD_TO)));){
+            int size = in.readInt();
+            ArrayList<Request.Forward> forwards = new ArrayList<Request.Forward>(size);
+            for (int i = 0; i < size; ++i) {
+               InetAddress address = CompactEndpointSerializationHelper.deserialize(in);
+               int id = in.readInt();
+               forwards.add(new Request.Forward(address, id));
             }
-         } catch (IOException var19) {
-            throw new AssertionError();
+            ArrayList<Request.Forward> i = forwards;
+            return i;
          }
+      }
+      catch (IOException e) {
+         throw new AssertionError();
       }
    }
 

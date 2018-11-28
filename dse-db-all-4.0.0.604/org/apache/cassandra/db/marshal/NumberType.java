@@ -33,7 +33,7 @@ public abstract class NumberType<T extends Number> extends AbstractType<T> {
    protected abstract class NumberArgumentDeserializer<M extends Mutable<Number>> implements ArgumentDeserializer {
       protected final M wrapper;
 
-      public NumberArgumentDeserializer(M this$0) {
+      public NumberArgumentDeserializer(M wrapper) {
          this.wrapper = wrapper;
       }
 

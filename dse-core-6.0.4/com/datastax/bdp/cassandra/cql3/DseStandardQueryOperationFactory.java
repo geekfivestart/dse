@@ -33,7 +33,7 @@ public class DseStandardQueryOperationFactory implements DseQueryOperationFactor
    }
 
    public class BatchOperation extends BaseQueryOperation<BatchStatement, BatchQueryOptions> {
-      BatchOperation(BatchStatement this$0, QueryState statement, BatchQueryOptions queryState, Map<String, ByteBuffer> options, long customPayload, boolean queryStartNanoTime) {
+      BatchOperation(BatchStatement statement, QueryState queryState, BatchQueryOptions options, Map<String, ByteBuffer> customPayload, long queryStartNanoTime, boolean auditStatement) {
          super((String)null, statement, queryState.cloneWithKeyspaceIfSet(options.getKeyspace()), options, (List)null, customPayload, queryStartNanoTime, auditStatement);
       }
 
@@ -55,7 +55,7 @@ public class DseStandardQueryOperationFactory implements DseQueryOperationFactor
    }
 
    public class PreparedOperation extends BaseQueryOperation<CQLStatement, QueryOptions> {
-      PreparedOperation(Prepared this$0, QueryState prepared, QueryOptions queryState, Map<String, ByteBuffer> options, long customPayload, boolean queryStartNanoTime) {
+      PreparedOperation(Prepared prepared, QueryState queryState, QueryOptions options, Map<String, ByteBuffer> customPayload, long queryStartNanoTime, boolean auditStatement) {
          super(prepared.rawCQLStatement, prepared.statement, queryState.cloneWithKeyspaceIfSet(options.getKeyspace()), options, prepared.boundNames, customPayload, queryStartNanoTime, auditStatement);
       }
 
@@ -81,7 +81,7 @@ public class DseStandardQueryOperationFactory implements DseQueryOperationFactor
    }
 
    public class StandardOperation extends BaseQueryOperation<CQLStatement, QueryOptions> {
-      StandardOperation(String this$0, QueryState cql, QueryOptions queryState, Map<String, ByteBuffer> options, long customPayload, boolean queryStartNanoTime) {
+      StandardOperation(String cql, QueryState queryState, QueryOptions options, Map<String, ByteBuffer> customPayload, long queryStartNanoTime, boolean auditStatement) {
          super(cql, (CQLStatement)null, queryState.cloneWithKeyspaceIfSet(options.getKeyspace()), options, (List)null, customPayload, queryStartNanoTime, auditStatement);
       }
 

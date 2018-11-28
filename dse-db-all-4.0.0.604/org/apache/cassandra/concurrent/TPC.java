@@ -235,7 +235,7 @@ public class TPC {
    }
 
    public static long nanoTimeSinceStartup() {
-      return AbstractScheduledEventExecutor.nanoTime();
+      return NettyTime.nanoSinceStartup();
    }
 
    static {

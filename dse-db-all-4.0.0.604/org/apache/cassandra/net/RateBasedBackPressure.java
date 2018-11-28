@@ -175,7 +175,7 @@ public class RateBasedBackPressure implements BackPressureStrategy<RateBasedBack
          }, rateLimiter.limiter.getRate(), Math.max(0L, TimeUnit.NANOSECONDS.convert(timeout, unit) - responseTimeInNanos)).thenAccept((u) -> {
          });
       } else {
-         return CompletableFuture.completedFuture((Object)null);
+         return CompletableFuture.completedFuture(null);
       }
    }
 

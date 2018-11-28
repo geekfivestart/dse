@@ -77,7 +77,7 @@ public enum MessagingVersion {
    }
 
    public <V extends Enum<V> & Version<V>> V groupVersion(Verbs.Group groupId) {
-      return (Enum)this.groupVersions.get(groupId);
+      return (V)(Enum)this.groupVersions.get(groupId);
    }
 
    public <P, Q, V extends Enum<V> & Version<V>> VerbSerializer<P, Q> serializer(Verb<P, Q> verb) {

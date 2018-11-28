@@ -1,6 +1,7 @@
 package org.apache.cassandra.db;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.UnmodifiableIterator;
 import java.nio.ByteBuffer;
@@ -141,7 +142,7 @@ public class ColumnFamilyStoreCQLHelper {
 
       assert keyspaceMetadata != null;
 
-      ViewMetadata viewMetadata = (ViewMetadata)keyspaceMetadata.views.get(metadata.name).orElse((Object)null);
+      ViewMetadata viewMetadata = (ViewMetadata)keyspaceMetadata.views.get(metadata.name).orElse(null);
 
       assert viewMetadata != null;
 
@@ -207,83 +208,53 @@ public class ColumnFamilyStoreCQLHelper {
       StringBuilder sb = new StringBuilder();
       sb.append("CREATE TABLE IF NOT EXISTS ");
       sb.append(metadata.toString()).append(" (");
-      List<ColumnMetadata> partitionKeyColumns = metadata.partitionKeyColumns();
-      List<ColumnMetadata> clusteringColumns = getClusteringColumns(metadata);
-      List<ColumnMetadata> partitionColumns = getPartitionColumns(metadata);
-      Consumer<StringBuilder> cdCommaAppender = commaAppender("\n\t");
+      ImmutableList<ColumnMetadata> partitionKeyColumns = metadata.partitionKeyColumns();
+      List<ColumnMetadata> clusteringColumns = ColumnFamilyStoreCQLHelper.getClusteringColumns(metadata);
+      List<ColumnMetadata> partitionColumns = ColumnFamilyStoreCQLHelper.getPartitionColumns(metadata);
+      Consumer<StringBuilder> cdCommaAppender = ColumnFamilyStoreCQLHelper.commaAppender("\n\t");
       sb.append("\n\t");
-      Iterator var7 = partitionKeyColumns.iterator();
-
-      ColumnMetadata cfd;
-      while(var7.hasNext()) {
-         cfd = (ColumnMetadata)var7.next();
+      for (ColumnMetadata cfd : partitionKeyColumns) {
          cdCommaAppender.accept(sb);
-         sb.append(toCQL(cfd));
-         if(partitionKeyColumns.size() == 1 && clusteringColumns.size() == 0) {
-            sb.append(" PRIMARY KEY");
+         sb.append(ColumnFamilyStoreCQLHelper.toCQL(cfd));
+         if (partitionKeyColumns.size() != 1 || clusteringColumns.size() != 0) continue;
+         sb.append(" PRIMARY KEY");
+      }
+      for (ColumnMetadata cfd : clusteringColumns) {
+         cdCommaAppender.accept(sb);
+         sb.append(ColumnFamilyStoreCQLHelper.toCQL(cfd));
+      }
+      for (ColumnMetadata cfd : partitionColumns) {
+         cdCommaAppender.accept(sb);
+         sb.append(ColumnFamilyStoreCQLHelper.toCQL(cfd, metadata.isStaticCompactTable()));
+      }
+      if (includeDroppedColumns) {
+         for (Entry<ByteBuffer, DroppedColumn> entry : metadata.droppedColumns.entrySet()) {
+            if (metadata.getColumn((ByteBuffer)entry.getKey()) != null) continue;
+            DroppedColumn droppedColumn = (DroppedColumn)entry.getValue();
+            cdCommaAppender.accept(sb);
+            sb.append(droppedColumn.column.name.toCQLString());
+            sb.append(' ');
+            sb.append(droppedColumn.column.type.asCQL3Type().toString());
          }
       }
-
-      var7 = clusteringColumns.iterator();
-
-      while(var7.hasNext()) {
-         cfd = (ColumnMetadata)var7.next();
-         cdCommaAppender.accept(sb);
-         sb.append(toCQL(cfd));
-      }
-
-      var7 = partitionColumns.iterator();
-
-      while(var7.hasNext()) {
-         cfd = (ColumnMetadata)var7.next();
-         cdCommaAppender.accept(sb);
-         sb.append(toCQL(cfd, metadata.isStaticCompactTable()));
-      }
-
-      UnmodifiableIterator var10;
-      if(includeDroppedColumns) {
-         var10 = metadata.droppedColumns.entrySet().iterator();
-
-         while(var10.hasNext()) {
-            Entry<ByteBuffer, DroppedColumn> entry = (Entry)var10.next();
-            if(metadata.getColumn((ByteBuffer)entry.getKey()) == null) {
-               DroppedColumn droppedColumn = (DroppedColumn)entry.getValue();
-               cdCommaAppender.accept(sb);
-               sb.append(droppedColumn.column.name.toCQLString());
-               sb.append(' ');
-               sb.append(droppedColumn.column.type.asCQL3Type().toString());
-            }
-         }
-      }
-
-      if(clusteringColumns.size() > 0 || partitionKeyColumns.size() > 1) {
+      if (clusteringColumns.size() > 0 || partitionKeyColumns.size() > 1) {
          sb.append(",\n\tPRIMARY KEY (");
-         if(partitionKeyColumns.size() <= 1) {
-            sb.append(((ColumnMetadata)partitionKeyColumns.get(0)).name.toCQLString());
-         } else {
+         if (partitionKeyColumns.size() > 1) {
             sb.append("(");
-            Consumer<StringBuilder> pkCommaAppender = commaAppender(" ");
-            Iterator var13 = partitionKeyColumns.iterator();
-
-            while(var13.hasNext()) {
-               ColumnMetadata cfd = (ColumnMetadata)var13.next();
+            Consumer<StringBuilder>  pkCommaAppender = ColumnFamilyStoreCQLHelper.commaAppender(" ");
+            for (ColumnMetadata cfd : partitionKeyColumns) {
                pkCommaAppender.accept(sb);
                sb.append(cfd.name.toCQLString());
             }
-
             sb.append(")");
+         } else {
+            sb.append(partitionKeyColumns.get((int)0).name.toCQLString());
          }
-
-         var10 = metadata.clusteringColumns().iterator();
-
-         while(var10.hasNext()) {
-            cfd = (ColumnMetadata)var10.next();
+         for (ColumnMetadata cfd : metadata.clusteringColumns()) {
             sb.append(", ").append(cfd.name.toCQLString());
          }
-
          sb.append(')');
       }
-
       sb.append(")\n\t");
       return sb.toString();
    }

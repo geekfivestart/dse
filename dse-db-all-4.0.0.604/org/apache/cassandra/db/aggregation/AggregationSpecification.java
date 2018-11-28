@@ -15,8 +15,8 @@ import org.apache.cassandra.utils.versioning.VersionDependent;
 import org.apache.cassandra.utils.versioning.Versioned;
 
 public abstract class AggregationSpecification {
-   public static final Versioned<ReadVerbs.ReadVersion, AggregationSpecification.Serializer> serializers = ReadVerbs.ReadVersion.versioned((x$0) -> {
-      return new AggregationSpecification.Serializer(x$0, null);
+   public static final Versioned<ReadVerbs.ReadVersion, AggregationSpecification.Serializer> serializers = ReadVerbs.ReadVersion.versioned((x) -> {
+      return new AggregationSpecification.Serializer(x);
    });
    public static final AggregationSpecification.Factory AGGREGATE_EVERYTHING_FACTORY = new AggregationSpecification.Factory() {
       public AggregationSpecification newInstance(QueryOptions options) {
@@ -77,56 +77,64 @@ public abstract class AggregationSpecification {
 
       public void serialize(AggregationSpecification aggregationSpec, DataOutputPlus out) throws IOException {
          out.writeByte(aggregationSpec.kind().ordinal());
-         switch(null.$SwitchMap$org$apache$cassandra$db$aggregation$AggregationSpecification$Kind[aggregationSpec.kind().ordinal()]) {
-         case 1:
-            break;
-         case 2:
-            out.writeUnsignedVInt((long)((AggregationSpecification.AggregateByPkPrefix)aggregationSpec).clusteringPrefixSize);
-            break;
-         case 3:
-            AggregationSpecification.AggregateByPkPrefixWithSelector spec = (AggregationSpecification.AggregateByPkPrefixWithSelector)aggregationSpec;
-            out.writeUnsignedVInt((long)spec.clusteringPrefixSize);
-            ((Selector.Serializer)Selector.serializers.get(this.version)).serialize(spec.selector, out);
-            break;
-         default:
-            throw new AssertionError();
+         switch (aggregationSpec.kind()) {
+            case AGGREGATE_EVERYTHING: {
+               break;
+            }
+            case AGGREGATE_BY_PK_PREFIX: {
+               out.writeUnsignedVInt(((AggregateByPkPrefix)aggregationSpec).clusteringPrefixSize);
+               break;
+            }
+            case AGGREGATE_BY_PK_PREFIX_WITH_SELECTOR: {
+               AggregateByPkPrefixWithSelector spec = (AggregateByPkPrefixWithSelector)aggregationSpec;
+               out.writeUnsignedVInt(spec.clusteringPrefixSize);
+               Selector.serializers.get((ReadVerbs.ReadVersion)this.version).serialize(spec.selector, out);
+               break;
+            }
+            default: {
+               throw new AssertionError();
+            }
          }
-
       }
 
       public AggregationSpecification deserialize(DataInputPlus in, TableMetadata metadata) throws IOException {
-         AggregationSpecification.Kind kind = AggregationSpecification.Kind.values()[in.readUnsignedByte()];
-         switch(null.$SwitchMap$org$apache$cassandra$db$aggregation$AggregationSpecification$Kind[kind.ordinal()]) {
-         case 1:
-            return AggregationSpecification.AGGREGATE_EVERYTHING;
-         case 2:
-            return new AggregationSpecification.AggregateByPkPrefix(metadata.comparator, (int)in.readUnsignedVInt());
-         case 3:
-            int clusteringPrefixSize = (int)in.readUnsignedVInt();
-            Selector selector = ((Selector.Serializer)Selector.serializers.get(this.version)).deserialize(in, metadata);
-            return new AggregationSpecification.AggregateByPkPrefixWithSelector(metadata.comparator, clusteringPrefixSize, selector);
-         default:
-            throw new AssertionError();
+         Kind kind = Kind.values()[in.readUnsignedByte()];
+         switch (kind) {
+            case AGGREGATE_EVERYTHING: {
+               return AggregationSpecification.AGGREGATE_EVERYTHING;
+            }
+            case AGGREGATE_BY_PK_PREFIX: {
+               return new AggregateByPkPrefix(metadata.comparator, (int)in.readUnsignedVInt());
+            }
+            case AGGREGATE_BY_PK_PREFIX_WITH_SELECTOR: {
+               int clusteringPrefixSize = (int)in.readUnsignedVInt();
+               Selector selector = Selector.serializers.get((ReadVerbs.ReadVersion)this.version).deserialize(in, metadata);
+               return new AggregateByPkPrefixWithSelector(metadata.comparator, clusteringPrefixSize, selector);
+            }
          }
+         throw new AssertionError();
       }
 
       public long serializedSize(AggregationSpecification aggregationSpec) {
-         long size = (long)TypeSizes.sizeof((byte)aggregationSpec.kind().ordinal());
-         switch(null.$SwitchMap$org$apache$cassandra$db$aggregation$AggregationSpecification$Kind[aggregationSpec.kind().ordinal()]) {
-         case 1:
-            break;
-         case 2:
-            size += (long)TypeSizes.sizeofUnsignedVInt((long)((AggregationSpecification.AggregateByPkPrefix)aggregationSpec).clusteringPrefixSize);
-            break;
-         case 3:
-            AggregationSpecification.AggregateByPkPrefixWithSelector spec = (AggregationSpecification.AggregateByPkPrefixWithSelector)aggregationSpec;
-            size += (long)TypeSizes.sizeofUnsignedVInt((long)spec.clusteringPrefixSize);
-            size += (long)((Selector.Serializer)Selector.serializers.get(this.version)).serializedSize(spec.selector);
-            break;
-         default:
-            throw new AssertionError();
+         long size = TypeSizes.sizeof((byte)aggregationSpec.kind().ordinal());
+         switch (aggregationSpec.kind()) {
+            case AGGREGATE_EVERYTHING: {
+               break;
+            }
+            case AGGREGATE_BY_PK_PREFIX: {
+               size += (long)TypeSizes.sizeofUnsignedVInt(((AggregateByPkPrefix)aggregationSpec).clusteringPrefixSize);
+               break;
+            }
+            case AGGREGATE_BY_PK_PREFIX_WITH_SELECTOR: {
+               AggregateByPkPrefixWithSelector spec = (AggregateByPkPrefixWithSelector)aggregationSpec;
+               size += (long)TypeSizes.sizeofUnsignedVInt(spec.clusteringPrefixSize);
+               size += (long)Selector.serializers.get((ReadVerbs.ReadVersion)this.version).serializedSize(spec.selector);
+               break;
+            }
+            default: {
+               throw new AssertionError();
+            }
          }
-
          return size;
       }
    }
@@ -153,7 +161,7 @@ public abstract class AggregationSpecification {
       }
 
       protected AggregateByPkPrefix(AggregationSpecification.Kind kind, ClusteringComparator comparator, int clusteringPrefixSize) {
-         super(kind, null);
+         super(kind);
          this.comparator = comparator;
          this.clusteringPrefixSize = clusteringPrefixSize;
       }

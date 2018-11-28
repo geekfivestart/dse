@@ -34,7 +34,7 @@ class CBCodecBasedSerializer<T> implements MessageBodySerializer<T> {
       int size = ((ByteBufInputStream)stream).readInt();
       ByteBuf buf = PooledByteBufAllocator.DEFAULT.heapBuffer(size, size);
 
-      Object var4;
+      T var4;
       try {
          buf.writeBytes(stream, size);
          var4 = this.codec.decode(buf, SERVER_VERSION);

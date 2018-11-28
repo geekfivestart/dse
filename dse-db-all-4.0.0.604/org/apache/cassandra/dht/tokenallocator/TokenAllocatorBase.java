@@ -27,18 +27,16 @@ public abstract class TokenAllocatorBase<Unit> implements TokenAllocator<Unit> {
 
    public abstract int getReplicas();
 
-   protected Map<Unit, TokenAllocatorBase.UnitInfo<Unit>> createUnitInfos(Map<Object, TokenAllocatorBase.GroupInfo> groups) {
-      Map<Unit, TokenAllocatorBase.UnitInfo<Unit>> map = Maps.newHashMap();
-
-      TokenAllocatorBase.UnitInfo ni;
-      for(Iterator var3 = this.sortedTokens.values().iterator(); var3.hasNext(); ++ni.tokenCount) {
-         Unit n = var3.next();
-         ni = (TokenAllocatorBase.UnitInfo)map.get(n);
-         if(ni == null) {
-            map.put(n, ni = new TokenAllocatorBase.UnitInfo(n, 0.0D, groups, this.strategy));
+   protected Map<Unit, UnitInfo<Unit>> createUnitInfos(Map<Object, GroupInfo> groups) {
+      Map map = Maps.newHashMap();
+      for (Unit n : this.sortedTokens.values()) {
+         UnitInfo<Unit> ni = (UnitInfo<Unit>)map.get(n);
+         if (ni == null) {
+            ni = new UnitInfo<Unit>(n, 0.0, groups, this.strategy);
+            map.put(n, ni);
          }
+         ++ni.tokenCount;
       }
-
       return map;
    }
 
@@ -148,7 +146,7 @@ public abstract class TokenAllocatorBase<Unit> implements TokenAllocator<Unit> {
       double replicatedOwnership = 0.0D;
 
       public BaseTokenInfo(Token token, TokenAllocatorBase.UnitInfo<Unit> owningUnit) {
-         super(null);
+         super();
          this.token = token;
          this.owningUnit = owningUnit;
       }
@@ -171,7 +169,7 @@ public abstract class TokenAllocatorBase<Unit> implements TokenAllocator<Unit> {
 
       T insertAfter(T head, T unit) {
          if(head == null) {
-            return this.prev = this.next = this;
+            return this.prev = this.next = (T)this;
          } else {
             assert unit != null;
 
@@ -179,8 +177,8 @@ public abstract class TokenAllocatorBase<Unit> implements TokenAllocator<Unit> {
 
             this.prev = unit;
             this.next = unit.next;
-            this.prev.next = this;
-            this.next.prev = this;
+            this.prev.next = (T)this;
+            this.next.prev = (T)this;
             return head;
          }
       }

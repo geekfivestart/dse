@@ -20,15 +20,15 @@ public class Point extends OgcGeometry {
       }
 
       public Point fromWellKnownText(String source) {
-         return new Point((OGCPoint)OgcGeometry.fromOgcWellKnownText(source, OGCPoint.class), null);
+         return new Point((OGCPoint)OgcGeometry.fromOgcWellKnownText(source, OGCPoint.class));
       }
 
       public Point fromWellKnownBinary(ByteBuffer source) {
-         return new Point((OGCPoint)OgcGeometry.fromOgcWellKnownBinary(source, OGCPoint.class), null);
+         return new Point((OGCPoint)OgcGeometry.fromOgcWellKnownBinary(source, OGCPoint.class));
       }
 
       public Point fromGeoJson(String source) {
-         return new Point((OGCPoint)OgcGeometry.fromOgcGeoJson(source, OGCPoint.class), null);
+         return new Point((OGCPoint)OgcGeometry.fromOgcGeoJson(source, OGCPoint.class));
       }
    };
    final OGCPoint point;

@@ -169,7 +169,7 @@ public abstract class TieredStorageStrategy {
       protected final DataDirectory[] dataDirectories;
       protected final AbstractCompactionStrategy compactionStrategy;
 
-      public Tier(int this$0, TieredStorageConfig.Tier level, Map<String, String> config) {
+      public Tier(int level, TieredStorageConfig.Tier config, Map<String, String> options) {
          this.level = level;
          this.dataDirectories = config.createDataDirectories();
          this.directories = config.createDirectories(TieredStorageStrategy.this.cfs.metadata());

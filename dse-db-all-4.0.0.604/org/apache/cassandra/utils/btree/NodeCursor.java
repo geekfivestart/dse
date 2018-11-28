@@ -40,7 +40,7 @@ class NodeCursor<K> {
    }
 
    K bound(boolean upper) {
-      return this.node[this.position - (upper?0:1)];
+      return (K)this.node[this.position - (upper?0:1)];
    }
 
    NodeCursor<K> boundIterator(boolean upper) {
@@ -70,7 +70,7 @@ class NodeCursor<K> {
          lb = 0;
       }
 
-      int find = Arrays.binarySearch((Object[])this.node, lb, ub, key, this.comparator);
+      int find = Arrays.<Object>binarySearch(this.node, lb, ub, key, (Comparator)this.comparator);
       if(find >= 0) {
          this.position = find;
          this.inChild = false;
@@ -118,6 +118,6 @@ class NodeCursor<K> {
    }
 
    K value() {
-      return this.node[this.position];
+      return (K)this.node[this.position];
    }
 }

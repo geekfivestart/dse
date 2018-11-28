@@ -280,72 +280,28 @@ class TrieIndexSSTableReader extends SSTableReader {
       }
    }
 
-   public boolean contains(DecoratedKey dk, Rebufferer.ReaderConstraint rc) {
-      if(!this.bf.isPresent(dk)) {
+   public boolean contains(final DecoratedKey dk, final Rebufferer.ReaderConstraint rc) {
+      if (!this.bf.isPresent(dk)) {
          return false;
-      } else if(this.filterFirst() && this.first.compareTo((PartitionPosition)dk) > 0) {
+      }
+      if (this.filterFirst() && this.first.compareTo(dk) > 0) {
          return false;
-      } else if(this.filterLast() && this.last.compareTo((PartitionPosition)dk) < 0) {
+      }
+      if (this.filterLast() && this.last.compareTo(dk) < 0) {
          return false;
-      } else {
-         try {
-            PartitionIndex.Reader reader = this.partitionIndex.openReader(rc);
-            Throwable var4 = null;
-
-            Throwable var9;
-            try {
-               long indexPos = reader.exactCandidate(dk);
-               if(indexPos == -9223372036854775808L) {
-                  boolean var40 = false;
-                  return var40;
-               }
-
-               FileDataInput in = this.createIndexOrDataReader(indexPos, rc);
-               Throwable var8 = null;
-
-               try {
-                  var9 = ByteBufferUtil.equalsWithShortLength(in, dk.getKey());
-               } catch (Throwable var35) {
-                  var9 = var35;
-                  var8 = var35;
-                  throw var35;
-               } finally {
-                  if(in != null) {
-                     if(var8 != null) {
-                        try {
-                           in.close();
-                        } catch (Throwable var34) {
-                           var8.addSuppressed(var34);
-                        }
-                     } else {
-                        in.close();
-                     }
-                  }
-
-               }
-            } catch (Throwable var37) {
-               var4 = var37;
-               throw var37;
-            } finally {
-               if(reader != null) {
-                  if(var4 != null) {
-                     try {
-                        reader.close();
-                     } catch (Throwable var33) {
-                        var4.addSuppressed(var33);
-                     }
-                  } else {
-                     reader.close();
-                  }
-               }
-
-            }
-
-            return (boolean)var9;
-         } catch (IOException var39) {
-            this.markSuspect();
-            throw new CorruptSSTableException(var39, this.rowIndexFile.path());
+      }
+      try (final PartitionIndex.Reader reader = this.partitionIndex.openReader(rc)) {
+         final long indexPos = reader.exactCandidate(dk);
+         if (indexPos == Long.MIN_VALUE) {
+            return false;
          }
+         try (final FileDataInput in = this.createIndexOrDataReader(indexPos, rc)) {
+            return ByteBufferUtil.equalsWithShortLength(in, dk.getKey());
+         }
+      }
+      catch (IOException e) {
+         this.markSuspect();
+         throw new CorruptSSTableException(e, this.rowIndexFile.path());
       }
    }
 
@@ -386,90 +342,39 @@ class TrieIndexSSTableReader extends SSTableReader {
       return (DecoratedKey)var7;
    }
 
-   public RowIndexEntry getExactPosition(DecoratedKey dk, SSTableReadsListener listener, Rebufferer.ReaderConstraint rc) {
-      if(!this.bf.isPresent(dk)) {
+   public RowIndexEntry getExactPosition(final DecoratedKey dk, final SSTableReadsListener listener, final Rebufferer.ReaderConstraint rc) {
+      if (!this.bf.isPresent(dk)) {
          listener.onSSTableSkipped(this, SSTableReadsListener.SkippingReason.BLOOM_FILTER);
-         Tracing.trace("Bloom filter allows skipping sstable {}", (Object)Integer.valueOf(this.descriptor.generation));
+         Tracing.trace("Bloom filter allows skipping sstable {}", (Object)this.descriptor.generation);
          return null;
-      } else if((!this.filterFirst() || this.first.compareTo((PartitionPosition)dk) <= 0) && (!this.filterLast() || this.last.compareTo((PartitionPosition)dk) >= 0)) {
-         try {
-            PartitionIndex.Reader reader = this.partitionIndex.openReader(rc);
-            Throwable var5 = null;
-
-            Object var11;
-            try {
-               long indexPos = reader.exactCandidate(dk);
-               FileDataInput in;
-               if(indexPos == -9223372036854775808L) {
-                  this.bloomFilterTracker.addFalsePositive();
-                  listener.onSSTableSkipped(this, SSTableReadsListener.SkippingReason.PARTITION_INDEX_LOOKUP);
-                  in = null;
-                  return in;
-               }
-
-               in = this.createIndexOrDataReader(indexPos, rc);
-               Throwable var9 = null;
-
-               try {
-                  Object entry;
-                  try {
-                     if(!ByteBufferUtil.equalsWithShortLength(in, dk.getKey())) {
-                        this.bloomFilterTracker.addFalsePositive();
-                        listener.onSSTableSkipped(this, SSTableReadsListener.SkippingReason.INDEX_ENTRY_NOT_FOUND);
-                        entry = null;
-                        return (RowIndexEntry)entry;
-                     }
-
-                     this.bloomFilterTracker.addTruePositive();
-                     entry = indexPos >= 0L?TrieIndexEntry.deserialize(in, in.getFilePointer()):new RowIndexEntry(~indexPos);
-                     listener.onSSTableSelected(this, (RowIndexEntry)entry, SSTableReadsListener.SelectionReason.INDEX_ENTRY_FOUND);
-                     var11 = entry;
-                  } catch (Throwable var40) {
-                     entry = var40;
-                     var9 = var40;
-                     throw var40;
-                  }
-               } finally {
-                  if(in != null) {
-                     if(var9 != null) {
-                        try {
-                           in.close();
-                        } catch (Throwable var39) {
-                           var9.addSuppressed(var39);
-                        }
-                     } else {
-                        in.close();
-                     }
-                  }
-
-               }
-            } catch (Throwable var42) {
-               var5 = var42;
-               throw var42;
-            } finally {
-               if(reader != null) {
-                  if(var5 != null) {
-                     try {
-                        reader.close();
-                     } catch (Throwable var38) {
-                        var5.addSuppressed(var38);
-                     }
-                  } else {
-                     reader.close();
-                  }
-               }
-
-            }
-
-            return (RowIndexEntry)var11;
-         } catch (IOException var44) {
-            this.markSuspect();
-            throw new CorruptSSTableException(var44, this.rowIndexFile.path());
-         }
-      } else {
+      }
+      if ((this.filterFirst() && this.first.compareTo(dk) > 0) || (this.filterLast() && this.last.compareTo(dk) < 0)) {
          this.bloomFilterTracker.addFalsePositive();
          listener.onSSTableSkipped(this, SSTableReadsListener.SkippingReason.MIN_MAX_KEYS);
          return null;
+      }
+      try (final PartitionIndex.Reader reader = this.partitionIndex.openReader(rc)) {
+         final long indexPos = reader.exactCandidate(dk);
+         if (indexPos == Long.MIN_VALUE) {
+            this.bloomFilterTracker.addFalsePositive();
+            listener.onSSTableSkipped(this, SSTableReadsListener.SkippingReason.PARTITION_INDEX_LOOKUP);
+            return null;
+         }
+         try (final FileDataInput in = this.createIndexOrDataReader(indexPos, rc)) {
+            if (!ByteBufferUtil.equalsWithShortLength(in, dk.getKey())) {
+               this.bloomFilterTracker.addFalsePositive();
+               listener.onSSTableSkipped(this, SSTableReadsListener.SkippingReason.INDEX_ENTRY_NOT_FOUND);
+               return null;
+            }
+            this.bloomFilterTracker.addTruePositive();
+            final RowIndexEntry entry = (indexPos >= 0L) ? TrieIndexEntry.deserialize(in, in.getFilePointer()) : new RowIndexEntry(~indexPos);
+            listener.onSSTableSelected(this, entry, SSTableReadsListener.SelectionReason.INDEX_ENTRY_FOUND);
+            return entry;
+         }
+      }
+      catch (IOException e) {
+         this.markSuspect();
+         throw new CorruptSSTableException(e, this.rowIndexFile.path());
       }
    }
 
@@ -495,7 +400,7 @@ class TrieIndexSSTableReader extends SSTableReader {
 
    public Iterable<DecoratedKey> getKeySamples(final Range<Token> range) {
       final Iterator<PartitionIndex.IndexPosIterator> partitionKeyIterators = SSTableScanner.makeBounds(this, (Collection)Collections.singleton(range)).stream().map((bound) -> {
-         return this.indexPosIteratorForRange(bound);
+         return this.indexPosIteratorForRange((AbstractBounds<PartitionPosition>)bound);
       }).iterator();
       return (Iterable)(!partitionKeyIterators.hasNext()?Collections.emptyList():new Iterable<DecoratedKey>() {
          public Iterator<DecoratedKey> iterator() {
@@ -523,7 +428,7 @@ class TrieIndexSSTableReader extends SSTableReader {
 
                         if(this.count % 128L == 0L) {
                            DecoratedKey key = TrieIndexSSTableReader.this.getKeyByPos(pos);
-                           if(range.contains((RingPosition)key.getToken())) {
+                           if(range.contains(key.getToken())) {
                               return key;
                            }
 

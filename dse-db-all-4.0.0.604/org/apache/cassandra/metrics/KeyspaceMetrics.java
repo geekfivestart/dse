@@ -56,7 +56,7 @@ public class KeyspaceMetrics {
    private Set<String> allMetrics = Sets.newHashSet();
 
    public KeyspaceMetrics(Keyspace ks) {
-      this.factory = new KeyspaceMetrics.KeyspaceMetricNameFactory(ks, null);
+      this.factory = new KeyspaceMetrics.KeyspaceMetricNameFactory(ks);
       this.keyspace = ks;
       this.memtableColumnsCount = this.createKeyspaceGauge("MemtableColumnsCount", new KeyspaceMetrics.MetricValue() {
          public Long getValue(TableMetrics metric) {

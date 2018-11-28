@@ -506,19 +506,15 @@ public class ResultSet {
 
       public static MD5Digest computeResultMetadataId(List<ColumnSpecification> columnSpecifications) {
          MessageDigest md = MD5Digest.threadLocalMD5Digest();
-         if(columnSpecifications != null) {
-            Iterator var2 = columnSpecifications.iterator();
-
-            while(var2.hasNext()) {
-               ColumnSpecification cs = (ColumnSpecification)var2.next();
+         if (columnSpecifications != null) {
+            for (ColumnSpecification cs : columnSpecifications) {
                md.update(cs.name.bytes.duplicate());
-               md.update(0);
+               md.update((byte)0);
                md.update(cs.type.toString().getBytes(StandardCharsets.UTF_8));
-               md.update(0);
-               md.update(0);
+               md.update((byte)0);
+               md.update((byte)0);
             }
          }
-
          return MD5Digest.wrap(md.digest());
       }
 

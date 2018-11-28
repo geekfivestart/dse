@@ -202,34 +202,22 @@ public class Keyspace {
    }
 
    public Set<SSTableReader> snapshot(String snapshotName, String columnFamilyName, boolean skipFlush, Set<SSTableReader> alreadySnapshotted) throws IOException {
-      assert snapshotName != null;
-
-      assert alreadySnapshotted != null;
-
+      assert (snapshotName != null);
+      assert (alreadySnapshotted != null);
       boolean tookSnapShot = false;
-      Set<SSTableReader> snapshotSSTables = new HashSet();
-      Set<SSTableReader> alreadySnapshotted = new HashSet(alreadySnapshotted);
-      Iterator var7 = this.columnFamilyStores.values().iterator();
-
-      while(true) {
-         ColumnFamilyStore cfStore;
-         do {
-            if(!var7.hasNext()) {
-               if(columnFamilyName != null && !tookSnapShot) {
-                  throw new IOException("Failed taking snapshot. Table " + columnFamilyName + " does not exist.");
-               }
-
-               return snapshotSSTables;
-            }
-
-            cfStore = (ColumnFamilyStore)var7.next();
-         } while(columnFamilyName != null && !cfStore.name.equals(columnFamilyName));
-
+      HashSet<SSTableReader> snapshotSSTables = new HashSet<SSTableReader>();
+      alreadySnapshotted = new HashSet<SSTableReader>(alreadySnapshotted);
+      for (ColumnFamilyStore cfStore : this.columnFamilyStores.values()) {
+         if (columnFamilyName != null && !cfStore.name.equals(columnFamilyName)) continue;
          tookSnapShot = true;
-         Set<SSTableReader> newSnapshots = cfStore.snapshot(snapshotName, (Predicate)null, false, skipFlush, alreadySnapshotted);
+         Set<SSTableReader> newSnapshots = cfStore.snapshot(snapshotName, null, false, skipFlush, alreadySnapshotted);
          snapshotSSTables.addAll(newSnapshots);
          alreadySnapshotted.addAll(newSnapshots);
       }
+      if (columnFamilyName != null && !tookSnapShot) {
+         throw new IOException("Failed taking snapshot. Table " + columnFamilyName + " does not exist.");
+      }
+      return snapshotSSTables;
    }
 
    public void snapshot(String snapshotName, String columnFamilyName) throws IOException {

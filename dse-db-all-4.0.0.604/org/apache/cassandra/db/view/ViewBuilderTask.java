@@ -97,113 +97,35 @@ public class ViewBuilderTask extends CompactionInfo.Holder implements Callable<L
 
    public Long call() {
       String ksName = this.baseCfs.metadata.keyspace;
-      if(this.prevToken == null) {
+      if (this.prevToken == null) {
          logger.debug("Starting new view build for range {}", this.range);
       } else {
-         logger.debug("Resuming view build for range {} from token {} with {} covered keys", new Object[]{this.range, this.prevToken, Long.valueOf(this.keysBuilt)});
+         logger.debug("Resuming view build for range {} from token {} with {} covered keys", new Object[]{this.range, this.prevToken, this.keysBuilt});
       }
-
-      Function<org.apache.cassandra.db.lifecycle.View, Iterable<SSTableReader>> function = org.apache.cassandra.db.lifecycle.View.select(SSTableSet.CANONICAL, (s) -> {
-         return this.range.intersects(s.getBounds());
-      });
-      ColumnFamilyStore.RefViewFragment viewFragment = this.baseCfs.selectAndReference(function);
-      Throwable var4 = null;
-
-      try {
-         Refs<SSTableReader> sstables = viewFragment.refs;
-         Throwable var6 = null;
-
-         try {
-            ReducingKeyIterator keyIter = new ReducingKeyIterator(sstables);
-            Throwable var8 = null;
-
-            try {
-               PeekingIterator iter = Iterators.peekingIterator(keyIter);
-
-               label501:
-               while(true) {
-                  DecoratedKey key;
-                  Token token;
-                  do {
-                     do {
-                        if(this.isStopped || !iter.hasNext()) {
-                           break label501;
-                        }
-
-                        key = (DecoratedKey)iter.next();
-                        token = key.getToken();
-                     } while(!this.range.contains((RingPosition)token));
-                  } while(this.prevToken != null && token.compareTo(this.prevToken) <= 0);
-
-                  this.buildKey(key);
-                  ++this.keysBuilt;
-
-                  while(iter.hasNext() && ((DecoratedKey)iter.peek()).getToken().equals(token)) {
-                     key = (DecoratedKey)iter.next();
-                     this.buildKey(key);
-                     ++this.keysBuilt;
-                  }
-
-                  if(this.keysBuilt % 1000L == 1L) {
-                     this.updateViewBuildStatus(ksName, token);
-                  }
-
-                  this.prevToken = token;
-               }
-            } catch (Throwable var54) {
-               var8 = var54;
-               throw var54;
-            } finally {
-               if(keyIter != null) {
-                  if(var8 != null) {
-                     try {
-                        keyIter.close();
-                     } catch (Throwable var53) {
-                        var8.addSuppressed(var53);
-                     }
-                  } else {
-                     keyIter.close();
-                  }
-               }
-
+      Function<org.apache.cassandra.db.lifecycle.View, Iterable<SSTableReader>> function = org.apache.cassandra.db.lifecycle.View.select(SSTableSet.CANONICAL, (Predicate<SSTableReader>)(s -> this.range.intersects(s.getBounds())));
+      try (ColumnFamilyStore.RefViewFragment viewFragment = this.baseCfs.selectAndReference(function);
+           Refs<SSTableReader> sstables = viewFragment.refs;
+           ReducingKeyIterator keyIter = new ReducingKeyIterator(sstables);){
+         PeekingIterator iter = Iterators.peekingIterator((Iterator)keyIter);
+         while (!this.isStopped && iter.hasNext()) {
+            DecoratedKey key = (DecoratedKey)iter.next();
+            Token token = key.getToken();
+            if (!this.range.contains(token) || this.prevToken != null && token.compareTo(this.prevToken) <= 0) continue;
+            this.buildKey(key);
+            ++this.keysBuilt;
+            while (iter.hasNext() && ((DecoratedKey)iter.peek()).getToken().equals(token)) {
+               key = (DecoratedKey)iter.next();
+               this.buildKey(key);
+               ++this.keysBuilt;
             }
-         } catch (Throwable var56) {
-            var6 = var56;
-            throw var56;
-         } finally {
-            if(sstables != null) {
-               if(var6 != null) {
-                  try {
-                     sstables.close();
-                  } catch (Throwable var52) {
-                     var6.addSuppressed(var52);
-                  }
-               } else {
-                  sstables.close();
-               }
+            if (this.keysBuilt % 1000L == 1L) {
+               this.updateViewBuildStatus(ksName, token);
             }
-
+            this.prevToken = token;
          }
-      } catch (Throwable var58) {
-         var4 = var58;
-         throw var58;
-      } finally {
-         if(viewFragment != null) {
-            if(var4 != null) {
-               try {
-                  viewFragment.close();
-               } catch (Throwable var51) {
-                  var4.addSuppressed(var51);
-               }
-            } else {
-               viewFragment.close();
-            }
-         }
-
       }
-
       this.finish();
-      return Long.valueOf(this.keysBuilt);
+      return this.keysBuilt;
    }
 
    private void updateViewBuildStatus(String ksName, Token token) {

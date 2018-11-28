@@ -45,15 +45,13 @@ class GossipDigestAckSerializer implements Serializer<GossipDigestAck> {
       return new GossipDigestAck(gDigestList, epStateMap);
    }
 
+
    public long serializedSize(GossipDigestAck ack) {
       long size = GossipDigestSerializationHelper.serializedSize(ack.gDigestList);
       size += (long)TypeSizes.sizeof(ack.epStateMap.size());
-
-      Entry entry;
-      for(Iterator var4 = ack.epStateMap.entrySet().iterator(); var4.hasNext(); size += (long)CompactEndpointSerializationHelper.serializedSize((InetAddress)entry.getKey()) + EndpointState.serializer.serializedSize(entry.getValue())) {
-         entry = (Entry)var4.next();
+      for (Map.Entry<InetAddress, EndpointState> entry : ack.epStateMap.entrySet()) {
+         size += (long)CompactEndpointSerializationHelper.serializedSize(entry.getKey()) + EndpointState.serializer.serializedSize(entry.getValue());
       }
-
       return size;
    }
 }

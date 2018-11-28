@@ -36,7 +36,7 @@ public class DseReloadableTrustManager extends X509ExtendedTrustManager implemen
 
       try {
          this.reloadTrustManager();
-         JMX.registerMBean(this, JMX.Type.CORE, MapBuilder.immutable().withKeys(new String[]{"name"}).withValues(new String[]{name}).build());
+         JMX.registerMBean(this, JMX.Type.CORE, MapBuilder.<String,String>immutable().withKeys(new String[]{"name"}).withValues(new String[]{name}).build());
       } catch (Exception var6) {
          throw new RuntimeException(var6);
       }

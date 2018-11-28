@@ -103,32 +103,34 @@ public class RepairRunner extends JMXNotificationProgressListener {
    }
 
    private void queryForCompletedRepair(String triggeringCondition) {
-      List<String> status = this.ssProxy.getParentRepairStatus(this.cmd.intValue());
+      List<String> status = this.ssProxy.getParentRepairStatus(this.cmd);
       String queriedString = "queried for parent session status and";
-      if(status == null) {
-         String message = String.format("[%s] %s %s couldn't find repair status for cmd: %s", new Object[]{triggeringCondition, queriedString, this.format.format(Long.valueOf(System.currentTimeMillis())), this.cmd});
+      if (status == null) {
+         String message = String.format("[%s] %s %s couldn't find repair status for cmd: %s", triggeringCondition, queriedString, this.format.format(System.currentTimeMillis()), this.cmd);
          this.out.println(message);
       } else {
-         ActiveRepairService.ParentRepairStatus parentRepairStatus = ActiveRepairService.ParentRepairStatus.valueOf((String)status.get(0));
+         ActiveRepairService.ParentRepairStatus parentRepairStatus = ActiveRepairService.ParentRepairStatus.valueOf(status.get(0));
          List<String> messages = status.subList(1, status.size());
-         switch(null.$SwitchMap$org$apache$cassandra$service$ActiveRepairService$ParentRepairStatus[parentRepairStatus.ordinal()]) {
-         case 1:
-         case 2:
-            this.out.println(String.format("[%s] %s %s discovered repair %s.", new Object[]{this.format.format(Long.valueOf(System.currentTimeMillis())), triggeringCondition, queriedString, parentRepairStatus.name().toLowerCase()}));
-            if(parentRepairStatus == ActiveRepairService.ParentRepairStatus.FAILED) {
-               this.error = new IOException((String)messages.get(0));
+         switch (parentRepairStatus) {
+            case COMPLETED:
+            case FAILED: {
+               this.out.println(String.format("[%s] %s %s discovered repair %s.", this.format.format(System.currentTimeMillis()), triggeringCondition, queriedString, parentRepairStatus.name().toLowerCase()));
+               if (parentRepairStatus == ActiveRepairService.ParentRepairStatus.FAILED) {
+                  this.error = new IOException(messages.get(0));
+               }
+               this.printMessages(messages);
+               this.condition.signalAll();
+               break;
             }
-
-            this.printMessages(messages);
-            this.condition.signalAll();
-         case 3:
-            break;
-         default:
-            this.out.println(String.format("[%s] WARNING Encountered unexpected RepairRunnable.ParentRepairStatus: %s", new Object[]{Long.valueOf(System.currentTimeMillis()), parentRepairStatus}));
-            this.printMessages(messages);
+            case IN_PROGRESS: {
+               break;
+            }
+            default: {
+               this.out.println(String.format("[%s] WARNING Encountered unexpected RepairRunnable.ParentRepairStatus: %s", new Object[]{System.currentTimeMillis(), parentRepairStatus}));
+               this.printMessages(messages);
+            }
          }
       }
-
    }
 
    private void printMessages(List<String> messages) {

@@ -53,7 +53,7 @@ public class DseAuthenticationFilter implements Filter {
 
    private FilterConfig passwordAuthenticationFilterConfig(FilterConfig filterConfig) {
       Map<String, String> defaultConfig = Collections.emptyMap();
-      return new DseAuthenticationFilter.FilterConfigWrapper("PasswordAuthenticationFilter", filterConfig, defaultConfig, null);
+      return new DseAuthenticationFilter.FilterConfigWrapper("PasswordAuthenticationFilter", filterConfig, defaultConfig);
    }
 
    private FilterConfig kerberosAuthenticationFilterConfig(FilterConfig filterConfig) {
@@ -69,7 +69,7 @@ public class DseAuthenticationFilter implements Filter {
 
          }
       };
-      return new DseAuthenticationFilter.FilterConfigWrapper("KerberosAuthenticationFilter", filterConfig, defaultConfig, null);
+      return new DseAuthenticationFilter.FilterConfigWrapper("KerberosAuthenticationFilter", filterConfig, defaultConfig);
    }
 
    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {

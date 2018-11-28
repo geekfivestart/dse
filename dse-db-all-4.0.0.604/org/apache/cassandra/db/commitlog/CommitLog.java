@@ -74,28 +74,32 @@ public class CommitLog implements CommitLogMBean {
    CommitLog(CommitLogArchiver archiver) {
       try {
          this.timeSource = (TimeSource)Class.forName(System.getProperty("dse.commitlog.timesource", SystemTimeSource.class.getCanonicalName())).newInstance();
-         this.configuration = new CommitLog.Configuration(DatabaseDescriptor.getCommitLogCompression(), DatabaseDescriptor.getEncryptionContext());
+         this.configuration = new Configuration(DatabaseDescriptor.getCommitLogCompression(), DatabaseDescriptor.getEncryptionContext());
          DatabaseDescriptor.createAllDirectories();
          this.archiver = archiver;
          this.metrics = new CommitLogMetrics();
-         switch(null.$SwitchMap$org$apache$cassandra$config$Config$CommitLogSync[DatabaseDescriptor.getCommitLogSync().ordinal()]) {
-         case 1:
-            this.executor = new PeriodicCommitLogService(this, this.timeSource);
-            break;
-         case 2:
-            this.executor = new BatchCommitLogService(this, this.timeSource);
-            break;
-         case 3:
-            this.executor = new GroupCommitLogService(this, this.timeSource);
-            break;
-         default:
-            throw new IllegalArgumentException("Unknown commitlog service type: " + DatabaseDescriptor.getCommitLogSync());
+         switch (DatabaseDescriptor.getCommitLogSync()) {
+            case periodic: {
+               this.executor = new PeriodicCommitLogService(this, this.timeSource);
+               break;
+            }
+            case batch: {
+               this.executor = new BatchCommitLogService(this, this.timeSource);
+               break;
+            }
+            case group: {
+               this.executor = new GroupCommitLogService(this, this.timeSource);
+               break;
+            }
+            default: {
+               throw new IllegalArgumentException("Unknown commitlog service type: " + (Object)((Object)DatabaseDescriptor.getCommitLogSync()));
+            }
          }
-
-         this.segmentManager = (AbstractCommitLogSegmentManager)(DatabaseDescriptor.isCDCEnabled()?new CommitLogSegmentManagerCDC(this, DatabaseDescriptor.getCommitLogLocation()):new CommitLogSegmentManagerStandard(this, DatabaseDescriptor.getCommitLogLocation()));
+         this.segmentManager = DatabaseDescriptor.isCDCEnabled() ? new CommitLogSegmentManagerCDC(this, DatabaseDescriptor.getCommitLogLocation()) : new CommitLogSegmentManagerStandard(this, DatabaseDescriptor.getCommitLogLocation());
          this.metrics.attach(this.executor, this.segmentManager);
-      } catch (Exception var3) {
-         throw new RuntimeException(var3);
+      }
+      catch (Exception e) {
+         throw new RuntimeException(e);
       }
    }
 
@@ -377,23 +381,27 @@ public class CommitLog implements CommitLogMBean {
 
          public void handleError(Throwable error) {
             Config.CommitFailurePolicy policy = DatabaseDescriptor.getCommitFailurePolicy();
-            switch(null.$SwitchMap$org$apache$cassandra$config$Config$CommitFailurePolicy[policy.ordinal()]) {
-            case 1:
-               JVMStabilityInspector.killJVM(t, false);
-            case 2:
-               StorageService.instance.stopTransportsAsync();
-            case 3:
-               CommitLog.logger.error(String.format("%s. Commit disk failure policy is %s; terminating thread", new Object[]{message, policy}), t);
-               this.ignored = false;
-               break;
-            case 4:
-               CommitLog.logger.error(String.format("%s. Commit disk failure policy is %s; ignoring", new Object[]{message, policy}), t);
-               this.ignored = true;
-               break;
-            default:
-               throw new AssertionError(policy);
+            switch (policy) {
+               case die: {
+                  JVMStabilityInspector.killJVM(t, false);
+               }
+               case stop: {
+                  StorageService.instance.stopTransportsAsync();
+               }
+               case stop_commit: {
+                  logger.error(String.format("%s. Commit disk failure policy is %s; terminating thread", new Object[]{message, policy}), t);
+                  this.ignored = false;
+                  break;
+               }
+               case ignore: {
+                  logger.error(String.format("%s. Commit disk failure policy is %s; ignoring", new Object[]{message, policy}), t);
+                  this.ignored = true;
+                  break;
+               }
+               default: {
+                  throw new AssertionError((Object)policy);
+               }
             }
-
          }
       }
 

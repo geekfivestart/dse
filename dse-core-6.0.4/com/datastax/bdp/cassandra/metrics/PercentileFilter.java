@@ -34,7 +34,7 @@ public class PercentileFilter {
    }
 
    public static String metricName() {
-      return JMX.buildMBeanName(JMX.Type.PERF_OBJECTS, MapBuilder.immutable().withKeys(new String[]{"name", "metrics"}).withValues(new String[]{PerformanceObjectsController.getPerfBeanName(PerformanceObjectsController.CqlSlowLogBean.class), "queriesLatency"}).build());
+      return JMX.buildMBeanName(JMX.Type.PERF_OBJECTS, MapBuilder.<String,String>immutable().withKeys(new String[]{"name", "metrics"}).withValues(new String[]{PerformanceObjectsController.getPerfBeanName(PerformanceObjectsController.CqlSlowLogBean.class), "queriesLatency"}).build());
    }
 
    public long getMinimumSamples() {

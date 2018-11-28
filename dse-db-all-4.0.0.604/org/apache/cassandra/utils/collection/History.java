@@ -12,7 +12,7 @@ public class History<E> extends AbstractCollection<E> {
    private boolean atCapacity;
 
    public History(int capacity) {
-      E[] a = (Object[])(new Object[capacity]);
+      E[] a = (E[])(new Object[capacity]);
       this.array = a;
    }
 

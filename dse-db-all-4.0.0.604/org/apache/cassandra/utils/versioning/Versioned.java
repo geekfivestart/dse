@@ -7,9 +7,9 @@ public class Versioned<V extends Enum<V> & Version<V>, T> {
    private final Function<V, ? extends T> creator;
 
    public Versioned(Class<V> versionClass, Function<V, ? extends T> creator) {
-      this.serializers = (Object[])(new Object[((Enum[])versionClass.getEnumConstants()).length]);
+      this.serializers = (T[])(new Object[((Enum[])versionClass.getEnumConstants()).length]);
       this.creator = creator;
-      V last = ((Enum[])versionClass.getEnumConstants())[((Enum[])versionClass.getEnumConstants()).length - 1];
+      V last = (V)((Enum[])versionClass.getEnumConstants())[((Enum[])versionClass.getEnumConstants()).length - 1];
       this.serializers[last.ordinal()] = creator.apply(last);
    }
 

@@ -169,7 +169,7 @@ public class AutoSavingCache<K extends CacheKey, V> extends InstrumentingCache<K
 
                   ColumnFamilyStore cfs = Schema.instance.getColumnFamilyStoreInstance(tableId);
                   if(indexName != null && cfs != null) {
-                     cfs = (ColumnFamilyStore)cfs.indexManager.getIndexByName(indexName).getBackingTable().orElse((Object)null);
+                     cfs = (ColumnFamilyStore)cfs.indexManager.getIndexByName(indexName).getBackingTable().orElse(null);
                   }
 
                   entryFuture = this.cacheLoader.deserialize(in, cfs);
@@ -263,80 +263,55 @@ public class AutoSavingCache<K extends CacheKey, V> extends InstrumentingCache<K
       }
 
       public void saveCache() {
-         AutoSavingCache.logger.trace("Deleting old {} files.", AutoSavingCache.this.cacheType);
+         long start;
+         logger.trace("Deleting old {} files.", (Object)AutoSavingCache.this.cacheType);
          this.deleteOldCacheFiles();
-         if(!this.keyIterator.hasNext()) {
-            AutoSavingCache.logger.trace("Skipping {} save, cache is empty.", AutoSavingCache.this.cacheType);
-         } else {
-            long start = System.nanoTime();
-            Pair cacheFilePaths = this.tempCacheFiles();
-
-            try {
-               WrappedDataOutputStreamPlus writer = new WrappedDataOutputStreamPlus(AutoSavingCache.streamFactory.getOutputStream((File)cacheFilePaths.left, (File)cacheFilePaths.right));
-               Throwable var5 = null;
-
-               try {
-                  UUID schemaVersion = Schema.instance.getVersion();
-                  if(schemaVersion == null) {
-                     TPCUtils.blockingAwait(Schema.instance.updateVersion());
-                     schemaVersion = Schema.instance.getVersion();
-                  }
-
-                  writer.writeLong(schemaVersion.getMostSignificantBits());
-                  writer.writeLong(schemaVersion.getLeastSignificantBits());
-
-                  while(this.keyIterator.hasNext()) {
-                     K key = (CacheKey)this.keyIterator.next();
-                     ColumnFamilyStore cfs = Schema.instance.getColumnFamilyStoreInstance(key.tableId);
-                     if(cfs != null) {
-                        if(key.indexName != null) {
-                           cfs = (ColumnFamilyStore)cfs.indexManager.getIndexByName(key.indexName).getBackingTable().orElse((Object)null);
-                        }
-
-                        AutoSavingCache.this.cacheLoader.serialize(key, writer, cfs);
-                        ++this.keysWritten;
-                        if(this.keysWritten >= this.keysEstimate) {
-                           break;
-                        }
-                     }
-                  }
-               } catch (Throwable var18) {
-                  var5 = var18;
-                  throw var18;
-               } finally {
-                  if(writer != null) {
-                     if(var5 != null) {
-                        try {
-                           writer.close();
-                        } catch (Throwable var17) {
-                           var5.addSuppressed(var17);
-                        }
-                     } else {
-                        writer.close();
-                     }
-                  }
-
-               }
-            } catch (FileNotFoundException var20) {
-               throw new RuntimeException(var20);
-            } catch (IOException var21) {
-               throw new FSWriteError(var21, (File)cacheFilePaths.left);
-            }
-
-            File cacheFile = AutoSavingCache.this.getCacheDataPath("f");
-            File crcFile = AutoSavingCache.this.getCacheCrcPath("f");
-            cacheFile.delete();
-            crcFile.delete();
-            if(!((File)cacheFilePaths.left).renameTo(cacheFile)) {
-               AutoSavingCache.logger.error("Unable to rename {} to {}", cacheFilePaths.left, cacheFile);
-            }
-
-            if(!((File)cacheFilePaths.right).renameTo(crcFile)) {
-               AutoSavingCache.logger.error("Unable to rename {} to {}", cacheFilePaths.right, crcFile);
-            }
-
-            AutoSavingCache.logger.info("Saved {} ({} items) in {} ms", new Object[]{AutoSavingCache.this.cacheType, Long.valueOf(this.keysWritten), Long.valueOf(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start))});
+         if (!this.keyIterator.hasNext()) {
+            logger.trace("Skipping {} save, cache is empty.", (Object)AutoSavingCache.this.cacheType);
+            return;
          }
+         start = System.nanoTime();
+         Pair<File, File> cacheFilePaths = this.tempCacheFiles();
+         try {
+            try (WrappedDataOutputStreamPlus writer = new WrappedDataOutputStreamPlus(streamFactory.getOutputStream((File)cacheFilePaths.left, (File)cacheFilePaths.right));){
+               UUID schemaVersion = Schema.instance.getVersion();
+               if (schemaVersion == null) {
+                  TPCUtils.blockingAwait(Schema.instance.updateVersion());
+                  schemaVersion = Schema.instance.getVersion();
+               }
+               writer.writeLong(schemaVersion.getMostSignificantBits());
+               writer.writeLong(schemaVersion.getLeastSignificantBits());
+               while (this.keyIterator.hasNext()) {
+                  CacheKey key = (CacheKey)this.keyIterator.next();
+                  ColumnFamilyStore cfs = Schema.instance.getColumnFamilyStoreInstance(key.tableId);
+                  if (cfs == null) continue;
+                  if (key.indexName != null) {
+                     cfs = cfs.indexManager.getIndexByName(key.indexName).getBackingTable().orElse(null);
+                  }
+                  AutoSavingCache.this.cacheLoader.serialize((K)key, writer, cfs);
+                  ++this.keysWritten;
+                  if (this.keysWritten < this.keysEstimate) continue;
+                  break;
+               }
+            }
+         }
+         catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+         }
+         catch (IOException e) {
+            throw new FSWriteError((Throwable)e, (File)cacheFilePaths.left);
+         }
+         File cacheFile = AutoSavingCache.this.getCacheDataPath(AutoSavingCache.CURRENT_VERSION);
+         File crcFile = AutoSavingCache.this.getCacheCrcPath(AutoSavingCache.CURRENT_VERSION);
+         cacheFile.delete();
+         crcFile.delete();
+         if (!((File)cacheFilePaths.left).renameTo(cacheFile)) {
+            logger.error("Unable to rename {} to {}", cacheFilePaths.left, (Object)cacheFile);
+         }
+         if (!((File)cacheFilePaths.right).renameTo(crcFile)) {
+            logger.error("Unable to rename {} to {}", cacheFilePaths.right, (Object)crcFile);
+         }
+         logger.info("Saved {} ({} items) in {} ms", new Object[]{AutoSavingCache.this.cacheType, this.keysWritten, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start)});
       }
 
       private Pair<File, File> tempCacheFiles() {

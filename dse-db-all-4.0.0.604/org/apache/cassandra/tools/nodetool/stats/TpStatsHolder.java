@@ -20,50 +20,32 @@ public class TpStatsHolder implements StatsHolder {
    }
 
    public Map<String, Object> convert2Map() {
-      HashMap<String, Object> result = new HashMap();
-      TreeMap<String, Map<String, Object>> threadPools = new TreeMap();
-      HashMap<String, Object> droppedMessage = new HashMap();
-      HashMap<String, double[]> waitLatencies = new HashMap();
-      Iterator var5 = this.probe.getThreadPools().entries().iterator();
-
-      while(true) {
-         Entry tp;
-         do {
-            if(!var5.hasNext()) {
-               result.put("ThreadPools", threadPools);
-               var5 = this.probe.getDroppedMessages().entrySet().iterator();
-
-               while(var5.hasNext()) {
-                  tp = (Entry)var5.next();
-                  droppedMessage.put(tp.getKey(), tp.getValue());
-
-                  try {
-                     waitLatencies.put(tp.getKey(), this.probe.metricPercentilesAsArray(this.probe.getMessagingQueueWaitMetrics((String)tp.getKey())));
-                  } catch (RuntimeException var8) {
-                     ;
-                  }
-               }
-
-               result.put("DroppedMessage", droppedMessage);
-               result.put("WaitLatencies", waitLatencies);
-               return result;
-            }
-
-            tp = (Entry)var5.next();
-         } while(!this.includeTPCCores && TPCCoreInfo.matcher((CharSequence)tp.getValue()).matches());
-
-         HashMap<String, Object> threadPool = new HashMap();
+      HashMap<String, Object> result = new HashMap<String, Object>();
+      TreeMap threadPools = new TreeMap();
+      HashMap droppedMessage = new HashMap();
+      HashMap waitLatencies = new HashMap();
+      for (Map.Entry tp : this.probe.getThreadPools().entries()) {
+         if (!this.includeTPCCores && TPCCoreInfo.matcher((CharSequence)tp.getValue()).matches()) continue;
+         HashMap<String, Object> threadPool = new HashMap<String, Object>();
          threadPool.put("ActiveTasks", this.probe.getThreadPoolMetric((String)tp.getKey(), (String)tp.getValue(), "ActiveTasks"));
          threadPool.put("PendingTasks", this.probe.getThreadPoolMetric((String)tp.getKey(), (String)tp.getValue(), "PendingTasks") + " (" + this.probe.getThreadPoolMetric((String)tp.getKey(), (String)tp.getValue(), "TotalBackpressureCountedTasks") + ")");
          threadPool.put("DelayedTasks", this.probe.getThreadPoolMetric((String)tp.getKey(), (String)tp.getValue(), "TotalBackpressureDelayedTasks"));
          threadPool.put("CompletedTasks", this.probe.getThreadPoolMetric((String)tp.getKey(), (String)tp.getValue(), "CompletedTasks"));
          threadPool.put("CurrentlyBlockedTasks", this.probe.getThreadPoolMetric((String)tp.getKey(), (String)tp.getValue(), "CurrentlyBlockedTasks"));
          threadPool.put("TotalBlockedTasks", this.probe.getThreadPoolMetric((String)tp.getKey(), (String)tp.getValue(), "TotalBlockedTasks"));
-         if(threadPool.values().stream().mapToLong((x) -> {
-            return x instanceof Number?((Number)x).longValue():0L;
-         }).sum() > 0L) {
-            threadPools.put(tp.getValue(), threadPool);
-         }
+         if (threadPool.values().stream().mapToLong(x -> x instanceof Number ? ((Number)x).longValue() : 0L).sum() <= 0L) continue;
+         threadPools.put(tp.getValue(), threadPool);
       }
+      result.put("ThreadPools", threadPools);
+      for (Map.Entry entry : this.probe.getDroppedMessages().entrySet()) {
+         droppedMessage.put(entry.getKey(), entry.getValue());
+         try {
+            waitLatencies.put(entry.getKey(), this.probe.metricPercentilesAsArray(this.probe.getMessagingQueueWaitMetrics((String)entry.getKey())));
+         }
+         catch (RuntimeException threadPool) {}
+      }
+      result.put("DroppedMessage", droppedMessage);
+      result.put("WaitLatencies", waitLatencies);
+      return result;
    }
 }

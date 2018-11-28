@@ -73,12 +73,11 @@ public class FullBTreeSearchIterator<K, V> extends TreeCursor<K> implements BTre
             return null;
          } else {
             int compareToLast = this.compareToLast(index);
-            int state;
             if(compareToLast <= 0) {
                state = compareToLast < 0?0:4;
                if(found) {
                   state |= 1;
-                  next = this.currentValue();
+                  next = (V)this.currentValue();
                }
             } else {
                state = 5;
@@ -109,7 +108,7 @@ public class FullBTreeSearchIterator<K, V> extends TreeCursor<K> implements BTre
 
    public V current() {
       this.checkOnItem();
-      return this.currentValue();
+      return (V)this.currentValue();
    }
 
    public int indexOfCurrent() {

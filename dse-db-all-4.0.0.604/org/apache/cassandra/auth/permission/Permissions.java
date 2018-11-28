@@ -30,17 +30,17 @@ public class Permissions {
    }
 
    public static Set<Permission> setOf(Permission... permissions) {
-      return PartitionedEnumSet.of(Permission.class, (PartitionedEnum[])permissions);
+      return PartitionedEnumSet.of(Permission.class, (Permission[])permissions);
    }
 
    public static Set<Permission> setOf(Set<Permission> permissions, Permission permission) {
       PartitionedEnumSet<Permission> set = PartitionedEnumSet.of(Permission.class, (Iterable)permissions);
-      set.add((PartitionedEnum)permission);
+      set.add(permission);
       return set;
    }
 
    public static Set<Permission> immutableSetOf(Permission... permissions) {
-      return PartitionedEnumSet.immutableSetOf(Permission.class, (PartitionedEnum[])permissions);
+      return PartitionedEnumSet.<Permission>immutableSetOf(Permission.class, permissions);
    }
 
    public static Set<Permission> immutableSetOf(Iterable<Permission> permissions) {

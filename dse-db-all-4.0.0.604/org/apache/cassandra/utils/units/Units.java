@@ -5,43 +5,53 @@ import java.util.function.Function;
 import java.util.function.ToLongFunction;
 
 public class Units {
-   static final ToLongFunction<TimeUnit> TIME_UNIT_SCALE_FCT = (u) -> {
-      switch(null.$SwitchMap$java$util$concurrent$TimeUnit[u.ordinal()]) {
-      case 1:
-      case 2:
-      case 3:
-         return 1000L;
-      case 4:
-      case 5:
-         return 60L;
-      case 6:
-         return 24L;
-      case 7:
-         return 365L;
-      default:
-         throw new AssertionError();
+   static final ToLongFunction<TimeUnit> TIME_UNIT_SCALE_FCT = u -> {
+      switch (u) {
+         case NANOSECONDS:
+         case MICROSECONDS:
+         case MILLISECONDS: {
+            return 1000L;
+         }
+         case SECONDS:
+         case MINUTES: {
+            return 60L;
+         }
+         case HOURS: {
+            return 24L;
+         }
+         case DAYS: {
+            return 365L;
+         }
       }
+      throw new AssertionError();
    };
-   static final Function<TimeUnit, String> TIME_UNIT_SYMBOL_FCT = (u) -> {
-      switch(null.$SwitchMap$java$util$concurrent$TimeUnit[u.ordinal()]) {
-      case 1:
-         return "ns";
-      case 2:
-         return "us";
-      case 3:
-         return "ms";
-      case 4:
-         return "s";
-      case 5:
-         return "m";
-      case 6:
-         return "h";
-      case 7:
-         return "d";
-      default:
-         throw new AssertionError();
+   static final Function<TimeUnit, String> TIME_UNIT_SYMBOL_FCT = u -> {
+      switch (u) {
+         case NANOSECONDS: {
+            return "ns";
+         }
+         case MICROSECONDS: {
+            return "us";
+         }
+         case MILLISECONDS: {
+            return "ms";
+         }
+         case SECONDS: {
+            return "s";
+         }
+         case MINUTES: {
+            return "m";
+         }
+         case HOURS: {
+            return "h";
+         }
+         case DAYS: {
+            return "d";
+         }
       }
+      throw new AssertionError();
    };
+
    private static final ToLongFunction<SizeUnit> SIZE_UNIT_SCALE_FCT = (u) -> {
       return 1024L;
    };
@@ -104,7 +114,7 @@ public class Units {
    }
 
    private static <E extends Enum<E>> String toString(long value, E unit, Class<E> klass, ToLongFunction<E> scaleFct, Function<E, String> symbolFct) {
-      E[] enumVals = (Enum[])klass.getEnumConstants();
+      E[] enumVals = (E[])klass.getEnumConstants();
       long v = value;
       int i = unit.ordinal();
       long remainder = 0L;

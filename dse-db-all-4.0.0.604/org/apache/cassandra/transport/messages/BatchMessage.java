@@ -111,16 +111,18 @@ public class BatchMessage extends Message.Request {
       }
 
       private byte fromType(BatchStatement.Type type) {
-         switch(null.$SwitchMap$org$apache$cassandra$cql3$statements$BatchStatement$Type[type.ordinal()]) {
-         case 1:
-            return 0;
-         case 2:
-            return 1;
-         case 3:
-            return 2;
-         default:
-            throw new AssertionError();
+         switch (type) {
+            case LOGGED: {
+               return 0;
+            }
+            case UNLOGGED: {
+               return 1;
+            }
+            case COUNTER: {
+               return 2;
+            }
          }
+         throw new AssertionError();
       }
    };
    public final BatchStatement.Type batchType;

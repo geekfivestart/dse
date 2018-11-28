@@ -70,7 +70,7 @@ public class OffHeapBitSet implements IBitSet {
    }
 
    public void clear() {
-      this.bytes.setMemory(0L, this.bytes.size(), 0);
+      this.bytes.setMemory(0L, this.bytes.size(), (byte)0);
    }
 
    public void serialize(DataOutput out) throws IOException {

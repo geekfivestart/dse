@@ -76,22 +76,24 @@ public enum Operator {
       }
 
       public boolean isSatisfiedBy(AbstractType<?> type, ByteBuffer leftOperand, ByteBuffer rightOperand) {
-         switch(null.$SwitchMap$org$apache$cassandra$db$marshal$CollectionType$Kind[((CollectionType)type).kind.ordinal()]) {
-         case 1:
-            ListType<?> listType = (ListType)type;
-            List<?> list = (List)listType.getSerializer().deserialize(leftOperand);
-            return list.contains(listType.getElementsType().getSerializer().deserialize(rightOperand));
-         case 2:
-            SetType<?> setType = (SetType)type;
-            Set<?> set = (Set)setType.getSerializer().deserialize(leftOperand);
-            return set.contains(setType.getElementsType().getSerializer().deserialize(rightOperand));
-         case 3:
-            MapType<?, ?> mapType = (MapType)type;
-            Map<?, ?> map = (Map)mapType.getSerializer().deserialize(leftOperand);
-            return map.containsValue(mapType.getValuesType().getSerializer().deserialize(rightOperand));
-         default:
-            throw new AssertionError();
+         switch (((CollectionType)type).kind) {
+            case LIST: {
+               ListType listType = (ListType)type;
+               List list = (List)listType.getSerializer().deserialize(leftOperand);
+               return list.contains(listType.getElementsType().getSerializer().deserialize(rightOperand));
+            }
+            case SET: {
+               SetType setType = (SetType)type;
+               Set set = (Set)setType.getSerializer().deserialize(leftOperand);
+               return set.contains(setType.getElementsType().getSerializer().deserialize(rightOperand));
+            }
+            case MAP: {
+               MapType mapType = (MapType)type;
+               Map map = (Map)mapType.getSerializer().deserialize(leftOperand);
+               return map.containsValue(mapType.getValuesType().getSerializer().deserialize(rightOperand));
+            }
          }
+         throw new AssertionError();
       }
    },
    CONTAINS_KEY(6) {

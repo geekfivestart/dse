@@ -29,26 +29,18 @@ public class ByteBufferOutputStream extends OutputStream {
 
    public ByteBuffer getByteBuffer() {
       List<ByteBuffer> list = this.getBufferList();
-      if(list.size() == 1) {
-         return (ByteBuffer)list.get(0);
-      } else {
-         int size = 0;
-
-         ByteBuffer buffer;
-         for(Iterator var3 = list.iterator(); var3.hasNext(); size += buffer.remaining()) {
-            buffer = (ByteBuffer)var3.next();
-         }
-
-         ByteBuffer result = ByteBuffer.allocate(size);
-         Iterator var7 = list.iterator();
-
-         while(var7.hasNext()) {
-            ByteBuffer buffer = (ByteBuffer)var7.next();
-            result.put(buffer);
-         }
-
-         return (ByteBuffer)result.rewind();
+      if (list.size() == 1) {
+         return list.get(0);
       }
+      int size = 0;
+      for (ByteBuffer buffer : list) {
+         size += buffer.remaining();
+      }
+      ByteBuffer result = ByteBuffer.allocate(size);
+      for (ByteBuffer buffer : list) {
+         result.put(buffer);
+      }
+      return (ByteBuffer)result.rewind();
    }
 
    public void prepend(List<ByteBuffer> lists) {

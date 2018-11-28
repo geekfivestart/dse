@@ -372,113 +372,82 @@ public interface ClusteringPrefix extends IMeasurableMemory, Clusterable {
          return Integer.compare(k1.comparison, k2.comparison);
       }
 
-      public ClusteringPrefix.Kind invert() {
-         switch(null.$SwitchMap$org$apache$cassandra$db$ClusteringPrefix$Kind[this.ordinal()]) {
-         case 1:
-            return INCL_END_BOUND;
-         case 2:
-            return EXCL_END_BOUND;
-         case 3:
-            return INCL_START_BOUND;
-         case 4:
-            return EXCL_START_BOUND;
-         case 5:
-            return INCL_END_EXCL_START_BOUNDARY;
-         case 6:
-            return EXCL_END_INCL_START_BOUNDARY;
-         default:
-            return this;
+      public Kind invert() {
+         switch (this) {
+            case EXCL_START_BOUND: {
+               return INCL_END_BOUND;
+            }
+            case INCL_START_BOUND: {
+               return EXCL_END_BOUND;
+            }
+            case EXCL_END_BOUND: {
+               return INCL_START_BOUND;
+            }
+            case INCL_END_BOUND: {
+               return EXCL_START_BOUND;
+            }
+            case EXCL_END_INCL_START_BOUNDARY: {
+               return INCL_END_EXCL_START_BOUNDARY;
+            }
+            case INCL_END_EXCL_START_BOUNDARY: {
+               return EXCL_END_INCL_START_BOUNDARY;
+            }
          }
+         return this;
       }
 
       public boolean isBound() {
-         switch(null.$SwitchMap$org$apache$cassandra$db$ClusteringPrefix$Kind[this.ordinal()]) {
-         case 1:
-         case 2:
-         case 3:
-         case 4:
-            return true;
-         default:
-            return false;
+         switch (this) {
+            case EXCL_START_BOUND:
+            case INCL_START_BOUND:
+            case EXCL_END_BOUND:
+            case INCL_END_BOUND: {
+               return true;
+            }
          }
+         return false;
       }
 
       public boolean isBoundary() {
-         switch(null.$SwitchMap$org$apache$cassandra$db$ClusteringPrefix$Kind[this.ordinal()]) {
-         case 5:
-         case 6:
-            return true;
-         default:
-            return false;
+         switch (this) {
+            case EXCL_END_INCL_START_BOUNDARY:
+            case INCL_END_EXCL_START_BOUNDARY: {
+               return true;
+            }
          }
+         return false;
       }
 
       public boolean isStart() {
-         switch(null.$SwitchMap$org$apache$cassandra$db$ClusteringPrefix$Kind[this.ordinal()]) {
-         case 1:
-         case 2:
-         case 5:
-         case 6:
-            return true;
-         case 3:
-         case 4:
-         default:
-            return false;
+         switch (this) {
+            case EXCL_START_BOUND:
+            case INCL_START_BOUND:
+            case EXCL_END_INCL_START_BOUNDARY:
+            case INCL_END_EXCL_START_BOUNDARY: {
+               return true;
+            }
          }
+         return false;
       }
 
       public boolean isEnd() {
-         switch(null.$SwitchMap$org$apache$cassandra$db$ClusteringPrefix$Kind[this.ordinal()]) {
-         case 3:
-         case 4:
-         case 5:
-         case 6:
-            return true;
-         default:
-            return false;
+         switch (this) {
+            case EXCL_END_BOUND:
+            case INCL_END_BOUND:
+            case EXCL_END_INCL_START_BOUNDARY:
+            case INCL_END_EXCL_START_BOUNDARY: {
+               return true;
+            }
          }
+         return false;
       }
 
       public boolean isOpen(boolean reversed) {
-         boolean var10000;
-         if(!this.isBoundary()) {
-            label29: {
-               if(reversed) {
-                  if(this.isEnd()) {
-                     break label29;
-                  }
-               } else if(this.isStart()) {
-                  break label29;
-               }
-
-               var10000 = false;
-               return var10000;
-            }
-         }
-
-         var10000 = true;
-         return var10000;
+         return this.isBoundary() || (reversed ? this.isEnd() : this.isStart());
       }
 
       public boolean isClose(boolean reversed) {
-         boolean var10000;
-         if(!this.isBoundary()) {
-            label29: {
-               if(reversed) {
-                  if(this.isStart()) {
-                     break label29;
-                  }
-               } else if(this.isEnd()) {
-                  break label29;
-               }
-
-               var10000 = false;
-               return var10000;
-            }
-         }
-
-         var10000 = true;
-         return var10000;
+         return this.isBoundary() || (reversed ? this.isStart() : this.isEnd());
       }
 
       public ClusteringPrefix.Kind closeBoundOfBoundary(boolean reversed) {

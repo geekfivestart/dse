@@ -136,7 +136,7 @@ public abstract class Flow<T> {
 
    public Flow<T> doOnError(final Consumer<Throwable> onError) {
       class DoOnError extends FlowTransformNext<T, T> {
-         protected DoOnError(Flow<T> this$0) {
+         protected DoOnError(Flow<T> source) {
             super(source);
          }
 
@@ -168,7 +168,7 @@ public abstract class Flow<T> {
 
    public Flow<T> doOnComplete(final Runnable onComplete) {
       class DoOnComplete extends FlowTransformNext<T, T> {
-         DoOnComplete(Flow<T> this$0) {
+         DoOnComplete(Flow<T> source) {
             super(source);
          }
 
@@ -224,7 +224,7 @@ public abstract class Flow<T> {
 
    public Flow<T> onErrorResumeNext(final Function<Throwable, Flow<T>> nextSourceSupplier) {
       class OnErrorResumeNext extends FlowTransform<T, T> {
-         OnErrorResumeNext(Flow<T> this$0) {
+         OnErrorResumeNext(Flow<T> source) {
             super(source);
          }
 
@@ -266,7 +266,7 @@ public abstract class Flow<T> {
 
    public Flow<T> mapError(final Function<Throwable, Throwable> mapper) {
       class MapError extends FlowTransformNext<T, T> {
-         protected MapError(Flow<T> this$0) {
+         protected MapError(Flow<T> source) {
             super(source);
          }
 
@@ -347,7 +347,7 @@ public abstract class Flow<T> {
       class ReduceBlocking extends Flow.ReduceSubscriber<T, O> {
          Throwable error = null;
 
-         ReduceBlocking(Flow<T> this$0, Flow.ReduceFunction<O, T> source) {
+         ReduceBlocking(Flow<T> source, Flow.ReduceFunction<O, T> reducer) {
             super(seed, source, reducer);
          }
 
@@ -379,7 +379,7 @@ public abstract class Flow<T> {
    public <O> CompletableFuture<O> reduceToFuture(O seed, Flow.ReduceFunction<O, T> reducer) {
       final Flow.Future<O> future = new Flow.Future();
       class ReduceToFuture extends Flow.ReduceSubscriber<T, O> {
-         ReduceToFuture(O this$0, Flow<T> seed, Flow.ReduceFunction<O, T> source) {
+         ReduceToFuture(O seed, Flow<T> source, Flow.ReduceFunction<O, T> reducer) {
             super(seed, source, reducer);
          }
 
@@ -431,7 +431,7 @@ public abstract class Flow<T> {
    }
 
    public Flow<T> last() {
-      return this.reduce((Object)null, (prev, next) -> {
+      return this.reduce(null, (prev, next) -> {
          return next;
       });
    }
@@ -466,7 +466,7 @@ public abstract class Flow<T> {
    }
 
    public <O> Single<O> mapToRxSingle(Flow.RxSingleMapper<T, O> mapper) {
-      return this.reduceToRxSingle((Object)null, mapper);
+      return this.reduceToRxSingle(null, mapper);
    }
 
    public Single<T> mapToRxSingle() {
@@ -483,7 +483,7 @@ public abstract class Flow<T> {
          protected void subscribeActual(final CompletableObserver observer) {
             class CompletableFromFlowSubscriber extends Flow.DisposableReduceSubscriber<T, Void> {
                CompletableFromFlowSubscriber() {
-                  super((Object)null, Flow.this, consumer);
+                  super(null, Flow.this, consumer);
                }
 
                public void signalSuccess(Void value) {
@@ -510,7 +510,7 @@ public abstract class Flow<T> {
    }
 
    public CompletableFuture<Void> processToFuture() {
-      return this.reduceToFuture((Object)null, (v, t) -> {
+      return this.reduceToFuture(null, (v, t) -> {
          return null;
       });
    }
@@ -519,7 +519,7 @@ public abstract class Flow<T> {
       class Reduce extends FlowTransform<T, O> {
          O current = seed;
 
-         public Reduce(Flow<T> this$0) {
+         public Reduce(Flow<T> source) {
             super(source);
          }
 
@@ -558,11 +558,11 @@ public abstract class Flow<T> {
    }
 
    static <T> Flow.ConsumingOp<T> noOp() {
-      return NO_OP_CONSUMER;
+      return (ConsumingOp<T>)NO_OP_CONSUMER;
    }
 
    public Flow<Void> process(Flow.ConsumingOp<T> consumer) {
-      return this.reduce((Object)null, consumer);
+      return this.reduce(null, consumer);
    }
 
    public Flow<Void> process() {
@@ -602,7 +602,7 @@ public abstract class Flow<T> {
          }
 
          BlockingSingle<T> reducer = new BlockingSingle();
-         T res = this.reduceBlocking((Object)null, reducer);
+         T res = this.reduceBlocking(null, reducer);
 
          assert reducer.called : "Call to blockingSingle with empty flow.";
 
@@ -619,7 +619,7 @@ public abstract class Flow<T> {
    }
 
    public void executeBlocking() throws Exception {
-      this.blockingLast((Object)null);
+      this.blockingLast(null);
    }
 
    public static <T> Flow<T> just(T value) {
@@ -893,7 +893,7 @@ public abstract class Flow<T> {
             }
          }
 
-         throwable.addSuppressed(new Flow.FlowException(tag, null));
+         throwable.addSuppressed(new Flow.FlowException(tag));
          return throwable;
       }
    }
@@ -1038,7 +1038,7 @@ public abstract class Flow<T> {
 
          assert has;
 
-         T toReturn = this.next;
+         T toReturn = (T)this.next;
          this.next = null;
          return toReturn;
       }
@@ -1141,19 +1141,10 @@ public abstract class Flow<T> {
    }
 
    public interface RxSingleMapper<I, O> extends Function<I, O>, Flow.ReduceFunction<O, I> {
-      default O apply(O prev, I curr) throws Exception {
-         if(!null.$assertionsDisabled && prev != null) {
-            throw new AssertionError();
-         } else {
-            return this.apply(curr);
-         }
-      }
 
-      static default {
-         if(null.$assertionsDisabled) {
-            ;
-         }
-
+      default O apply(final O prev, final I curr) throws Exception {
+         assert prev == null;
+         return (O)this.apply(curr);
       }
    }
 
@@ -1393,7 +1384,7 @@ public abstract class Flow<T> {
 
       public void requestNext() {
          boolean hasNext = false;
-         Object next = null;
+         O next = null;
 
          try {
             if(this.iter.hasNext()) {
@@ -1540,7 +1531,7 @@ public abstract class Flow<T> {
       }
 
       public void onNext(I next) {
-         Object out;
+         O out;
          try {
             out = this.mapper.apply(next);
          } catch (Throwable var4) {
@@ -1557,7 +1548,7 @@ public abstract class Flow<T> {
       }
 
       public void onFinal(I next) {
-         Object out;
+         O out;
          try {
             out = this.mapper.apply(next);
          } catch (Throwable var4) {
@@ -1638,7 +1629,7 @@ public abstract class Flow<T> {
       }
 
       public void onNext(I next) {
-         Object out;
+         O out;
          try {
             out = this.map(next);
          } catch (Throwable var4) {
@@ -1655,7 +1646,7 @@ public abstract class Flow<T> {
       }
 
       public void onFinal(I next) {
-         Object out;
+         O out;
          try {
             out = this.map(next);
          } catch (Throwable var4) {
@@ -1689,7 +1680,7 @@ public abstract class Flow<T> {
       }
 
       public void onNext(I next) {
-         Object out;
+         O out;
          try {
             out = this.map(next);
          } catch (Throwable var4) {
@@ -1701,7 +1692,7 @@ public abstract class Flow<T> {
       }
 
       public void onFinal(I next) {
-         Object out;
+         O out;
          try {
             out = this.map(next);
          } catch (Throwable var4) {

@@ -75,14 +75,14 @@ public class RxThreads {
    private static CompletableOperator awaitAndContinueOnCompletable(StagedScheduler scheduler, TPCTaskType taskType) {
       return (subscriber) -> {
          class AwaitAndContinueOn extends TPCRunnable implements CompletableObserver {
-            final CompletableObserver subscriber = subscriber;
+            final CompletableObserver subscriber1 = subscriber;
 
             AwaitAndContinueOn() {
                super(subscriber::onComplete, ExecutorLocals.create(), taskType, scheduler.metricsCoreId());
             }
 
             public void onSubscribe(Disposable disposable) {
-               this.subscriber.onSubscribe(disposable);
+               this.subscriber1.onSubscribe(disposable);
             }
 
             public void onComplete() {
@@ -90,13 +90,13 @@ public class RxThreads {
                   scheduler.execute(this);
                } catch (Throwable var2) {
                   this.cancelled();
-                  this.subscriber.onError(var2);
+                  this.subscriber1.onError(var2);
                }
 
             }
 
             public void onError(Throwable throwable) {
-               this.subscriber.onError(throwable);
+               this.subscriber1.onError(throwable);
             }
          }
 
@@ -110,18 +110,17 @@ public class RxThreads {
 
    public static <T> Single<T> singleFromCompletableFuture(final Supplier<CompletableFuture<T>> f) {
       return new Single<T>() {
-         protected void subscribeActual(SingleObserver<? super T> observer) {
-            ((CompletableFuture)f.get()).whenComplete((v, t) -> {
-               if(t != null) {
-                  if(t instanceof CompletionException && t.getCause() != null) {
+         protected void subscribeActual(final SingleObserver<? super T> observer) {
+            f.get().whenComplete((v, t) -> {
+               if (t != null) {
+                  if (t instanceof CompletionException && t.getCause() != null) {
                      t = t.getCause();
                   }
-
                   observer.onError(t);
-               } else {
+               }
+               else {
                   observer.onSuccess(v);
                }
-
             });
          }
       };

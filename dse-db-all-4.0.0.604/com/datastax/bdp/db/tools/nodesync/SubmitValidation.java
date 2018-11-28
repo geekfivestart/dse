@@ -89,7 +89,7 @@ public class SubmitValidation extends NodeSyncCommand {
                if(!rangeReplicas.isEmpty()) {
                   Set<Range<Token>> ranges = (Set)rangeReplicas.entrySet().stream().filter((e) -> {
                      return ((Set)e.getValue()).remove(address);
-                  }).map(Entry::getKey).collect(Collectors.toCollection(TreeSet::<init>));
+                  }).map(Entry::getKey).collect(Collectors.toCollection(TreeSet::new));
                   if(ranges.isEmpty()) {
                      return;
                   }
@@ -121,63 +121,44 @@ public class SubmitValidation extends NodeSyncCommand {
    }
 
    private static Map<Range<Token>, Set<InetAddress>> liveRangeReplicas(Metadata metadata, String keyspace, Collection<Range<Token>> ranges) {
-      Token.TokenFactory tkFactory = tokenFactory(metadata);
-      Map<Range<Token>, Set<InetAddress>> replicas = new HashMap();
-      Iterator var5 = ((Set)metadata.getAllHosts().stream().filter(Host::isUp).collect(Collectors.toSet())).iterator();
-
-      while(var5.hasNext()) {
-         Host host = (Host)var5.next();
-         List<Range<Token>> localRanges = ranges(tkFactory, metadata.getTokenRanges(keyspace, host));
-         localRanges.stream().flatMap((r) -> {
-            Stream var10000 = ranges.stream();
-            r.getClass();
-            var10000 = var10000.filter(r::intersects);
-            r.getClass();
-            return var10000.map(r::intersectionWith);
-         }).flatMap(Collection::stream).distinct().forEach((r) -> {
-            ((Set)replicas.computeIfAbsent(r, (k) -> {
-               return Sets.newHashSet();
-            })).add(host.getBroadcastAddress());
-         });
+      final Token.TokenFactory tkFactory = tokenFactory(metadata);
+      final Map<Range<Token>, Set<InetAddress>> replicas = new HashMap<Range<Token>, Set<InetAddress>>();
+      for (Object host : (Set)metadata.getAllHosts().stream().filter(Host::isUp).collect(Collectors.toSet())) {
+         final List<Range<Token>> localRanges = ranges(tkFactory, metadata.getTokenRanges(keyspace, (Host)host));
+         localRanges.stream().flatMap(r -> ranges.stream().filter(r::intersects).map(r::intersectionWith)).flatMap(Collection::stream).distinct().forEach(r -> replicas.computeIfAbsent((Range<Token>)r, k -> Sets.newHashSet()).add(((Host)host).getBroadcastAddress()));
       }
-
-      if(ranges.stream().anyMatch((r) -> {
-         return !r.subtractAll(replicas.keySet()).isEmpty();
-      })) {
+      if (ranges.stream().anyMatch(r -> !r.subtractAll(replicas.keySet()).isEmpty())) {
          throw new NodeSyncException("There are not enough live replicas to cover all the requested ranges");
-      } else {
-         return replicas;
       }
+      return replicas;
    }
 
    private void cancel(NodeProbes probes, Set<InetAddress> addresses, String id) {
-      if(!addresses.isEmpty()) {
-         System.err.println("Cancelling validation in those nodes where it was already submitted: " + addresses);
-         Set<InetAddress> failed = new HashSet();
-         Iterator var5 = addresses.iterator();
-
-         while(var5.hasNext()) {
-            InetAddress address = (InetAddress)var5.next();
-
-            try {
-               probes.cancelUserValidation(address, id);
-               System.err.printf("%s: cancelled%n", new Object[]{address});
-            } catch (NodeSyncService.NotFoundValidationException var8) {
-               System.err.printf("%s: already finished%n", new Object[]{address});
-            } catch (NodeSyncService.CancelledValidationException var9) {
-               System.err.printf("%s: already cancelled%n", new Object[]{address});
-            } catch (Exception var10) {
-               failed.add(address);
-               System.err.printf("%s: cancellation failed: %s%n", new Object[]{address, var10.getMessage()});
-            }
+      if (addresses.isEmpty()) {
+         return;
+      }
+      System.err.println("Cancelling validation in those nodes where it was already submitted: " + addresses);
+      HashSet<InetAddress> failed = new HashSet<InetAddress>();
+      for (InetAddress address : addresses) {
+         try {
+            probes.cancelUserValidation(address, id);
+            System.err.printf("%s: cancelled%n", address);
          }
-
-         if(failed.isEmpty()) {
-            System.err.printf("Validation %s has been successfully cancelled%n", new Object[]{id});
-         } else {
-            System.err.printf("Validation %s is still running in nodes %s%n", new Object[]{id, failed});
+         catch (NodeSyncService.NotFoundValidationException e) {
+            System.err.printf("%s: already finished%n", address);
          }
-
+         catch (NodeSyncService.CancelledValidationException e) {
+            System.err.printf("%s: already cancelled%n", address);
+         }
+         catch (Exception e) {
+            failed.add(address);
+            System.err.printf("%s: cancellation failed: %s%n", address, e.getMessage());
+         }
+      }
+      if (failed.isEmpty()) {
+         System.err.printf("Validation %s has been successfully cancelled%n", id);
+      } else {
+         System.err.printf("Validation %s is still running in nodes %s%n", id, failed);
       }
    }
 

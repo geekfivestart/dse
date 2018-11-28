@@ -46,266 +46,269 @@ import org.slf4j.LoggerFactory;
 
 public class ErrorMessage extends Message.Response {
    private static final Logger logger = LoggerFactory.getLogger(ErrorMessage.class);
-   public static final Message.Codec<ErrorMessage> codec = new Message.Codec<ErrorMessage>() {
+
+   public static final Message.Codec<ErrorMessage> codec = new Message.Codec<ErrorMessage>(){
+
+      @Override
       public ErrorMessage decode(ByteBuf body, ProtocolVersion version) {
          ExceptionCode code = ExceptionCode.fromValue(body.readInt());
          String msg = CBUtil.readString(body);
-         TransportException te = null;
-         ConsistencyLevel cl;
-         int received;
-         int blockFor;
-         switch(null.$SwitchMap$org$apache$cassandra$exceptions$ExceptionCode[code.ordinal()]) {
-         case 1:
-            te = new ServerError(msg);
-            break;
-         case 2:
-            te = new ProtocolException(msg);
-            break;
-         case 3:
-            te = new AuthenticationException(msg);
-            break;
-         case 4:
-            cl = CBUtil.readConsistencyLevel(body);
-            received = body.readInt();
-            blockFor = body.readInt();
-            te = new UnavailableException(cl, received, blockFor);
-            break;
-         case 5:
-            te = new OverloadedException(msg);
-            break;
-         case 6:
-            te = new IsBootstrappingException();
-            break;
-         case 7:
-            te = new TruncateException(msg);
-            break;
-         case 8:
-         case 9:
-            cl = CBUtil.readConsistencyLevel(body);
-            received = body.readInt();
-            blockFor = body.readInt();
-            int failure = body.readInt();
-            Map<InetAddress, RequestFailureReason> failureReasonByEndpoint = new HashMap();
-            if(version.isGreaterOrEqualTo(ProtocolVersion.V5)) {
-               for(int i = 0; i < failure; ++i) {
-                  InetAddress endpoint = CBUtil.readInetAddr(body);
-                  RequestFailureReason failureReason = RequestFailureReason.fromCode(body.readUnsignedShort());
-                  failureReasonByEndpoint.put(endpoint, failureReason);
+         RuntimeException te = null;
+         switch (code) {
+            case SERVER_ERROR: {
+               te = new ServerError(msg);
+               break;
+            }
+            case PROTOCOL_ERROR: {
+               te = new ProtocolException(msg);
+               break;
+            }
+            case BAD_CREDENTIALS: {
+               te = new AuthenticationException(msg);
+               break;
+            }
+            case UNAVAILABLE: {
+               ConsistencyLevel cl = CBUtil.readConsistencyLevel(body);
+               int required = body.readInt();
+               int alive = body.readInt();
+               te = new UnavailableException(cl, required, alive);
+               break;
+            }
+            case OVERLOADED: {
+               te = new OverloadedException(msg);
+               break;
+            }
+            case IS_BOOTSTRAPPING: {
+               te = new IsBootstrappingException();
+               break;
+            }
+            case TRUNCATE_ERROR: {
+               te = new TruncateException(msg);
+               break;
+            }
+            case WRITE_FAILURE:
+            case READ_FAILURE: {
+               ConsistencyLevel cl = CBUtil.readConsistencyLevel(body);
+               int received = body.readInt();
+               int blockFor = body.readInt();
+               int failure = body.readInt();
+               HashMap<InetAddress, RequestFailureReason> failureReasonByEndpoint = new HashMap<InetAddress, RequestFailureReason>();
+               if (version.isGreaterOrEqualTo(ProtocolVersion.V5)) {
+                  for (int i = 0; i < failure; ++i) {
+                     InetAddress endpoint = CBUtil.readInetAddr(body);
+                     RequestFailureReason failureReason = RequestFailureReason.fromCode(body.readUnsignedShort());
+                     failureReasonByEndpoint.put(endpoint, failureReason);
+                  }
                }
+               if (code == ExceptionCode.WRITE_FAILURE) {
+                  WriteType writeType = Enum.valueOf(WriteType.class, CBUtil.readString(body));
+                  te = new WriteFailureException(cl, received, blockFor, writeType, failureReasonByEndpoint);
+                  break;
+               }
+               byte dataPresent = body.readByte();
+               te = new ReadFailureException(cl, received, blockFor, dataPresent != 0, failureReasonByEndpoint);
+               break;
             }
-
-            if(code == ExceptionCode.WRITE_FAILURE) {
-               WriteType writeTypex = (WriteType)Enum.valueOf(WriteType.class, CBUtil.readString(body));
-               te = new WriteFailureException(cl, received, blockFor, writeTypex, failureReasonByEndpoint);
-            } else {
-               byte dataPresentx = body.readByte();
-               te = new ReadFailureException(cl, received, blockFor, dataPresentx != 0, failureReasonByEndpoint);
-            }
-            break;
-         case 10:
-         case 11:
-            cl = CBUtil.readConsistencyLevel(body);
-            received = body.readInt();
-            blockFor = body.readInt();
-            if(code == ExceptionCode.WRITE_TIMEOUT) {
-               WriteType writeType = (WriteType)Enum.valueOf(WriteType.class, CBUtil.readString(body));
-               te = new WriteTimeoutException(writeType, cl, received, blockFor);
-            } else {
+            case WRITE_TIMEOUT:
+            case READ_TIMEOUT: {
+               ConsistencyLevel cl = CBUtil.readConsistencyLevel(body);
+               int received = body.readInt();
+               int blockFor = body.readInt();
+               if (code == ExceptionCode.WRITE_TIMEOUT) {
+                  WriteType writeType = Enum.valueOf(WriteType.class, CBUtil.readString(body));
+                  te = new WriteTimeoutException(writeType, cl, received, blockFor);
+                  break;
+               }
                byte dataPresent = body.readByte();
                te = new ReadTimeoutException(cl, received, blockFor, dataPresent != 0);
+               break;
             }
-            break;
-         case 12:
-            String fKeyspace = CBUtil.readString(body);
-            String fName = CBUtil.readString(body);
-            List<String> argTypes = CBUtil.readStringList(body);
-            te = new FunctionExecutionException(new FunctionName(fKeyspace, fName), argTypes, msg);
-            break;
-         case 13:
-            MD5Digest id = MD5Digest.wrap(CBUtil.readBytes(body));
-            te = new PreparedQueryNotFoundException(id);
-            break;
-         case 14:
-            te = new SyntaxException(msg);
-            break;
-         case 15:
-            te = new UnauthorizedException(msg);
-            break;
-         case 16:
-            te = new InvalidRequestException(msg);
-            break;
-         case 17:
-            te = new ConfigurationException(msg);
-            break;
-         case 18:
-            String ksName = CBUtil.readString(body);
-            String cfName = CBUtil.readString(body);
-            if(cfName.isEmpty()) {
-               te = new AlreadyExistsException(ksName);
-            } else {
+            case FUNCTION_FAILURE: {
+               String fKeyspace = CBUtil.readString(body);
+               String fName = CBUtil.readString(body);
+               List<String> argTypes = CBUtil.readStringList(body);
+               te = new FunctionExecutionException(new FunctionName(fKeyspace, fName), argTypes, msg);
+               break;
+            }
+            case UNPREPARED: {
+               MD5Digest id = MD5Digest.wrap(CBUtil.readBytes(body));
+               te = new PreparedQueryNotFoundException(id);
+               break;
+            }
+            case SYNTAX_ERROR: {
+               te = new SyntaxException(msg);
+               break;
+            }
+            case UNAUTHORIZED: {
+               te = new UnauthorizedException(msg);
+               break;
+            }
+            case INVALID: {
+               te = new InvalidRequestException(msg);
+               break;
+            }
+            case CONFIG_ERROR: {
+               te = new ConfigurationException(msg);
+               break;
+            }
+            case ALREADY_EXISTS: {
+               String ksName = CBUtil.readString(body);
+               String cfName = CBUtil.readString(body);
+               if (cfName.isEmpty()) {
+                  te = new AlreadyExistsException(ksName);
+                  break;
+               }
                te = new AlreadyExistsException(ksName, cfName);
+               break;
             }
-            break;
-         case 19:
-            te = new ClientWriteException(msg);
+            case CLIENT_WRITE_FAILURE: {
+               te = new ClientWriteException(msg);
+            }
          }
-
-         return new ErrorMessage((TransportException)te, null);
+         return new ErrorMessage((TransportException)((Object)te));
       }
 
+      @Override
       public void encode(ErrorMessage msg, ByteBuf dest, ProtocolVersion version) {
          TransportException err = ErrorMessage.getBackwardsCompatibleException(msg, version);
          dest.writeInt(err.code().value);
-         String errorString = err.getMessage() == null?"":err.getMessage();
+         String errorString = err.getMessage() == null ? "" : err.getMessage();
          CBUtil.writeString(errorString, dest);
-         boolean isWrite;
-         switch(null.$SwitchMap$org$apache$cassandra$exceptions$ExceptionCode[err.code().ordinal()]) {
-         case 4:
-            UnavailableException ue = (UnavailableException)err;
-            CBUtil.writeConsistencyLevel(ue.consistency, dest);
-            dest.writeInt(ue.required);
-            dest.writeInt(ue.alive);
-         case 5:
-         case 6:
-         case 7:
-         case 14:
-         case 15:
-         case 16:
-         case 17:
-         default:
-            break;
-         case 8:
-         case 9:
-            RequestFailureException rfe = (RequestFailureException)err;
-            isWrite = err.code() == ExceptionCode.WRITE_FAILURE;
-            CBUtil.writeConsistencyLevel(rfe.consistency, dest);
-            dest.writeInt(rfe.received);
-            dest.writeInt(rfe.blockFor);
-            dest.writeInt(rfe.failureReasonByEndpoint.size());
-            if(version.isGreaterOrEqualTo(ProtocolVersion.V5)) {
-               Iterator var13 = rfe.failureReasonByEndpoint.entrySet().iterator();
-
-               while(var13.hasNext()) {
-                  Entry<InetAddress, RequestFailureReason> entry = (Entry)var13.next();
-                  CBUtil.writeInetAddr((InetAddress)entry.getKey(), dest);
-                  dest.writeShort(((RequestFailureReason)entry.getValue()).codeForNativeProtocol());
+         switch (err.code()) {
+            case UNAVAILABLE: {
+               UnavailableException ue = (UnavailableException)err;
+               CBUtil.writeConsistencyLevel(ue.consistency, dest);
+               dest.writeInt(ue.required);
+               dest.writeInt(ue.alive);
+               break;
+            }
+            case WRITE_FAILURE:
+            case READ_FAILURE: {
+               RequestFailureException rfe = (RequestFailureException)err;
+               boolean isWrite = err.code() == ExceptionCode.WRITE_FAILURE;
+               CBUtil.writeConsistencyLevel(rfe.consistency, dest);
+               dest.writeInt(rfe.received);
+               dest.writeInt(rfe.blockFor);
+               dest.writeInt(rfe.failureReasonByEndpoint.size());
+               if (version.isGreaterOrEqualTo(ProtocolVersion.V5)) {
+                  for (Map.Entry<InetAddress, RequestFailureReason> entry : rfe.failureReasonByEndpoint.entrySet()) {
+                     CBUtil.writeInetAddr(entry.getKey(), dest);
+                     dest.writeShort(entry.getValue().codeForNativeProtocol());
+                  }
                }
+               if (isWrite) {
+                  CBUtil.writeString(((WriteFailureException)rfe).writeType.toString(), dest);
+                  break;
+               }
+               dest.writeByte((int)((byte)(((ReadFailureException)rfe).dataPresent ? 1 : 0)));
+               break;
             }
-
-            if(isWrite) {
-               CBUtil.writeString(((WriteFailureException)rfe).writeType.toString(), dest);
-            } else {
-               dest.writeByte((byte)(((ReadFailureException)rfe).dataPresent?1:0));
+            case WRITE_TIMEOUT:
+            case READ_TIMEOUT: {
+               RequestTimeoutException rte = (RequestTimeoutException)err;
+               boolean isWrite = err.code() == ExceptionCode.WRITE_TIMEOUT;
+               CBUtil.writeConsistencyLevel(rte.consistency, dest);
+               dest.writeInt(rte.received);
+               dest.writeInt(rte.blockFor);
+               if (isWrite) {
+                  CBUtil.writeString(((WriteTimeoutException)rte).writeType.toString(), dest);
+                  break;
+               }
+               dest.writeByte((int)((byte)(((ReadTimeoutException)rte).dataPresent ? 1 : 0)));
+               break;
             }
-            break;
-         case 10:
-         case 11:
-            RequestTimeoutException rte = (RequestTimeoutException)err;
-            isWrite = err.code() == ExceptionCode.WRITE_TIMEOUT;
-            CBUtil.writeConsistencyLevel(rte.consistency, dest);
-            dest.writeInt(rte.received);
-            dest.writeInt(rte.blockFor);
-            if(isWrite) {
-               CBUtil.writeString(((WriteTimeoutException)rte).writeType.toString(), dest);
-            } else {
-               dest.writeByte((byte)(((ReadTimeoutException)rte).dataPresent?1:0));
+            case FUNCTION_FAILURE: {
+               FunctionExecutionException fee = (FunctionExecutionException)msg.error;
+               CBUtil.writeString(fee.functionName.keyspace, dest);
+               CBUtil.writeString(fee.functionName.name, dest);
+               CBUtil.writeStringList(fee.argTypes, dest);
+               break;
             }
-            break;
-         case 12:
-            FunctionExecutionException fee = (FunctionExecutionException)msg.error;
-            CBUtil.writeString(fee.functionName.keyspace, dest);
-            CBUtil.writeString(fee.functionName.name, dest);
-            CBUtil.writeStringList(fee.argTypes, dest);
-            break;
-         case 13:
-            PreparedQueryNotFoundException pqnfe = (PreparedQueryNotFoundException)err;
-            CBUtil.writeBytes(pqnfe.id.bytes, dest);
-            break;
-         case 18:
-            AlreadyExistsException aee = (AlreadyExistsException)err;
-            CBUtil.writeString(aee.ksName, dest);
-            CBUtil.writeString(aee.cfName, dest);
+            case UNPREPARED: {
+               PreparedQueryNotFoundException pqnfe = (PreparedQueryNotFoundException)err;
+               CBUtil.writeBytes(pqnfe.id.bytes, dest);
+               break;
+            }
+            case ALREADY_EXISTS: {
+               AlreadyExistsException aee = (AlreadyExistsException)err;
+               CBUtil.writeString(aee.ksName, dest);
+               CBUtil.writeString(aee.cfName, dest);
+            }
          }
-
       }
 
+      @Override
       public int encodedSize(ErrorMessage msg, ProtocolVersion version) {
          TransportException err = ErrorMessage.getBackwardsCompatibleException(msg, version);
-         String errorString = err.getMessage() == null?"":err.getMessage();
+         String errorString = err.getMessage() == null ? "" : err.getMessage();
          int size = 4 + CBUtil.sizeOfString(errorString);
-         boolean isWrite;
-         switch(null.$SwitchMap$org$apache$cassandra$exceptions$ExceptionCode[err.code().ordinal()]) {
-         case 4:
-            UnavailableException ue = (UnavailableException)err;
-            size += CBUtil.sizeOfConsistencyLevel(ue.consistency) + 8;
-         case 5:
-         case 6:
-         case 7:
-         case 14:
-         case 15:
-         case 16:
-         case 17:
-         default:
-            break;
-         case 8:
-         case 9:
-            RequestFailureException rfe = (RequestFailureException)err;
-            isWrite = err.code() == ExceptionCode.WRITE_FAILURE;
-            size += CBUtil.sizeOfConsistencyLevel(rfe.consistency) + 4 + 4 + 4;
-            size += isWrite?CBUtil.sizeOfString(((WriteFailureException)rfe).writeType.toString()):1;
-            if(version.isGreaterOrEqualTo(ProtocolVersion.V5)) {
-               for(Iterator var13 = rfe.failureReasonByEndpoint.entrySet().iterator(); var13.hasNext(); size += 2) {
-                  Entry<InetAddress, RequestFailureReason> entry = (Entry)var13.next();
-                  size += CBUtil.sizeOfInetAddr((InetAddress)entry.getKey());
-               }
+         switch (err.code()) {
+            case UNAVAILABLE: {
+               UnavailableException ue = (UnavailableException)err;
+               size += CBUtil.sizeOfConsistencyLevel(ue.consistency) + 8;
+               break;
             }
-            break;
-         case 10:
-         case 11:
-            RequestTimeoutException rte = (RequestTimeoutException)err;
-            isWrite = err.code() == ExceptionCode.WRITE_TIMEOUT;
-            size += CBUtil.sizeOfConsistencyLevel(rte.consistency) + 8;
-            size += isWrite?CBUtil.sizeOfString(((WriteTimeoutException)rte).writeType.toString()):1;
-            break;
-         case 12:
-            FunctionExecutionException fee = (FunctionExecutionException)msg.error;
-            size += CBUtil.sizeOfString(fee.functionName.keyspace);
-            size += CBUtil.sizeOfString(fee.functionName.name);
-            size += CBUtil.sizeOfStringList(fee.argTypes);
-            break;
-         case 13:
-            PreparedQueryNotFoundException pqnfe = (PreparedQueryNotFoundException)err;
-            size += CBUtil.sizeOfBytes(pqnfe.id.bytes);
-            break;
-         case 18:
-            AlreadyExistsException aee = (AlreadyExistsException)err;
-            size += CBUtil.sizeOfString(aee.ksName);
-            size += CBUtil.sizeOfString(aee.cfName);
+            case WRITE_FAILURE:
+            case READ_FAILURE: {
+               RequestFailureException rfe = (RequestFailureException)err;
+               boolean isWrite = err.code() == ExceptionCode.WRITE_FAILURE;
+               size += CBUtil.sizeOfConsistencyLevel(rfe.consistency) + 4 + 4 + 4;
+               size += isWrite ? CBUtil.sizeOfString(((WriteFailureException)rfe).writeType.toString()) : 1;
+               if (!version.isGreaterOrEqualTo(ProtocolVersion.V5)) break;
+               for (Map.Entry<InetAddress, RequestFailureReason> entry : rfe.failureReasonByEndpoint.entrySet()) {
+                  size += CBUtil.sizeOfInetAddr(entry.getKey());
+                  size += 2;
+               }
+               break;
+            }
+            case WRITE_TIMEOUT:
+            case READ_TIMEOUT: {
+               RequestTimeoutException rte = (RequestTimeoutException)err;
+               boolean isWrite = err.code() == ExceptionCode.WRITE_TIMEOUT;
+               size += CBUtil.sizeOfConsistencyLevel(rte.consistency) + 8;
+               size += isWrite ? CBUtil.sizeOfString(((WriteTimeoutException)rte).writeType.toString()) : 1;
+               break;
+            }
+            case FUNCTION_FAILURE: {
+               FunctionExecutionException fee = (FunctionExecutionException)msg.error;
+               size += CBUtil.sizeOfString(fee.functionName.keyspace);
+               size += CBUtil.sizeOfString(fee.functionName.name);
+               size += CBUtil.sizeOfStringList(fee.argTypes);
+               break;
+            }
+            case UNPREPARED: {
+               PreparedQueryNotFoundException pqnfe = (PreparedQueryNotFoundException)err;
+               size += CBUtil.sizeOfBytes(pqnfe.id.bytes);
+               break;
+            }
+            case ALREADY_EXISTS: {
+               AlreadyExistsException aee = (AlreadyExistsException)err;
+               size += CBUtil.sizeOfString(aee.ksName);
+               size += CBUtil.sizeOfString(aee.cfName);
+            }
          }
-
          return size;
       }
    };
+
    public final TransportException error;
 
    private static TransportException getBackwardsCompatibleException(ErrorMessage msg, ProtocolVersion version) {
-      if(version.isSmallerThan(ProtocolVersion.V4)) {
-         switch(null.$SwitchMap$org$apache$cassandra$exceptions$ExceptionCode[msg.error.code().ordinal()]) {
-         case 8:
-            WriteFailureException wfe = (WriteFailureException)msg.error;
-            return new WriteTimeoutException(wfe.writeType, wfe.consistency, wfe.received, wfe.blockFor);
-         case 9:
-            ReadFailureException rfe = (ReadFailureException)msg.error;
-            return new ReadTimeoutException(rfe.consistency, rfe.received, rfe.blockFor, rfe.dataPresent);
-         case 10:
-         case 11:
-         default:
-            break;
-         case 12:
-            return new InvalidRequestException(msg.toString());
+      if (version.isSmallerThan(ProtocolVersion.V4)) {
+         switch (msg.error.code()) {
+            case READ_FAILURE: {
+               ReadFailureException rfe = (ReadFailureException)msg.error;
+               return new ReadTimeoutException(rfe.consistency, rfe.received, rfe.blockFor, rfe.dataPresent);
+            }
+            case WRITE_FAILURE: {
+               WriteFailureException wfe = (WriteFailureException)msg.error;
+               return new WriteTimeoutException(wfe.writeType, wfe.consistency, wfe.received, wfe.blockFor);
+            }
+            case FUNCTION_FAILURE: {
+               return new InvalidRequestException(msg.toString());
+            }
          }
       }
-
       return msg.error;
    }
 

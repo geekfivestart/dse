@@ -83,7 +83,7 @@ public class Server implements CassandraDaemon.Server {
       this.isRunning = new AtomicBoolean(false);
       this.socket = builder.getSocket();
       this.useSSL = builder.useSSL;
-      Server.EventNotifier notifier = new Server.EventNotifier(this, null);
+      Server.EventNotifier notifier = new Server.EventNotifier(this);
       StorageService.instance.register(notifier);
       Schema.instance.registerListener(notifier);
    }
@@ -489,17 +489,12 @@ public class Server implements CassandraDaemon.Server {
          ((ChannelGroup)this.groups.get(type)).add(ch);
       }
 
-      public void send(Event event, Server.ChannelFilter filter) {
-         if(Server.ChannelFilter.NOOP_FILTER.equals(filter)) {
-            ((ChannelGroup)this.groups.get(event.type)).writeAndFlush(new EventMessage(event));
+      public void send(Event event, ChannelFilter filter) {
+         if (ChannelFilter.NOOP_FILTER.equals(filter)) {
+            this.groups.get((Object)event.type).writeAndFlush((Object)new EventMessage(event));
          } else {
-            Observable var10000 = Observable.fromIterable((Iterable)this.groups.get(event.type));
-            filter.getClass();
-            var10000.flatMapMaybe(filter::accept).subscribe((channel) -> {
-               channel.writeAndFlush(new EventMessage(event));
-            });
+            Observable.fromIterable(this.groups.get(event.type)).flatMapMaybe(filter::accept).subscribe(channel -> channel.writeAndFlush((Object)new EventMessage(event)));
          }
-
       }
 
       public CompletableFuture closeAll() {
@@ -508,7 +503,7 @@ public class Server implements CassandraDaemon.Server {
          }
 
          if(this.allChannels.isEmpty()) {
-            this.closeFuture.complete((Object)null);
+            this.closeFuture.complete(null);
             return this.closeFuture;
          } else {
             assert this.inFlightRequestsFutures == null : "closeAll should only be called once";
@@ -567,7 +562,7 @@ public class Server implements CassandraDaemon.Server {
       }
 
       public Server build() {
-         return new Server(this, null);
+         return new Server(this);
       }
 
       private InetSocketAddress getSocket() {

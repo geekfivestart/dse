@@ -10,14 +10,16 @@ public class ClientMetrics {
    private ClientMetrics() {
    }
 
-   public void addCounter(String name, Callable<Integer> provider) {
-      CassandraMetricsRegistry.Metrics.register(factory.createMetricName(name), () -> {
+
+   public void addCounter(final String name, final Callable<Integer> provider) {
+      CassandraMetricsRegistry.Metrics.register(ClientMetrics.factory.createMetricName(name), (Gauge<Integer>)(() -> {
          try {
-            return (Integer)provider.call();
-         } catch (Exception var2) {
-            throw new RuntimeException(var2);
+            return provider.call();
          }
-      });
+         catch (Exception e) {
+            throw new RuntimeException(e);
+         }
+      }));
    }
 
    public Meter addMeter(String name) {

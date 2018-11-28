@@ -45,7 +45,7 @@ public class JMX {
    }
 
    public static ObjectName getObjectName(JMX.Type type, String name) throws MalformedObjectNameException {
-      return new ObjectName(buildMBeanName(type, MapBuilder.immutable().withKeys(new String[]{"name"}).withValues(new String[]{name}).build()));
+      return new ObjectName(buildMBeanName(type, MapBuilder.<String,String>immutable().withKeys(new String[]{"name"}).withValues(new String[]{name}).build()));
    }
 
    public static enum Type {

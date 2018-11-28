@@ -265,7 +265,7 @@ public class ConnectionHandler {
 
       public ListenableFuture<?> close() {
          SettableFuture<?> future = SettableFuture.create();
-         return (ListenableFuture)(this.closeFuture.compareAndSet((Object)null, future)?future:(ListenableFuture)this.closeFuture.get());
+         return (ListenableFuture)(this.closeFuture.compareAndSet(null, future)?future:(ListenableFuture)this.closeFuture.get());
       }
 
       public boolean isClosed() {

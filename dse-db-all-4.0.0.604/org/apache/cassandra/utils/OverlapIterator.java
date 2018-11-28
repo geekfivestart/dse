@@ -25,11 +25,11 @@ public class OverlapIterator<I extends Comparable<? super I>, V> {
 
    public void update(I point) {
       while(this.nextToInclude < this.sortedByMin.size() && ((Comparable)((Interval)this.sortedByMin.get(this.nextToInclude)).min).compareTo(point) <= 0) {
-         this.overlaps.add(((Interval)this.sortedByMin.get(this.nextToInclude++)).data);
+         this.overlaps.add((this.sortedByMin.get(this.nextToInclude++)).data);
       }
 
       while(this.nextToExclude < this.sortedByMax.size() && ((Comparable)((Interval)this.sortedByMax.get(this.nextToExclude)).max).compareTo(point) < 0) {
-         this.overlaps.remove(((Interval)this.sortedByMax.get(this.nextToExclude++)).data);
+         this.overlaps.remove((this.sortedByMax.get(this.nextToExclude++)).data);
       }
 
    }

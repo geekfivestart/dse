@@ -68,7 +68,7 @@ final class UpdatesCollector {
       IMutation mutation = (IMutation)this.keyspaceMap(ksName).get(dk.getKey());
       if(mutation == null) {
          Mutation mut = new Mutation(ksName, dk);
-         IMutation mutation = metadata.isCounter()?new CounterMutation(mut, consistency):mut;
+         mutation = metadata.isCounter()?new CounterMutation(mut, consistency):mut;
          this.keyspaceMap(ksName).put(dk.getKey(), mutation);
          return mut;
       } else {

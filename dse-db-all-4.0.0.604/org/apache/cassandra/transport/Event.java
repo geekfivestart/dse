@@ -15,21 +15,22 @@ public abstract class Event {
    }
 
    public static Event deserialize(ByteBuf cb, ProtocolVersion version) {
-      Event.Type eventType = (Event.Type)CBUtil.readEnumValue(Event.Type.class, cb);
-      if(eventType.minimumVersion.isGreaterThan(version)) {
+      Type eventType = CBUtil.readEnumValue(Type.class, cb);
+      if (eventType.minimumVersion.isGreaterThan(version)) {
          throw new ProtocolException("Event " + eventType.name() + " not valid for protocol version " + version);
-      } else {
-         switch(null.$SwitchMap$org$apache$cassandra$transport$Event$Type[eventType.ordinal()]) {
-         case 1:
-            return Event.TopologyChange.deserializeEvent(cb, version);
-         case 2:
-            return Event.StatusChange.deserializeEvent(cb, version);
-         case 3:
-            return Event.SchemaChange.deserializeEvent(cb, version);
-         default:
-            throw new AssertionError();
+      }
+      switch (eventType) {
+         case TOPOLOGY_CHANGE: {
+            return TopologyChange.deserializeEvent(cb, version);
+         }
+         case STATUS_CHANGE: {
+            return StatusChange.deserializeEvent(cb, version);
+         }
+         case SCHEMA_CHANGE: {
+            return SchemaChange.deserializeEvent(cb, version);
          }
       }
+      throw new AssertionError();
    }
 
    public void serialize(ByteBuf dest, ProtocolVersion version) {
@@ -58,7 +59,7 @@ public abstract class Event {
       public final List<String> argTypes;
 
       public SchemaChange(Event.SchemaChange.Change change, Event.SchemaChange.Target target, String keyspace, String name, List<String> argTypes) {
-         super(Event.Type.SCHEMA_CHANGE, null);
+         super(Event.Type.SCHEMA_CHANGE);
          this.change = change;
          this.target = target;
          this.keyspace = keyspace;
@@ -79,10 +80,9 @@ public abstract class Event {
 
       public static Event.SchemaChange deserializeEvent(ByteBuf cb, ProtocolVersion version) {
          Event.SchemaChange.Change change = (Event.SchemaChange.Change)CBUtil.readEnumValue(Event.SchemaChange.Change.class, cb);
-         String keyspace;
          if(version.isGreaterOrEqualTo(ProtocolVersion.V3)) {
             Event.SchemaChange.Target target = (Event.SchemaChange.Target)CBUtil.readEnumValue(Event.SchemaChange.Target.class, cb);
-            keyspace = CBUtil.readString(cb);
+            String keyspace = CBUtil.readString(cb);
             String tableOrType = target == Event.SchemaChange.Target.KEYSPACE?null:CBUtil.readString(cb);
             List<String> argTypes = null;
             if(target == Event.SchemaChange.Target.FUNCTION || target == Event.SchemaChange.Target.AGGREGATE) {
@@ -218,7 +218,7 @@ public abstract class Event {
       public final Event.StatusChange.Status status;
 
       private StatusChange(Event.StatusChange.Status status, InetSocketAddress node) {
-         super(Event.Type.STATUS_CHANGE, node, null);
+         super(Event.Type.STATUS_CHANGE, node);
          this.status = status;
       }
 
@@ -275,7 +275,7 @@ public abstract class Event {
       public final Event.TopologyChange.Change change;
 
       private TopologyChange(Event.TopologyChange.Change change, InetSocketAddress node) {
-         super(Event.Type.TOPOLOGY_CHANGE, node, null);
+         super(Event.Type.TOPOLOGY_CHANGE, node);
          this.change = change;
       }
 
@@ -341,7 +341,7 @@ public abstract class Event {
       }
 
       private NodeEvent(Event.Type type, InetSocketAddress node) {
-         super(type, null);
+         super(type);
          this.node = node;
       }
    }

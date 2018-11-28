@@ -85,7 +85,7 @@ abstract class AbstractWriteHandler extends WriteHandler {
          protected void subscribeActual(CompletableObserver subscriber) {
             subscriber.onSubscribe(EmptyDisposable.INSTANCE);
             TPCTimeoutTask<WriteHandler> timeoutTask = new TPCTimeoutTask(AbstractWriteHandler.this.requestExpirer, AbstractWriteHandler.this);
-            timeoutTask.submit(new AbstractWriteHandler.TimeoutAction(null), AbstractWriteHandler.this.currentTimeout(), TimeUnit.NANOSECONDS);
+            timeoutTask.submit(new AbstractWriteHandler.TimeoutAction(), AbstractWriteHandler.this.currentTimeout(), TimeUnit.NANOSECONDS);
             AbstractWriteHandler.this.whenComplete((result, error) -> {
                if(WriteHandler.logger.isTraceEnabled()) {
                   WriteHandler.logger.trace("{} - Completed with {}/{}", new Object[]{Integer.valueOf(AbstractWriteHandler.this.hashCode()), result, error == null?null:error.getClass().getName()});

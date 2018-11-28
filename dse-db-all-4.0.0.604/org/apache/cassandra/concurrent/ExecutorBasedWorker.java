@@ -15,6 +15,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Callable;
 
 class ExecutorBasedWorker extends Worker {
    static final ExecutorBasedWorker DISPOSED = disposed();
@@ -75,26 +76,25 @@ class ExecutorBasedWorker extends Worker {
       return (Disposable)(this.disposed?EmptyDisposable.INSTANCE:this.scheduleActual(action, delayTime, unit, this.tasks));
    }
 
-   ScheduledRunnable scheduleActual(Runnable decoratedRun, long delayTime, TimeUnit unit, DisposableContainer parent) {
-      ScheduledRunnable sr = new ScheduledRunnable(decoratedRun, parent);
-      if(parent != null && !parent.add(sr)) {
-         return sr;
-      } else {
-         try {
-            Object f;
-            if(delayTime <= 0L) {
-               f = this.executor.submit(sr);
-            } else {
-               f = this.executor.schedule(sr, delayTime, unit);
-            }
-
-            sr.setFuture((Future)f);
-         } catch (RejectedExecutionException var9) {
-            RxJavaPlugins.onError(var9);
-         }
-
+   ScheduledRunnable scheduleActual(final Runnable decoratedRun, final long delayTime, final TimeUnit unit, final DisposableContainer parent) {
+      final ScheduledRunnable sr = new ScheduledRunnable(decoratedRun, parent);
+      if (parent != null && !parent.add((Disposable)sr)) {
          return sr;
       }
+      try {
+         Future<?> f;
+         if (delayTime <= 0L) {
+            f = this.executor.submit((Callable<?>)sr);
+         }
+         else {
+            f = this.executor.schedule((Callable<Object>)sr, delayTime, unit);
+         }
+         sr.setFuture((Future)f);
+      }
+      catch (RejectedExecutionException ex) {
+         RxJavaPlugins.onError((Throwable)ex);
+      }
+      return sr;
    }
 
    public long unusedTime(long currrentTime) {

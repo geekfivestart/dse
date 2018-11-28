@@ -9,7 +9,7 @@ public class KmipCommands {
    public static final String MANAGE_KMIP = "managekmip";
    private static final String WARN_BOX = "***********\n* WARNING *\n***********";
    private static final String DATA_LOSS_WARNING = "Revoking/destroying keys will render any data encrypted with them unreadable.\nBefore revoking or destroying a key, the following procedure should be followed\nfor re-keying any data encrypted with this key:\n    * Set expiration of key using `dsetool managekmip expirekey <id>`\n    * After expiration time has passed, run `nodetool upgradesstables -a` on any tables\n       (including system tables) that may be using the key.";
-   private static final Map<String, KmipCommand> commands = ImmutableMap.builder().put("help", new CliHelp()).put("list", new ListKeys()).put("expirekey", new ExpireKey()).put("revoke", new RevokeKey()).put("destroy", new DestroyKey()).build();
+   private static final Map<String, KmipCommand> commands = ImmutableMap.<String,KmipCommand>builder().put("help", new CliHelp()).put("list", new ListKeys()).put("expirekey", new ExpireKey()).put("revoke", new RevokeKey()).put("destroy", new DestroyKey()).build();
    private static final List<String> COMMAND_NAMES;
 
    public KmipCommands() {

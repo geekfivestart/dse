@@ -20,9 +20,9 @@ import org.slf4j.LoggerFactory;
 @Singleton
 public class InternalQueryRouterProtocol implements InternodeProtocol {
    private static final Logger LOGGER = LoggerFactory.getLogger(InternalQueryRouterProtocol.class);
-   public static final MessageType REQUEST_MESSAGE_TYPE;
-   public static final MessageType RESPONSE_MESSAGE_TYPE;
-   public static final MessageType RPC_REQUEST_MESSAGE_TYPE;
+   public static final MessageType   REQUEST_MESSAGE_TYPE = MessageType.of(MessageType.Domain.GENERIC_QUERY_ROUTER, (byte)1);
+   public static final MessageType   RESPONSE_MESSAGE_TYPE = MessageType.of(MessageType.Domain.GENERIC_QUERY_ROUTER, (byte)2);
+   public static final MessageType   RPC_REQUEST_MESSAGE_TYPE = MessageType.of(MessageType.Domain.GENERIC_QUERY_ROUTER, (byte)3);
    private final QueryHandler queryHandler = ClientState.getCQLQueryHandler();
    private final InternalQueryRouterProtocol.RoutingServerProcessor queryProcessor = new InternalQueryRouterProtocol.RoutingServerProcessor();
    private final InternalQueryRouterProtocol.RpcRoutingServerProcessor rpcProcessor = new InternalQueryRouterProtocol.RpcRoutingServerProcessor();
@@ -37,12 +37,6 @@ public class InternalQueryRouterProtocol implements InternodeProtocol {
       registry.addProcessor(REQUEST_MESSAGE_TYPE, this.queryProcessor);
       registry.addProcessor(RPC_REQUEST_MESSAGE_TYPE, this.rpcProcessor);
       LOGGER.info("Registered InternalQueryRouterProtocol");
-   }
-
-   static {
-      REQUEST_MESSAGE_TYPE = MessageType.of(MessageType.Domain.GENERIC_QUERY_ROUTER, 1);
-      RESPONSE_MESSAGE_TYPE = MessageType.of(MessageType.Domain.GENERIC_QUERY_ROUTER, 2);
-      RPC_REQUEST_MESSAGE_TYPE = MessageType.of(MessageType.Domain.GENERIC_QUERY_ROUTER, 3);
    }
 
    private class RpcRoutingServerProcessor implements ServerProcessor<RoutedRpcRequest, RoutedQueryResponse> {

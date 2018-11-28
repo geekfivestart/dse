@@ -117,7 +117,7 @@ public abstract class Message {
 
    static {
       noSpamLogger = NoSpamLogger.getLogger(logger, 10L, TimeUnit.SECONDS);
-      ioExceptionsAtDebugLevel = ImmutableSet.builder().add("Connection reset by peer").add("Broken pipe").add("Connection timed out").build();
+      ioExceptionsAtDebugLevel = ImmutableSet.<String>builder().add("Connection reset by peer").add("Broken pipe").add("Connection timed out").build();
    }
 
    static final class UnexpectedChannelExceptionHandler implements Predicate<Throwable> {
@@ -130,35 +130,28 @@ public abstract class Message {
       }
 
       public boolean apply(Throwable exception) {
-         if(exception instanceof RuntimeException && exception.getCause() != null && exception.getCause() instanceof IOException) {
+         String channelInfo;
+         if (exception instanceof RuntimeException && exception.getCause() != null && exception.getCause() instanceof IOException) {
             exception = exception.getCause();
          }
-
          String message = "Unexpected exception during request; channel = {}";
-
-         String channelInfo;
          try {
-            channelInfo = String.valueOf(this.channel);
-         } catch (Exception var5) {
+            channelInfo = String.valueOf((Object)this.channel);
+         }
+         catch (Exception ignore) {
             channelInfo = "<unprintable>";
          }
-
-         if(!this.alwaysLogAtError && exception instanceof IOException) {
-            if(exception.getMessage() != null) {
-               Stream var10000 = Message.ioExceptionsAtDebugLevel.stream();
-               String var10001 = exception.getMessage();
-               var10001.getClass();
-               if(var10000.anyMatch(var10001::contains)) {
-                  Message.logger.trace(message, channelInfo, exception);
+         if (!this.alwaysLogAtError && exception instanceof IOException) {
+            if (exception.getMessage() != null) {
+               if (ioExceptionsAtDebugLevel.stream().anyMatch(exception.getMessage()::contains)) {
+                  Message.logger.trace(message, (Object)channelInfo, (Object)exception);
                   return true;
                }
             }
-
-            Message.noSpamLogger.info(message, new Object[]{channelInfo, exception});
-         } else {
-            Message.logger.error(message, channelInfo, exception);
+            noSpamLogger.info(message, channelInfo, exception);
+            return true;
          }
-
+         Message.logger.error(message, (Object)channelInfo, (Object)exception);
          return true;
       }
    }
@@ -319,7 +312,7 @@ public abstract class Message {
             boolean doneWork;
             Message.Dispatcher.FlushItem item;
             for(doneWork = false; null != (item = (Message.Dispatcher.FlushItem)this.queued.poll()); doneWork = true) {
-               ((Message.Dispatcher.ChannelFlusher)this.channels.computeIfAbsent(item.ctx, Message.Dispatcher.ChannelFlusher::<init>)).add(item);
+               ((Message.Dispatcher.ChannelFlusher)this.channels.computeIfAbsent(item.ctx, Message.Dispatcher.ChannelFlusher::new)).add(item);
             }
 
             Iterator var3 = this.channels.entrySet().iterator();
@@ -417,21 +410,20 @@ public abstract class Message {
 
       public void encode(ChannelHandlerContext ctx, Message message, List results) {
          Connection connection = (Connection)ctx.channel().attr(Connection.attributeKey).get();
-         ProtocolVersion version = connection == null?ProtocolVersion.CURRENT:connection.getVersion();
-         Message.Codec<Message> codec = message.type.codec;
+         ProtocolVersion version = connection == null ? ProtocolVersion.CURRENT : connection.getVersion();
+         Codec<Message> codec = (Codec<Message>)message.type.codec;
          Frame frame = null;
          int messageSize = codec.encodedSize(message, version);
-
          try {
-            frame = makeFrame(message, messageSize, version);
+            frame = ProtocolEncoder.makeFrame(message, messageSize, version);
             codec.encode(message, frame.body, version);
             results.add(frame);
-         } catch (Throwable var10) {
-            if(frame != null) {
+         }
+         catch (Throwable e) {
+            if (frame != null) {
                frame.body.release();
             }
-
-            throw ErrorMessage.wrap(var10, message.getStreamId());
+            throw ErrorMessage.wrap(e, message.getStreamId());
          }
       }
 

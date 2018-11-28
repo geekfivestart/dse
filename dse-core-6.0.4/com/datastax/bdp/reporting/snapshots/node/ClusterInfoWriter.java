@@ -58,7 +58,7 @@ public class ClusterInfoWriter extends CqlWriter<ClusterInfo> {
    }
 
    protected CqlWriter<ClusterInfo>.WriterConfig createWriterConfig(CassandraVersion dseVersion) {
-      return new CqlWriter.WriterConfig(this.getInsertCQL(dseVersion), (clusterInfo) -> {
+      return new CqlWriter<ClusterInfo>.WriterConfig(this.getInsertCQL(dseVersion), (clusterInfo) -> {
          return this.getVariables(clusterInfo, dseVersion);
       });
    }

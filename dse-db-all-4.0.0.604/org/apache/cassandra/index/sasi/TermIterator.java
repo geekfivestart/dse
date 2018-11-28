@@ -63,7 +63,7 @@ public class TermIterator extends RangeIterator<Long, Token> {
          tokenCount.addAndGet(memtableIterator.getCount());
       }
 
-      CopyOnWriteArraySet referencedIndexes = new CopyOnWriteArraySet();
+      CopyOnWriteArraySet<SSTableIndex> referencedIndexes = new CopyOnWriteArraySet();
 
       try {
          CountDownLatch latch = new CountDownLatch(perSSTableIndexes.size());

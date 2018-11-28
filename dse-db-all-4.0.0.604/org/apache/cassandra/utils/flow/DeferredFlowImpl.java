@@ -51,7 +51,7 @@ class DeferredFlowImpl<T> extends DeferredFlow<T> implements FlowSubscriptionRec
    }
 
    public boolean onSource(Flow<T> value) {
-      if(this.source.compareAndSet((Object)null, value)) {
+      if(this.source.compareAndSet(null, value)) {
          if(logger.isTraceEnabled()) {
             logger.trace("{} - got source", Integer.valueOf(this.hashCode()));
          }

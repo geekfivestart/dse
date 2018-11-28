@@ -11,11 +11,12 @@ public class FilterPipelineExecutor {
 
    public static <F, T> T execute(FilterPipelineTask<F, T> task, T initialInput) {
       FilterPipelineTask<?, ?> taskPtr = task;
-      Object result = initialInput;
+      T result = initialInput;
 
       try {
          do {
-            result = taskPtr.process(result);
+            FilterPipelineTask<T, T> taskGeneric = (FilterPipelineTask<T, T>) taskPtr;
+            result = taskGeneric.process(result);
             taskPtr = taskPtr.next;
          } while(taskPtr != null);
 

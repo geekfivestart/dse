@@ -6,11 +6,11 @@ import java.security.PrivilegedAction;
 import sun.misc.Unsafe;
 
 public class UnsafeAccess {
-   public static final Unsafe UNSAFE = (Unsafe)AccessController.doPrivileged(() -> {
+   public static final Unsafe UNSAFE = (Unsafe)AccessController.doPrivileged((PrivilegedAction<Object>)() -> {
       try {
          Field f = Unsafe.class.getDeclaredField("theUnsafe");
          f.setAccessible(true);
-         return f.get((Object)null);
+         return f.get(null);
       } catch (IllegalAccessException | NoSuchFieldException var1) {
          throw new Error();
       }

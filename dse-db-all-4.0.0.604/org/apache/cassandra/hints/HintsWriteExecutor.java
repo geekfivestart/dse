@@ -127,7 +127,7 @@ final class HintsWriteExecutor {
    private final class FsyncWritersTask implements Runnable {
       private final Iterable<HintsStore> stores;
 
-      FsyncWritersTask(Iterable<HintsStore> var1) {
+      FsyncWritersTask(Iterable<HintsStore> stores) {
          this.stores = stores;
       }
 
@@ -141,7 +141,7 @@ final class HintsWriteExecutor {
       private final HintsBufferPool bufferPool;
       private final Iterable<HintsStore> stores;
 
-      PartiallyFlushBufferPoolTask(HintsBufferPool var1, Iterable<HintsStore> bufferPool) {
+      PartiallyFlushBufferPoolTask(HintsBufferPool bufferPool, Iterable<HintsStore> stores) {
          this.bufferPool = bufferPool;
          this.stores = stores;
       }

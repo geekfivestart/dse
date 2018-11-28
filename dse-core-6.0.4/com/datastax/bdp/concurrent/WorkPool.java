@@ -1,6 +1,7 @@
 package com.datastax.bdp.concurrent;
 
 import com.codahale.metrics.Gauge;
+import com.codahale.metrics.Metric;
 import com.datastax.bdp.concurrent.metrics.HdrSlidingTimeStats;
 import com.datastax.bdp.concurrent.metrics.SlidingTimeRate;
 import com.datastax.bdp.concurrent.metrics.SlidingTimeStats;
@@ -317,27 +318,13 @@ public class WorkPool implements WorkPoolMXBean {
    }
 
    public void addToCassandraMetricsRegistry(String index) {
-      CassandraMetricsRegistry.Metrics.register(this.buildCMRName("Queue Size", "IndexPool", index), () -> {
-         return Long.valueOf(this.getTotalQueueSize());
-      });
-      CassandraMetricsRegistry.Metrics.register(this.buildCMRName("Task Processing Time Nanos", "IndexPool", index), () -> {
-         return Long.valueOf(LongStream.of(this.getTaskProcessingTimeNanos()).sum());
-      });
-      CassandraMetricsRegistry.Metrics.register(this.buildCMRName("Processed Tasks", "IndexPool", index), () -> {
-         return Long.valueOf(LongStream.of(this.getProcessedTasks()).sum());
-      });
-      CassandraMetricsRegistry.Metrics.register(this.buildCMRName("Backpressure Pause Nanos", "IndexPool", index), () -> {
-         return Double.valueOf(this.getBackPressurePauseNanos());
-      });
-      CassandraMetricsRegistry.Metrics.register(this.buildCMRName("Incoming Rate", "IndexPool", index), () -> {
-         return Double.valueOf(this.getIncomingRate());
-      });
-      CassandraMetricsRegistry.Metrics.register(this.buildCMRName("Outgoing Rate", "IndexPool", index), () -> {
-         return Double.valueOf(this.getOutgoingRate());
-      });
-      CassandraMetricsRegistry.Metrics.register(this.buildCMRName("Throughput", "IndexPool", index), () -> {
-         return Long.valueOf(this.getThroughput());
-      });
+      CassandraMetricsRegistry.Metrics.register(this.buildCMRName(INDEX_POOL_QUEUE_SIZE_GAUGE_NAME, INDEX_POOL_METRIC_TYPE_NAME, index), (Metric)((Gauge)() -> this.getTotalQueueSize()));
+      CassandraMetricsRegistry.Metrics.register(this.buildCMRName(INDEX_POOL_TASK_PROCESSING_TIME_NANOS_GAUGE_NAME, INDEX_POOL_METRIC_TYPE_NAME, index), (Metric)((Gauge)() -> LongStream.of(this.getTaskProcessingTimeNanos()).sum()));
+      CassandraMetricsRegistry.Metrics.register(this.buildCMRName(INDEX_POOL_PROCESSED_TASKS_GAUGE_NAME, INDEX_POOL_METRIC_TYPE_NAME, index), (Metric)((Gauge)() -> LongStream.of(this.getProcessedTasks()).sum()));
+      CassandraMetricsRegistry.Metrics.register(this.buildCMRName(INDEX_POOL_BACKPRESSURE_PAUSE_NANOS_GAUGE_NAME, INDEX_POOL_METRIC_TYPE_NAME, index), (Metric)((Gauge)() -> this.getBackPressurePauseNanos()));
+      CassandraMetricsRegistry.Metrics.register(this.buildCMRName(INDEX_POOL_INCOMING_RATE_GAUGE_NAME, INDEX_POOL_METRIC_TYPE_NAME, index), (Metric)((Gauge)() -> this.getIncomingRate()));
+      CassandraMetricsRegistry.Metrics.register(this.buildCMRName(INDEX_POOL_OUTGOING_RATE_GAUGE_NAME, INDEX_POOL_METRIC_TYPE_NAME, index), (Metric)((Gauge)() -> this.getOutgoingRate()));
+      CassandraMetricsRegistry.Metrics.register(this.buildCMRName(INDEX_POOL_THROUGHPUT_GAUGE_NAME, INDEX_POOL_METRIC_TYPE_NAME, index), (Metric)((Gauge)() -> this.getThroughput()));
    }
 
    public void removeFromCassandraMetricsRegistry(String index) {
@@ -380,64 +367,52 @@ public class WorkPool implements WorkPoolMXBean {
    }
 
    private void doFlush(boolean shutdown, boolean allowTimeout) throws InterruptedException, TimeoutException {
-      long currentTimeout = (long)this.flushMaxTimeMillis;
+      long currentTimeout;
+      currentTimeout = this.flushMaxTimeMillis;
       this.workLock.writeLock().lock();
-
       try {
          ++this.flushEpoch;
-      } finally {
+      }
+      finally {
          this.workLock.writeLock().unlock();
       }
-
-      ArrayList flushes = new ArrayList(this.concurrency);
-
+      ArrayList<FlushTask> flushes = new ArrayList<FlushTask>(this.concurrency);
       try {
-         FlushTask flush;
-         for(int i = 0; i < this.concurrency; ++i) {
-            flush = new FlushTask(this.timeSource, shutdown);
+         boolean success;
+         long start;
+         for (int i = 0; i < this.concurrency; ++i) {
+            FlushTask flush = new FlushTask(this.timeSource, shutdown);
             this.queues[i].offer(flush);
             flushes.add(flush);
          }
-
-         Iterator var18 = flushes.iterator();
-
-         long start;
-         boolean success;
-         while(var18.hasNext()) {
-            flush = (FlushTask)var18.next();
-            if(allowTimeout) {
+         for (FlushTask flush : flushes) {
+            if (allowTimeout) {
                start = this.timeSource.currentTimeMillis();
                success = flush.await(currentTimeout, TimeUnit.MILLISECONDS);
-               if(!success) {
+               if (!success) {
                   this.doFlushError();
                }
-
                currentTimeout -= this.timeSource.currentTimeMillis() - start;
-            } else {
-               flush.await();
+               continue;
             }
+            flush.await();
          }
-
-         var18 = this.flushQueue.iterator();
-
-         while(var18.hasNext()) {
-            Task task = (Task)var18.next();
-            if(allowTimeout) {
+         for (Task task : this.flushQueue) {
+            if (allowTimeout) {
                start = this.timeSource.currentTimeMillis();
                success = task.await(currentTimeout, TimeUnit.MILLISECONDS);
-               if(!success) {
+               if (!success) {
                   this.doFlushError();
                }
-
                currentTimeout -= this.timeSource.currentTimeMillis() - start;
-            } else {
-               task.await();
+               continue;
             }
+            task.await();
          }
-      } finally {
+      }
+      finally {
          this.flushQueue.clear();
       }
-
    }
 
    private void doFlushError() throws TimeoutException {
@@ -493,7 +468,8 @@ public class WorkPool implements WorkPoolMXBean {
       values.add(metricType);
       keys.add("name");
       values.add(metricName);
-      String mbeanName = JMX.buildMBeanName(JMX.Type.METRICS, MapBuilder.immutable().withKeys(keys.toArray(new String[0])).withValues(values.toArray(new String[0])).build());
+      String mbeanName = JMX.buildMBeanName(JMX.Type.METRICS,
+              MapBuilder.<String,String>immutable().withKeys(keys.toArray(new String[0])).withValues(values.toArray(new String[0])).build());
       MetricName retval = new MetricName("com.datastax.bdp", "search", metricName, index, mbeanName);
       return retval;
    }

@@ -16,7 +16,7 @@ public class RetrySetup {
    }
 
    public RetrySetup.RetrySchedule fromNow() {
-      return new RetrySetup.RetrySchedule(this.timeSource, this.timeSource.currentTimeMillis() + this.timeout.toMillis(), this.interval.toMillis(), null);
+      return new RetrySetup.RetrySchedule(this.timeSource, this.timeSource.currentTimeMillis() + this.timeout.toMillis(), this.interval.toMillis());
    }
 
    public RetrySetup.RetrySchedule fromNow(final Object refToWaitOn) {

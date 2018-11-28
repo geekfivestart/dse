@@ -48,7 +48,7 @@ public class Stack implements Iterable<Transformation> {
 
    void add(MoreContents more) {
       this.moreContents = (Stack.MoreContentsHolder[])Arrays.copyOf(this.moreContents, this.moreContents.length + 1);
-      this.moreContents[this.moreContents.length - 1] = new Stack.MoreContentsHolder(more, this.length, null);
+      this.moreContents[this.moreContents.length - 1] = new Stack.MoreContentsHolder(more, this.length);
    }
 
    private static <E> E[] resize(E[] array) {

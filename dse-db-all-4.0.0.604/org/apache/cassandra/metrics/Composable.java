@@ -6,19 +6,10 @@ public interface Composable<M extends Metric> {
    Composable.Type getType();
 
    default void compose(M metric) {
-      if(!null.$assertionsDisabled && this.getType() != Composable.Type.SINGLE) {
-         throw new AssertionError("Composite metrics should implement compose()");
-      } else {
-         throw new UnsupportedOperationException("Single metric cannot be composed with other metrics");
-      }
+      assert this.getType() == Type.SINGLE : "Composite metrics should implement compose()";
+      throw new UnsupportedOperationException("Single metric cannot be composed with other metrics");
    }
 
-   static default {
-      if(null.$assertionsDisabled) {
-         ;
-      }
-
-   }
 
    public static enum Type {
       SINGLE,

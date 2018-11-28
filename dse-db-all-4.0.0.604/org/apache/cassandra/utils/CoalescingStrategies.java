@@ -464,7 +464,7 @@ public class CoalescingStrategies {
             Iterator var2 = coalescables.iterator();
 
             while(var2.hasNext()) {
-               C coalescable = (CoalescingStrategies.Coalescable)var2.next();
+               C coalescable = (C)var2.next();
                this.debugTimestamp(coalescable.timestampNanos());
             }
          }

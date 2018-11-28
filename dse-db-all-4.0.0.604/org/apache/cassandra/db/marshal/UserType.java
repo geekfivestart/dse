@@ -103,12 +103,12 @@ public class UserType extends TupleType {
       return this.type(i);
    }
 
-   public ByteBuffer decomposeField(int i, Object value) {
-      return this.type(i).decompose(value);
+   public <T> ByteBuffer decomposeField(int i, T value) {
+      return ((AbstractType<T>)(this.type(i))).decompose(value);
    }
 
    public <T> T composeField(int i, ByteBuffer value) {
-      return this.type(i).compose(value);
+      return (T)this.type(i).compose(value);
    }
 
    public List<AbstractType<?>> fieldTypes() {

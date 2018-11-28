@@ -64,7 +64,7 @@ public class Accumulator<E> implements Iterable<E> {
          }
 
          public E next() {
-            return Accumulator.this.values[this.p++];
+            return (E)Accumulator.this.values[this.p++];
          }
 
          public void remove() {
@@ -77,7 +77,7 @@ public class Accumulator<E> implements Iterable<E> {
       if(i >= this.presentCount) {
          throw new IndexOutOfBoundsException();
       } else {
-         return this.values[i];
+         return (E)this.values[i];
       }
    }
 }

@@ -65,13 +65,13 @@ public abstract class MessageClient {
                });
             }
          });
-         MessageClient.this.limitCheckScheduler.scheduleAtFixedRate(MessageClient.this.new ConnectionLimiter(null), 300000L, 300000L, TimeUnit.MILLISECONDS);
+         MessageClient.this.limitCheckScheduler.scheduleAtFixedRate(MessageClient.this.new ConnectionLimiter(), 300000L, 300000L, TimeUnit.MILLISECONDS);
          return _bootstrap;
       }
    });
 
    public static MessageClient.Builder newBuilder() {
-      return new MessageClient.Builder(null);
+      return new MessageClient.Builder();
    }
 
    public MessageClient(int maxConnections, int workerThreads, int handshakeTimeoutSecs, Optional<SSLOptions> sslOptions, MessageCodec codec) {
@@ -89,7 +89,7 @@ public abstract class MessageClient {
       while(connection == null) {
          hostConnectionsQueue = (BlockingQueue)this.liveConnectionsQueue.get(address);
          if(hostConnectionsQueue == null) {
-            this.liveConnectionsQueue.putIfAbsent(address, new PriorityBlockingQueue(10, new MessageClient.ConnectionComparator(null)));
+            this.liveConnectionsQueue.putIfAbsent(address, new PriorityBlockingQueue(10, new MessageClient.ConnectionComparator()));
             this.liveConnectionsTracker.putIfAbsent(address, new ConcurrentSkipListSet());
             hostConnectionsQueue = (BlockingQueue)this.liveConnectionsQueue.get(address);
             connection = this.tryNewConnection(address, port);

@@ -40,20 +40,16 @@ public class Tuples {
       }).collect(Collectors.joining(", ", "(", ")"));
    }
 
-   public static <T> AbstractType<?> getExactTupleTypeIfKnown(List<T> items, Function<T, AbstractType<?>> mapper) {
-      List<AbstractType<?>> types = new ArrayList(items.size());
-      Iterator var3 = items.iterator();
 
-      while(var3.hasNext()) {
-         T item = var3.next();
-         AbstractType<?> type = (AbstractType)mapper.apply(item);
-         if(type == null) {
+   public static <T> AbstractType<?> getExactTupleTypeIfKnown(List<T> items, java.util.function.Function<T, AbstractType<?>> mapper) {
+      ArrayList types = new ArrayList(items.size());
+      for (T item : items) {
+         AbstractType<?> type = mapper.apply(item);
+         if (type == null) {
             return null;
          }
-
          types.add(type);
       }
-
       return new TupleType(types);
    }
 

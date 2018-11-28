@@ -77,7 +77,7 @@ public class SelectionColumnMapping implements SelectionColumns {
 
    public String toString() {
       return (String)this.columnMappings.asMap().entrySet().stream().map((entry) -> {
-         return (String)((Collection)entry.getValue()).stream().map((colDef) -> {
+         return (String)(entry.getValue()).stream().map((colDef) -> {
             return colDef.name.toString();
          }).collect(Collectors.joining(", ", ((ColumnSpecification)entry.getKey()).name.toString() + ":[", "]"));
       }).collect(Collectors.joining(", ", (CharSequence)this.columnSpecifications.stream().map((colSpec) -> {

@@ -56,63 +56,49 @@ public class TriggerExecutor {
       }
    }
 
-   public Collection<Mutation> execute(Collection<? extends IMutation> mutations) throws InvalidRequestException {
-      boolean hasCounters = false;
-      List<Mutation> augmentedMutations = null;
-      Iterator var4 = mutations.iterator();
-
-      while(var4.hasNext()) {
-         IMutation mutation = (IMutation)var4.next();
-         if(mutation instanceof CounterMutation) {
-            hasCounters = true;
-         }
-
-         Iterator var6 = mutation.getPartitionUpdates().iterator();
-
-         while(var6.hasNext()) {
-            PartitionUpdate upd = (PartitionUpdate)var6.next();
-            List<Mutation> augmentations = this.executeInternal(upd);
-            if(augmentations != null && !augmentations.isEmpty()) {
-               this.validate(augmentations);
-               if(augmentedMutations == null) {
-                  augmentedMutations = new LinkedList();
-               }
-
-               augmentedMutations.addAll(augmentations);
+    public Collection<Mutation> execute(Collection<? extends IMutation> mutations) throws InvalidRequestException {
+        boolean hasCounters = false;
+        LinkedList<Mutation> augmentedMutations = null;
+        for (IMutation mutation : mutations) {
+            if (mutation instanceof CounterMutation) {
+                hasCounters = true;
             }
-         }
-      }
+            for (PartitionUpdate upd : mutation.getPartitionUpdates()) {
+                List<Mutation> augmentations = this.executeInternal(upd);
+                if (augmentations == null || augmentations.isEmpty()) continue;
+                this.validate(augmentations);
+                if (augmentedMutations == null) {
+                    augmentedMutations = new LinkedList<Mutation>();
+                }
+                augmentedMutations.addAll(augmentations);
+            }
+        }
+        if (augmentedMutations == null) {
+            return null;
+        }
+        if (hasCounters) {
+            throw new InvalidRequestException("Counter mutations and trigger mutations cannot be applied together atomically.");
+        }
+        Collection<? extends IMutation> originalMutations = mutations;
+        return this.mergeMutations(Iterables.concat((Iterable)originalMutations, (Iterable)augmentedMutations));
+    }
 
-      if(augmentedMutations == null) {
-         return null;
-      } else if(hasCounters) {
-         throw new InvalidRequestException("Counter mutations and trigger mutations cannot be applied together atomically.");
-      } else {
-         return this.mergeMutations(Iterables.concat(mutations, augmentedMutations));
-      }
-   }
 
-   private Collection<Mutation> mergeMutations(Iterable<Mutation> mutations) {
-      ListMultimap<Pair<String, ByteBuffer>, Mutation> groupedMutations = ArrayListMultimap.create();
-      Iterator var3 = mutations.iterator();
+    private Collection<Mutation> mergeMutations(final Iterable<Mutation> mutations) {
+        final ListMultimap<Pair<String, ByteBuffer>, Mutation> groupedMutations = ArrayListMultimap.create();
+        for (final Mutation mutation : mutations) {
+            final Pair<String, ByteBuffer> key = Pair.create(mutation.getKeyspaceName(), mutation.key().getKey());
+            groupedMutations.put(key, mutation);
+        }
+        final List<Mutation> merged = new ArrayList<Mutation>(groupedMutations.size());
+        final Iterator<Pair<String, ByteBuffer>> iterator2 = groupedMutations.keySet().iterator();
+        while (iterator2.hasNext()) {
+            final Pair<String, ByteBuffer> key = iterator2.next();
+            merged.add(Mutation.merge(groupedMutations.get(key)));
+        }
+        return merged;
+    }
 
-      Pair key;
-      while(var3.hasNext()) {
-         Mutation mutation = (Mutation)var3.next();
-         key = Pair.create(mutation.getKeyspaceName(), mutation.key().getKey());
-         groupedMutations.put(key, mutation);
-      }
-
-      List<Mutation> merged = new ArrayList(groupedMutations.size());
-      Iterator var7 = groupedMutations.keySet().iterator();
-
-      while(var7.hasNext()) {
-         key = (Pair)var7.next();
-         merged.add(Mutation.merge(groupedMutations.get(key)));
-      }
-
-      return merged;
-   }
 
    private List<PartitionUpdate> validateForSinglePartition(TableId tableId, DecoratedKey key, Collection<Mutation> tmutations) throws InvalidRequestException {
       this.validate(tmutations);
@@ -170,40 +156,33 @@ public class TriggerExecutor {
 
    private List<Mutation> executeInternal(PartitionUpdate update) {
       Triggers triggers = update.metadata().triggers;
-      if(triggers.isEmpty()) {
+      if (triggers.isEmpty()) {
          return null;
-      } else {
-         List<Mutation> tmutations = Lists.newLinkedList();
-         Thread.currentThread().setContextClassLoader(this.customClassLoader);
-
-         LinkedList var15;
-         try {
-            Iterator var4 = triggers.iterator();
-
-            while(var4.hasNext()) {
-               TriggerMetadata td = (TriggerMetadata)var4.next();
-               ITrigger trigger = (ITrigger)this.cachedTriggers.get(td.classOption);
-               if(trigger == null) {
-                  trigger = this.loadTriggerInstance(td.classOption);
-                  this.cachedTriggers.put(td.classOption, trigger);
-               }
-
-               Collection<Mutation> temp = trigger.augmentNonBlocking(update);
-               if(temp != null) {
-                  tmutations.addAll(temp);
-               }
+      }
+      LinkedList tmutations = Lists.newLinkedList();
+      Thread.currentThread().setContextClassLoader(this.customClassLoader);
+      try {
+         for (TriggerMetadata td : triggers) {
+            Collection<Mutation> temp;
+            ITrigger trigger = this.cachedTriggers.get(td.classOption);
+            if (trigger == null) {
+               trigger = this.loadTriggerInstance(td.classOption);
+               this.cachedTriggers.put(td.classOption, trigger);
             }
-
-            var15 = tmutations;
-         } catch (CassandraException var12) {
-            throw var12;
-         } catch (Exception var13) {
-            throw new RuntimeException(String.format("Exception while executing trigger on table with ID: %s", new Object[]{update.metadata().id}), var13);
-         } finally {
-            Thread.currentThread().setContextClassLoader(this.parent);
+            if ((temp = trigger.augmentNonBlocking(update)) == null) continue;
+            tmutations.addAll(temp);
          }
-
-         return var15;
+         LinkedList linkedList = tmutations;
+         return linkedList;
+      }
+      catch (CassandraException ex) {
+         throw ex;
+      }
+      catch (Exception ex) {
+         throw new RuntimeException(String.format("Exception while executing trigger on table with ID: %s", update.metadata().id), ex);
+      }
+      finally {
+         Thread.currentThread().setContextClassLoader(this.parent);
       }
    }
 

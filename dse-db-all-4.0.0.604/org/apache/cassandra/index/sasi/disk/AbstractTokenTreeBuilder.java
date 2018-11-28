@@ -196,7 +196,7 @@ public abstract class AbstractTokenTreeBuilder implements TokenTreeBuilder {
       }
 
       protected Pair<Long, AbstractTokenTreeBuilder.InteriorNode> splitBlock() {
-         int splitPosition = true;
+         int splitPosition = 246;
          AbstractTokenTreeBuilder.InteriorNode sibling = AbstractTokenTreeBuilder.this.new InteriorNode();
          sibling.parent = this.parent;
          this.next = sibling;
@@ -498,7 +498,7 @@ public abstract class AbstractTokenTreeBuilder implements TokenTreeBuilder {
 
       private class LeafHeader extends AbstractTokenTreeBuilder.Node.Header {
          private LeafHeader() {
-            super(null);
+            super();
          }
 
          protected byte infoByte() {
@@ -510,7 +510,7 @@ public abstract class AbstractTokenTreeBuilder implements TokenTreeBuilder {
 
       private class InteriorNodeHeader extends AbstractTokenTreeBuilder.Node.Header {
          private InteriorNodeHeader() {
-            super(null);
+            super();
          }
 
          protected byte infoByte() {
@@ -520,7 +520,7 @@ public abstract class AbstractTokenTreeBuilder implements TokenTreeBuilder {
 
       private class RootHeader extends AbstractTokenTreeBuilder.Node.Header {
          private RootHeader() {
-            super(null);
+            super();
          }
 
          public void serialize(ByteBuffer buf) {
@@ -534,18 +534,10 @@ public abstract class AbstractTokenTreeBuilder implements TokenTreeBuilder {
          }
 
          protected void writeMagic(ByteBuffer buf) {
-            String var2 = "ab";
-            byte var3 = -1;
-            switch(var2.hashCode()) {
-            case 3105:
-               if(var2.equals("ab")) {
-                  var3 = 0;
-               }
-            default:
-               switch(var3) {
-               case 0:
-                  buf.putShort(23121);
-               default:
+            switch ("ab") {
+               case "ab": {
+                  buf.putShort((short)23121);
+                  break;
                }
             }
          }

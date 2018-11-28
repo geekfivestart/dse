@@ -108,7 +108,7 @@ public final class StandardTokenizerImpl implements StandardTokenizerInterface {
       while(i < l) {
          int count = packed.charAt(i++);
          int value = packed.charAt(i++);
-         int value = value - 1;
+         value = value - 1;
 
          while(true) {
             result[j++] = value;

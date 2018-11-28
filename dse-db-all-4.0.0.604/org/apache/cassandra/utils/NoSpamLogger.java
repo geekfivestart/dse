@@ -140,29 +140,32 @@ public class NoSpamLogger {
          return nowNanos - expected >= this.minIntervalNanos && this.compareAndSet(expected, nowNanos);
       }
 
-      public boolean log(NoSpamLogger.Level l, long nowNanos, Object... objects) {
-         if(!this.shouldLog(nowNanos)) {
+      public /* varargs */ boolean log(Level l, long nowNanos, Object ... objects) {
+         if (!this.shouldLog(nowNanos)) {
             return false;
-         } else {
-            switch(null.$SwitchMap$org$apache$cassandra$utils$NoSpamLogger$Level[l.ordinal()]) {
-            case 1:
+         }
+         switch (l) {
+            case DEBUG: {
                NoSpamLogger.this.wrapped.debug(this.statement, objects);
                break;
-            case 2:
+            }
+            case INFO: {
                NoSpamLogger.this.wrapped.info(this.statement, objects);
                break;
-            case 3:
+            }
+            case WARN: {
                NoSpamLogger.this.wrapped.warn(this.statement, objects);
                break;
-            case 4:
+            }
+            case ERROR: {
                NoSpamLogger.this.wrapped.error(this.statement, objects);
                break;
-            default:
+            }
+            default: {
                throw new AssertionError();
             }
-
-            return true;
          }
+         return true;
       }
 
       public boolean debug(long nowNanos, Object... objects) {

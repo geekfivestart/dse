@@ -252,8 +252,7 @@ public abstract class QueryOptions {
 
       public int encodedSize(QueryOptions options, ProtocolVersion version) {
          QueryOptions.PagingOptions pagingOptions = options.getPagingOptions();
-         int size = 0;
-         int size = size + CBUtil.sizeOfConsistencyLevel(options.getConsistency());
+         int size = CBUtil.sizeOfConsistencyLevel(options.getConsistency());
          int flags = this.gatherFlags(options);
          size += version.isGreaterOrEqualTo(ProtocolVersion.V5)?4:1;
          if(Flags.contains(flags, 1)) {

@@ -31,42 +31,43 @@ public final class DefaultDiskErrorHandler implements ErrorHandler {
    }
 
    private void handleCorruptSSTable(CorruptSSTableException e) {
-      switch(null.$SwitchMap$org$apache$cassandra$config$Config$DiskFailurePolicy[DatabaseDescriptor.getDiskFailurePolicy().ordinal()]) {
-      case 1:
-         this.storageService.stopTransportsAsync();
-         break;
-      case 2:
-         this.killer.killJVM(e, false);
+      switch (DatabaseDescriptor.getDiskFailurePolicy()) {
+         case stop_paranoid: {
+            this.storageService.stopTransportsAsync();
+            break;
+         }
+         case die: {
+            this.killer.killJVM(e, false);
+         }
       }
-
    }
 
    private void handleFSError(FSError e) {
-      switch(null.$SwitchMap$org$apache$cassandra$config$Config$DiskFailurePolicy[DatabaseDescriptor.getDiskFailurePolicy().ordinal()]) {
-      case 1:
-      case 3:
-         this.storageService.stopTransportsAsync();
-         break;
-      case 2:
-         this.killer.killJVM(e, false);
-         break;
-      case 4:
-         if(e.path.isPresent()) {
-            BlacklistedDirectories.maybeMarkUnwritable((File)e.path.get());
-            if(e instanceof FSReadError) {
-               File directory = BlacklistedDirectories.maybeMarkUnreadable((File)e.path.get());
-               if(directory != null) {
-                  Keyspace.removeUnreadableSSTables(directory);
-               }
-            }
+      switch (DatabaseDescriptor.getDiskFailurePolicy()) {
+         case stop_paranoid:
+         case stop: {
+            this.storageService.stopTransportsAsync();
+            break;
          }
-         break;
-      case 5:
-         logger.error("Ignoring file system error {}/{} as per ignore disk failure policy", e.getClass(), e.getMessage());
-         break;
-      default:
-         throw new IllegalStateException();
+         case best_effort: {
+            File directory;
+            if (!e.path.isPresent()) break;
+            BlacklistedDirectories.maybeMarkUnwritable(e.path.get());
+            if (!(e instanceof FSReadError) || (directory = BlacklistedDirectories.maybeMarkUnreadable(e.path.get())) == null) break;
+            Keyspace.removeUnreadableSSTables(directory);
+            break;
+         }
+         case ignore: {
+            logger.error("Ignoring file system error {}/{} as per ignore disk failure policy", e.getClass(), (Object)e.getMessage());
+            break;
+         }
+         case die: {
+            this.killer.killJVM(e, false);
+            break;
+         }
+         default: {
+            throw new IllegalStateException();
+         }
       }
-
    }
 }

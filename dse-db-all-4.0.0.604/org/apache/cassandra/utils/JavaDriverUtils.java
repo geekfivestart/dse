@@ -28,7 +28,7 @@ public final class JavaDriverUtils {
 
    public static DataType driverType(String abstractType) {
       try {
-         return methodParseOne.invoke(abstractType, JavaDriverUtils.LatestDriverSupportedVersion.protocolVersion, CodecRegistry.DEFAULT_INSTANCE);
+         return (DataType) methodParseOne.invoke(abstractType, JavaDriverUtils.LatestDriverSupportedVersion.protocolVersion, CodecRegistry.DEFAULT_INSTANCE);
       } catch (Error | RuntimeException var2) {
          throw var2;
       } catch (Throwable var3) {

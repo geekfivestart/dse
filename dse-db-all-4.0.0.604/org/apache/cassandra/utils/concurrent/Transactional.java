@@ -66,11 +66,14 @@ public interface Transactional extends AutoCloseable {
       }
 
       public final void close() {
-         switch(null.$SwitchMap$org$apache$cassandra$utils$concurrent$Transactional$AbstractTransactional$State[this.state.ordinal()]) {
-         default:
-            this.abort();
-         case 1:
-         case 2:
+         switch (this.state) {
+            case COMMITTED:
+            case ABORTED: {
+               break;
+            }
+            default: {
+               this.abort();
+            }
          }
       }
 

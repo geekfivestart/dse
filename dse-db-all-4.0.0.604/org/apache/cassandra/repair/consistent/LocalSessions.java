@@ -121,7 +121,7 @@ public class LocalSessions {
    public List<Map<String, String>> sessionInfo(boolean all) {
       Iterable<LocalSession> currentSessions = this.sessions.values();
       if(!all) {
-         currentSessions = Iterables.filter((Iterable)currentSessions, (s) -> {
+         currentSessions = Iterables.filter(currentSessions, (s) -> {
             return !s.isCompleted();
          });
       }
@@ -140,7 +140,7 @@ public class LocalSessions {
       while(var4.hasNext()) {
          InetAddress participant = (InetAddress)var4.next();
          if(!participant.equals(this.getBroadcastAddress())) {
-            this.send(Verbs.REPAIR.FAILED_SESSION.newRequest(participant, (Object)(new FailSession(sessionID))));
+            this.send(Verbs.REPAIR.FAILED_SESSION.newRequest(participant, (new FailSession(sessionID))));
          }
       }
 
@@ -382,7 +382,7 @@ public class LocalSessions {
    private synchronized void putSession(LocalSession session) {
       Preconditions.checkArgument(!this.sessions.containsKey(session.sessionID), "LocalSession {} already exists", new Object[]{session.sessionID});
       Preconditions.checkArgument(this.started, "sessions cannot be added before LocalSessions is started");
-      this.sessions = ImmutableMap.builder().putAll(this.sessions).put(session.sessionID, session).build();
+      this.sessions = ImmutableMap.<UUID,LocalSession>builder().putAll(this.sessions).put(session.sessionID, session).build();
    }
 
    private synchronized void removeSession(UUID sessionID) {
@@ -442,7 +442,7 @@ public class LocalSessions {
 
    private void failPrepare(UUID session, InetAddress coordinator, ExecutorService executor) {
       this.failSession(session);
-      this.send(Verbs.REPAIR.CONSISTENT_RESPONSE.newRequest(coordinator, (Object)(new PrepareConsistentResponse(session, this.getBroadcastAddress(), false))));
+      this.send(Verbs.REPAIR.CONSISTENT_RESPONSE.newRequest(coordinator, (new PrepareConsistentResponse(session, this.getBroadcastAddress(), false))));
       executor.shutdown();
    }
 
@@ -489,7 +489,7 @@ public class LocalSessions {
          parentSession = this.getParentRepairSession(sessionID);
       } catch (Throwable var10) {
          logger.trace("Error retrieving ParentRepairSession for session {}, responding with failure", sessionID);
-         this.send(Verbs.REPAIR.FAILED_SESSION.newRequest(coordinator, (Object)(new FailSession(sessionID))));
+         this.send(Verbs.REPAIR.FAILED_SESSION.newRequest(coordinator, (new FailSession(sessionID))));
          return;
       }
 
@@ -506,7 +506,7 @@ public class LocalSessions {
                   public void onSuccess(@Nullable Object result) {
                      LocalSessions.logger.debug("Prepare phase for incremental repair session {} completed", sessionID);
                      LocalSessions.this.setStateAndSave(session, ConsistentSession.State.PREPARED);
-                     LocalSessions.this.send(Verbs.REPAIR.CONSISTENT_RESPONSE.newRequest(coordinator, (Object)(new PrepareConsistentResponse(sessionID, LocalSessions.this.getBroadcastAddress(), true))));
+                     LocalSessions.this.send(Verbs.REPAIR.CONSISTENT_RESPONSE.newRequest(coordinator, (new PrepareConsistentResponse(sessionID, LocalSessions.this.getBroadcastAddress(), true))));
                      executor.shutdown();
                   }
 
@@ -593,7 +593,7 @@ public class LocalSessions {
    public void sendStatusRequest(LocalSession session) {
       logger.debug("Attempting to learn the outcome of unfinished local incremental repair session {}", session.sessionID);
       StatusRequest request = new StatusRequest(session.sessionID);
-      LocalSessions.LocalStatusResponseCallback callback = new LocalSessions.LocalStatusResponseCallback(null);
+      LocalSessions.LocalStatusResponseCallback callback = new LocalSessions.LocalStatusResponseCallback();
       UnmodifiableIterator var4 = session.participants.iterator();
 
       while(var4.hasNext()) {

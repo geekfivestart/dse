@@ -147,76 +147,64 @@ public abstract class TieredRowWriter extends AbstractTransactional implements T
    }
 
    public boolean append(UnfilteredRowIterator partition) {
-      if(partition.isEmpty()) {
+      if (partition.isEmpty()) {
          return false;
-      } else {
-         this.futures = new Future[this.numTiers];
-         this.rowIterators = new TieredRowWriter.RowIterator[this.numTiers];
-
-         int tier;
-         Row row;
-         TieredRowWriter.RowIterator rowIterator;
-         for(tier = 0; tier < this.numTiers; ++tier) {
-            DeletionTime deletion = partition.partitionLevelDeletion();
-            deletion = !deletion.isLive() && this.strategy.getTierForDeletion(deletion, this.context) == tier?deletion:DeletionTime.LIVE;
-            row = partition.staticRow();
-            row = row != Rows.EMPTY_STATIC_ROW && this.strategy.getTierForRow(row, this.context) == tier?row:Rows.EMPTY_STATIC_ROW;
-            rowIterator = new TieredRowWriter.RowIterator(partition, deletion, row);
-            this.rowIterators[tier] = rowIterator;
-            if(!deletion.isLive() || row != Rows.EMPTY_STATIC_ROW) {
-               TieredRowWriter.PartitionWriter partitionWriter = new TieredRowWriter.PartitionWriter(this.getRowConsumer(tier), rowIterator);
-               this.futures[tier] = this.executor.submit(partitionWriter);
-            }
-         }
-
-         while(partition.hasNext()) {
-            Unfiltered unfiltered = (Unfiltered)partition.next();
-            switch(null.$SwitchMap$org$apache$cassandra$db$rows$Unfiltered$Kind[unfiltered.kind().ordinal()]) {
-            case 1:
-               row = (Row)unfiltered;
-               tier = this.strategy.getTierForRow(row, this.context);
-               this.appendToTier(row, tier);
+      }
+      this.futures = new Future[this.numTiers];
+      this.rowIterators = new RowIterator[this.numTiers];
+      for (int i = 0; i < this.numTiers; ++i) {
+         RowIterator rowIterator;
+         DeletionTime deletion = partition.partitionLevelDeletion();
+         deletion = !deletion.isLive() && this.strategy.getTierForDeletion(deletion, this.context) == i ? deletion : DeletionTime.LIVE;
+         Row staticRow = partition.staticRow();
+         staticRow = staticRow != Rows.EMPTY_STATIC_ROW && this.strategy.getTierForRow((Unfiltered)staticRow, this.context) == i ? staticRow : Rows.EMPTY_STATIC_ROW;
+         this.rowIterators[i] = rowIterator = new RowIterator(partition, deletion, staticRow);
+         if (deletion.isLive() && staticRow == Rows.EMPTY_STATIC_ROW) continue;
+         PartitionWriter partitionWriter = new PartitionWriter(this.getRowConsumer(i), rowIterator);
+         this.futures[i] = this.executor.submit(partitionWriter);
+      }
+      while (partition.hasNext()) {
+         Unfiltered unfiltered = (Unfiltered)partition.next();
+         switch (unfiltered.kind()) {
+            case ROW: {
+               Row row = (Row)unfiltered;
+               int tier = this.strategy.getTierForRow((Unfiltered)row, this.context);
+               this.appendToTier((Unfiltered)row, tier);
                break;
-            case 2:
-               if(unfiltered instanceof RangeTombstoneBoundaryMarker) {
+            }
+            case RANGE_TOMBSTONE_MARKER: {
+               if (unfiltered instanceof RangeTombstoneBoundaryMarker) {
+                  int openTier;
                   RangeTombstoneBoundaryMarker boundary = (RangeTombstoneBoundaryMarker)unfiltered;
                   RangeTombstoneBoundMarker closeBound = new RangeTombstoneBoundMarker(boundary.closeBound(false), boundary.endDeletionTime());
                   RangeTombstoneBoundMarker openBound = new RangeTombstoneBoundMarker(boundary.openBound(false), boundary.startDeletionTime());
                   int closeTier = this.strategy.getTierForDeletion(closeBound.deletionTime(), this.context);
-                  int openTier = this.strategy.getTierForDeletion(openBound.deletionTime(), this.context);
-                  if(closeTier == openTier) {
-                     this.appendToTier(boundary, closeTier);
-                  } else {
-                     this.appendToTier(closeBound, closeTier);
-                     this.appendToTier(openBound, openTier);
+                  if (closeTier == (openTier = this.strategy.getTierForDeletion(openBound.deletionTime(), this.context))) {
+                     this.appendToTier((Unfiltered)boundary, closeTier);
+                     break;
                   }
-               } else {
-                  if(!(unfiltered instanceof RangeTombstoneBoundMarker)) {
-                     throw new AssertionError("Unhandled range tombstone marker type: " + unfiltered.getClass().getName());
-                  }
-
-                  RangeTombstoneBoundMarker bound = (RangeTombstoneBoundMarker)unfiltered;
-                  tier = this.strategy.getTierForDeletion(bound.deletionTime(), this.context);
-                  this.appendToTier(unfiltered, tier);
+                  this.appendToTier((Unfiltered)closeBound, closeTier);
+                  this.appendToTier((Unfiltered)openBound, openTier);
+                  break;
                }
-               break;
-            default:
-               throw new AssertionError("Unhandled range tombstone marker type: " + unfiltered.getClass().getName());
+               if (unfiltered instanceof RangeTombstoneBoundMarker) {
+                  RangeTombstoneBoundMarker bound = (RangeTombstoneBoundMarker)unfiltered;
+                  int tier = this.strategy.getTierForDeletion(bound.deletionTime(), this.context);
+                  this.appendToTier(unfiltered, tier);
+                  break;
+               }
+               throw new AssertionError((Object)("Unhandled range tombstone marker type: " + unfiltered.getClass().getName()));
+            }
+            default: {
+               throw new AssertionError((Object)("Unhandled range tombstone marker type: " + unfiltered.getClass().getName()));
             }
          }
-
-         TieredRowWriter.RowIterator[] var10 = this.rowIterators;
-         int var12 = var10.length;
-
-         for(int var13 = 0; var13 < var12; ++var13) {
-            rowIterator = var10[var13];
-            if(rowIterator != null) {
-               rowIterator.close();
-            }
-         }
-
-         return this.waitOnFutures(this.futures);
       }
+      for (RowIterator rowIterator : this.rowIterators) {
+         if (rowIterator == null) continue;
+         rowIterator.close();
+      }
+      return this.waitOnFutures(this.futures);
    }
 
    public Collection<RangeAwareWriter> writersForTxn() {
@@ -309,7 +297,7 @@ public abstract class TieredRowWriter extends AbstractTransactional implements T
    public interface TierPartitionConsumer {
       boolean append(UnfilteredRowIterator var1);
 
-      static default TieredRowWriter.TierPartitionConsumer create(RangeAwareWriter writer) {
+      static TieredRowWriter.TierPartitionConsumer create(RangeAwareWriter writer) {
          return writer::append;
       }
    }

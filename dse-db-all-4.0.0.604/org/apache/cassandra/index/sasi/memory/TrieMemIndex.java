@@ -29,17 +29,19 @@ public class TrieMemIndex extends MemIndex {
 
    public TrieMemIndex(AbstractType<?> keyValidator, ColumnIndex columnIndex) {
       super(keyValidator, columnIndex);
-      switch(null.$SwitchMap$org$apache$cassandra$index$sasi$disk$OnDiskIndexBuilder$Mode[columnIndex.getMode().mode.ordinal()]) {
-      case 1:
-         this.index = new TrieMemIndex.ConcurrentSuffixTrie(columnIndex.getDefinition(), null);
-         break;
-      case 2:
-         this.index = new TrieMemIndex.ConcurrentPrefixTrie(columnIndex.getDefinition(), null);
-         break;
-      default:
-         throw new IllegalStateException("Unsupported mode: " + columnIndex.getMode().mode);
+      switch (columnIndex.getMode().mode) {
+         case CONTAINS: {
+            this.index = new ConcurrentSuffixTrie(columnIndex.getDefinition());
+            break;
+         }
+         case PREFIX: {
+            this.index = new ConcurrentPrefixTrie(columnIndex.getDefinition());
+            break;
+         }
+         default: {
+            throw new IllegalStateException("Unsupported mode: " + (Object)((Object)columnIndex.getMode().mode));
+         }
       }
-
    }
 
    public long add(DecoratedKey key, ByteBuffer value) {
@@ -116,19 +118,21 @@ public class TrieMemIndex extends MemIndex {
       }
 
       public Iterable<ConcurrentSkipListSet<DecoratedKey>> search(Expression.Op operator, String value) {
-         switch(null.$SwitchMap$org$apache$cassandra$index$sasi$plan$Expression$Op[operator.ordinal()]) {
-         case 1:
-         case 2:
-            ConcurrentSkipListSet<DecoratedKey> keys = (ConcurrentSkipListSet)this.trie.getValueForExactKey(value);
-            return keys == null?Collections.emptyList():Collections.singletonList(keys);
-         case 3:
-         case 5:
-            return this.trie.getValuesForKeysContaining(value);
-         case 4:
-            return this.trie.getValuesForKeysEndingWith(value);
-         default:
-            throw new UnsupportedOperationException(String.format("operation %s is not supported.", new Object[]{operator}));
+         switch (operator) {
+            case EQ:
+            case MATCH: {
+               ConcurrentSkipListSet keys = (ConcurrentSkipListSet)this.trie.getValueForExactKey((CharSequence)value);
+               return keys == null ? Collections.emptyList() : Collections.singletonList(keys);
+            }
+            case SUFFIX: {
+               return this.trie.getValuesForKeysEndingWith((CharSequence)value);
+            }
+            case PREFIX:
+            case CONTAINS: {
+               return this.trie.getValuesForKeysContaining((CharSequence)value);
+            }
          }
+         throw new UnsupportedOperationException(String.format("operation %s is not supported.", new Object[]{operator}));
       }
    }
 
@@ -149,21 +153,22 @@ public class TrieMemIndex extends MemIndex {
       }
 
       public Iterable<ConcurrentSkipListSet<DecoratedKey>> search(Expression.Op operator, String value) {
-         switch(null.$SwitchMap$org$apache$cassandra$index$sasi$plan$Expression$Op[operator.ordinal()]) {
-         case 1:
-         case 2:
-            ConcurrentSkipListSet<DecoratedKey> keys = (ConcurrentSkipListSet)this.trie.getValueForExactKey(value);
-            return keys == null?Collections.emptyList():Collections.singletonList(keys);
-         case 3:
-            return this.trie.getValuesForKeysStartingWith(value);
-         default:
-            throw new UnsupportedOperationException(String.format("operation %s is not supported.", new Object[]{operator}));
+         switch (operator) {
+            case EQ:
+            case MATCH: {
+               ConcurrentSkipListSet keys = (ConcurrentSkipListSet)this.trie.getValueForExactKey((CharSequence)value);
+               return keys == null ? Collections.emptyList() : Collections.singletonList(keys);
+            }
+            case PREFIX: {
+               return this.trie.getValuesForKeysStartingWith((CharSequence)value);
+            }
          }
+         throw new UnsupportedOperationException(String.format("operation %s is not supported.", new Object[]{operator}));
       }
    }
 
    private abstract static class ConcurrentTrie {
-      public static final TrieMemIndex.SizeEstimatingNodeFactory NODE_FACTORY = new TrieMemIndex.SizeEstimatingNodeFactory(null);
+      public static final TrieMemIndex.SizeEstimatingNodeFactory NODE_FACTORY = new TrieMemIndex.SizeEstimatingNodeFactory();
       protected final ColumnMetadata definition;
 
       public ConcurrentTrie(ColumnMetadata column) {

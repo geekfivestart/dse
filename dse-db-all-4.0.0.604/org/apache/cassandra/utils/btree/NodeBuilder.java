@@ -147,7 +147,7 @@ final class NodeBuilder {
    }
 
    private static <V> int compareUpperBound(Comparator<V> comparator, Object value, Object upperBound) {
-      return upperBound == BTree.POSITIVE_INFINITY?-1:comparator.compare(value, upperBound);
+      return upperBound == BTree.POSITIVE_INFINITY?-1:comparator.compare((V)value, (V)upperBound);
    }
 
    boolean isRoot() {

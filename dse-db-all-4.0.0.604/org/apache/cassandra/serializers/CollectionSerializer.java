@@ -35,21 +35,14 @@ public abstract class CollectionSerializer<T> implements TypeSerializer<T> {
 
    public static ByteBuffer pack(Collection<ByteBuffer> buffers, int elements, ProtocolVersion version) {
       int size = 0;
-
-      ByteBuffer bb;
-      for(Iterator var4 = buffers.iterator(); var4.hasNext(); size += sizeOfValue(bb, version)) {
-         bb = (ByteBuffer)var4.next();
+      for (ByteBuffer bb : buffers) {
+         size += CollectionSerializer.sizeOfValue(bb, version);
       }
-
-      ByteBuffer result = ByteBuffer.allocate(sizeOfCollectionSize(elements, version) + size);
-      writeCollectionSize(result, elements, version);
-      Iterator var8 = buffers.iterator();
-
-      while(var8.hasNext()) {
-         ByteBuffer bb = (ByteBuffer)var8.next();
-         writeValue(result, bb, version);
+      ByteBuffer result = ByteBuffer.allocate(CollectionSerializer.sizeOfCollectionSize(elements, version) + size);
+      CollectionSerializer.writeCollectionSize(result, elements, version);
+      for (ByteBuffer bb : buffers) {
+         CollectionSerializer.writeValue(result, bb, version);
       }
-
       return (ByteBuffer)result.flip();
    }
 

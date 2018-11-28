@@ -177,7 +177,7 @@ public class CassandraRoleManager implements IRoleManager {
       Iterable<RoleResource> roles = Iterables.transform(rows, (row) -> {
          return RoleResource.role(row.getString("role"));
       });
-      return ImmutableSet.builder().addAll(roles).build();
+      return ImmutableSet.<RoleResource>builder().addAll(roles).build();
    }
 
    public boolean isSuper(RoleResource role) {
@@ -340,18 +340,21 @@ public class CassandraRoleManager implements IRoleManager {
       }
    }
 
+
    private Iterable<String> optionsToAssignments(Map<IRoleManager.Option, Object> options) {
-      return Iterables.transform(options.entrySet(), (entry) -> {
-         switch(null.$SwitchMap$org$apache$cassandra$auth$IRoleManager$Option[((IRoleManager.Option)entry.getKey()).ordinal()]) {
-         case 1:
-            return String.format("can_login = %s", new Object[]{entry.getValue()});
-         case 2:
-            return String.format("is_superuser = %s", new Object[]{entry.getValue()});
-         case 3:
-            return String.format("salted_hash = '%s'", new Object[]{escape(hashpw((String)entry.getValue()))});
-         default:
-            return null;
+      return Iterables.transform(options.entrySet(), entry -> {
+         switch ((IRoleManager.Option)((Object)entry.getKey())) {
+            case LOGIN: {
+               return String.format("can_login = %s", entry.getValue());
+            }
+            case SUPERUSER: {
+               return String.format("is_superuser = %s", entry.getValue());
+            }
+            case PASSWORD: {
+               return String.format("salted_hash = '%s'", CassandraRoleManager.escape(CassandraRoleManager.hashpw((String)entry.getValue())));
+            }
          }
+         return null;
       });
    }
 

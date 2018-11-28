@@ -216,21 +216,20 @@ public class ViewManager {
    }
 
    private SortedMap<Long, ExecutableLock> getLocksFor(Mutation mutation) {
-      SortedMap<Long, ExecutableLock> locks = (SortedMap)mutation.getTableIds().stream().map((t) -> {
-         return Integer.valueOf(Objects.hash(new Object[]{mutation.key().getKey(), t}));
-      }).map((k) -> {
-         return this.getLockFor(k.intValue());
-      }).collect(Collectors.toMap((p) -> {
-         return (Long)p.left;
-      }, (p) -> {
-         return (ExecutableLock)p.right;
-      }, (v1, v2) -> {
-         return v1;
-      }, () -> {
-         return new TreeMap((k1, k2) -> {
-            return k1.compareTo(k2);
-         });
-      }));
+      final SortedMap<Long, ExecutableLock> locks = mutation.getTableIds().stream().
+              map(t -> Objects.hash(mutation.key().getKey(), t)).
+              map(k -> this.getLockFor(k)).collect(
+                      Collectors.toMap(p -> (Long)p.left,
+                              p -> (ExecutableLock)p.right,
+                              (v1, v2) -> v1,
+                              () -> new TreeMap(
+                                      new Comparator<Long>(){
+                                         @Override
+                                         public int compare(Long o1, Long o2) {
+                                            return o1.compareTo(o2);
+                                         }
+                                      }//(k1, k2) -> k1.compareTo(k2))
+                      )));
       return locks;
    }
 

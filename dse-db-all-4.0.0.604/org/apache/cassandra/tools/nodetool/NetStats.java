@@ -27,137 +27,92 @@ public class NetStats extends NodeTool.NodeToolCmd {
    public NetStats() {
    }
 
-   public void execute(NodeProbe probe) {
-      System.out.printf("Mode: %s%n", new Object[]{probe.getOperationMode()});
-      Set<StreamState> statuses = probe.getStreamStatus();
-      if(statuses.isEmpty()) {
+   public void execute(final NodeProbe probe) {
+      System.out.printf("Mode: %s%n", probe.getOperationMode());
+      final Set<StreamState> statuses = probe.getStreamStatus();
+      if (statuses.isEmpty()) {
          System.out.println("Not sending any streams.");
       }
-
-      Iterator var3 = statuses.iterator();
-
-      label146:
-      while(var3.hasNext()) {
-         StreamState status = (StreamState)var3.next();
-         System.out.printf("%s %s%n", new Object[]{status.streamOperation.getDescription(), status.planId.toString()});
-         Iterator var5 = status.sessions.iterator();
-
-         while(true) {
-            SessionInfo info;
-            Iterator var7;
-            ProgressInfo progress;
-            do {
-               if(!var5.hasNext()) {
-                  continue label146;
-               }
-
-               info = (SessionInfo)var5.next();
-               System.out.printf("    %s", new Object[]{info.peer.toString()});
-               if(!info.peer.equals(info.connecting)) {
-                  System.out.printf(" (using %s)", new Object[]{info.connecting.toString()});
-               }
-
-               System.out.printf("%n", new Object[0]);
-               if(!info.receivingSummaries.isEmpty()) {
-                  if(this.humanReadable) {
-                     System.out.printf("        Receiving %d files, %s total. Already received %d files, %s total%n", new Object[]{Long.valueOf(info.getTotalFilesToReceive()), FileUtils.stringifyFileSize((double)info.getTotalSizeToReceive()), Long.valueOf(info.getTotalFilesReceived()), FileUtils.stringifyFileSize((double)info.getTotalSizeReceived())});
-                  } else {
-                     System.out.printf("        Receiving %d files, %d bytes total. Already received %d files, %d bytes total%n", new Object[]{Long.valueOf(info.getTotalFilesToReceive()), Long.valueOf(info.getTotalSizeToReceive()), Long.valueOf(info.getTotalFilesReceived()), Long.valueOf(info.getTotalSizeReceived())});
-                  }
-
-                  var7 = info.getReceivingFiles().iterator();
-
-                  while(var7.hasNext()) {
-                     progress = (ProgressInfo)var7.next();
-                     System.out.printf("            %s%n", new Object[]{progress.toString()});
-                  }
-               }
-            } while(info.sendingSummaries.isEmpty());
-
-            if(this.humanReadable) {
-               System.out.printf("        Sending %d files, %s total. Already sent %d files, %s total%n", new Object[]{Long.valueOf(info.getTotalFilesToSend()), FileUtils.stringifyFileSize((double)info.getTotalSizeToSend()), Long.valueOf(info.getTotalFilesSent()), FileUtils.stringifyFileSize((double)info.getTotalSizeSent())});
-            } else {
-               System.out.printf("        Sending %d files, %d bytes total. Already sent %d files, %d bytes total%n", new Object[]{Long.valueOf(info.getTotalFilesToSend()), Long.valueOf(info.getTotalSizeToSend()), Long.valueOf(info.getTotalFilesSent()), Long.valueOf(info.getTotalSizeSent())});
+      for (final StreamState status : statuses) {
+         System.out.printf("%s %s%n", status.streamOperation.getDescription(), status.planId.toString());
+         for (final SessionInfo info : status.sessions) {
+            System.out.printf("    %s", info.peer.toString());
+            if (!info.peer.equals(info.connecting)) {
+               System.out.printf(" (using %s)", info.connecting.toString());
             }
-
-            var7 = info.getSendingFiles().iterator();
-
-            while(var7.hasNext()) {
-               progress = (ProgressInfo)var7.next();
-               System.out.printf("            %s%n", new Object[]{progress.toString()});
+            System.out.printf("%n", new Object[0]);
+            if (!info.receivingSummaries.isEmpty()) {
+               if (this.humanReadable) {
+                  System.out.printf("        Receiving %d files, %s total. Already received %d files, %s total%n", info.getTotalFilesToReceive(), FileUtils.stringifyFileSize(info.getTotalSizeToReceive()), info.getTotalFilesReceived(), FileUtils.stringifyFileSize(info.getTotalSizeReceived()));
+               }
+               else {
+                  System.out.printf("        Receiving %d files, %d bytes total. Already received %d files, %d bytes total%n", info.getTotalFilesToReceive(), info.getTotalSizeToReceive(), info.getTotalFilesReceived(), info.getTotalSizeReceived());
+               }
+               for (final ProgressInfo progress : info.getReceivingFiles()) {
+                  System.out.printf("            %s%n", progress.toString());
+               }
+            }
+            if (!info.sendingSummaries.isEmpty()) {
+               if (this.humanReadable) {
+                  System.out.printf("        Sending %d files, %s total. Already sent %d files, %s total%n", info.getTotalFilesToSend(), FileUtils.stringifyFileSize(info.getTotalSizeToSend()), info.getTotalFilesSent(), FileUtils.stringifyFileSize(info.getTotalSizeSent()));
+               }
+               else {
+                  System.out.printf("        Sending %d files, %d bytes total. Already sent %d files, %d bytes total%n", info.getTotalFilesToSend(), info.getTotalSizeToSend(), info.getTotalFilesSent(), info.getTotalSizeSent());
+               }
+               for (final ProgressInfo progress : info.getSendingFiles()) {
+                  System.out.printf("            %s%n", progress.toString());
+               }
             }
          }
       }
-
-      if(!probe.isStarting()) {
-         System.out.printf("Read Repair Statistics:%nAttempted: %d%nMismatch (Blocking): %d%nMismatch (Background): %d%n", new Object[]{Long.valueOf(probe.getReadRepairAttempted()), Long.valueOf(probe.getReadRepairRepairedBlocking()), Long.valueOf(probe.getReadRepairRepairedBackground())});
-         MessagingServiceMBean ms = probe.msProxy;
-         System.out.printf("%-25s", new Object[]{"Pool Name"});
-         System.out.printf("%10s", new Object[]{"Active"});
-         System.out.printf("%10s", new Object[]{"Pending"});
-         System.out.printf("%15s", new Object[]{"Completed"});
-         System.out.printf("%10s%n", new Object[]{"Dropped"});
+      if (!probe.isStarting()) {
+         System.out.printf("Read Repair Statistics:%nAttempted: %d%nMismatch (Blocking): %d%nMismatch (Background): %d%n", probe.getReadRepairAttempted(), probe.getReadRepairRepairedBlocking(), probe.getReadRepairRepairedBackground());
+         final MessagingServiceMBean ms = probe.msProxy;
+         System.out.printf("%-25s", "Pool Name");
+         System.out.printf("%10s", "Active");
+         System.out.printf("%10s", "Pending");
+         System.out.printf("%15s", "Completed");
+         System.out.printf("%10s%n", "Dropped");
          int pending = 0;
-
-         Iterator var9;
-         int n;
-         for(var9 = ms.getLargeMessagePendingTasks().values().iterator(); var9.hasNext(); pending += n) {
-            n = ((Integer)var9.next()).intValue();
+         for (final int n : ms.getLargeMessagePendingTasks().values()) {
+            pending += n;
          }
-
          long completed = 0L;
-
-         long n;
-         for(var9 = ms.getLargeMessageCompletedTasks().values().iterator(); var9.hasNext(); completed += n) {
-            n = ((Long)var9.next()).longValue();
+         for (final long n2 : ms.getLargeMessageCompletedTasks().values()) {
+            completed += n2;
          }
-
          long dropped = 0L;
-
-         for(var9 = ms.getLargeMessageDroppedTasks().values().iterator(); var9.hasNext(); dropped += n) {
-            n = ((Long)var9.next()).longValue();
+         for (final long n2 : ms.getLargeMessageDroppedTasks().values()) {
+            dropped += n2;
          }
-
-         System.out.printf("%-25s%10s%10s%15s%10s%n", new Object[]{"Large messages", "n/a", Integer.valueOf(pending), Long.valueOf(completed), Long.valueOf(dropped)});
+         System.out.printf("%-25s%10s%10s%15s%10s%n", "Large messages", "n/a", pending, completed, dropped);
          pending = 0;
-
-         for(var9 = ms.getSmallMessagePendingTasks().values().iterator(); var9.hasNext(); pending += n) {
-            n = ((Integer)var9.next()).intValue();
+         for (final int n : ms.getSmallMessagePendingTasks().values()) {
+            pending += n;
          }
-
          completed = 0L;
-
-         for(var9 = ms.getSmallMessageCompletedTasks().values().iterator(); var9.hasNext(); completed += n) {
-            n = ((Long)var9.next()).longValue();
+         for (final long n2 : ms.getSmallMessageCompletedTasks().values()) {
+            completed += n2;
          }
-
          dropped = 0L;
-
-         for(var9 = ms.getSmallMessageDroppedTasks().values().iterator(); var9.hasNext(); dropped += n) {
-            n = ((Long)var9.next()).longValue();
+         for (final long n2 : ms.getSmallMessageDroppedTasks().values()) {
+            dropped += n2;
          }
-
-         System.out.printf("%-25s%10s%10s%15s%10s%n", new Object[]{"Small messages", "n/a", Integer.valueOf(pending), Long.valueOf(completed), Long.valueOf(dropped)});
+         System.out.printf("%-25s%10s%10s%15s%10s%n", "Small messages", "n/a", pending, completed, dropped);
          pending = 0;
-
-         for(var9 = ms.getGossipMessagePendingTasks().values().iterator(); var9.hasNext(); pending += n) {
-            n = ((Integer)var9.next()).intValue();
+         for (final int n : ms.getGossipMessagePendingTasks().values()) {
+            pending += n;
          }
-
          completed = 0L;
-
-         for(var9 = ms.getGossipMessageCompletedTasks().values().iterator(); var9.hasNext(); completed += n) {
-            n = ((Long)var9.next()).longValue();
+         for (final long n2 : ms.getGossipMessageCompletedTasks().values()) {
+            completed += n2;
          }
-
          dropped = 0L;
-
-         for(var9 = ms.getGossipMessageDroppedTasks().values().iterator(); var9.hasNext(); dropped += n) {
-            n = ((Long)var9.next()).longValue();
+         for (final long n2 : ms.getGossipMessageDroppedTasks().values()) {
+            dropped += n2;
          }
-
-         System.out.printf("%-25s%10s%10s%15s%10s%n", new Object[]{"Gossip messages", "n/a", Integer.valueOf(pending), Long.valueOf(completed), Long.valueOf(dropped)});
+         System.out.printf("%-25s%10s%10s%15s%10s%n", "Gossip messages", "n/a", pending, completed, dropped);
       }
-
    }
+
 }

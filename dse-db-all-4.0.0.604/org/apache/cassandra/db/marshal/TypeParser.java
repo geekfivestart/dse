@@ -42,7 +42,7 @@ public class TypeParser {
             return type;
          } else {
             int i = 0;
-            int i = skipBlank(str, i);
+            i = skipBlank(str, i);
 
             int j;
             for(j = i; !isEOS(str, i) && isIdentifierChar(str.charAt(i)); ++i) {

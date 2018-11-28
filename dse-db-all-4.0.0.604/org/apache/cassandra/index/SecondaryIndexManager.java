@@ -891,16 +891,16 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
          }).filter(Objects::nonNull).toArray((x$0) -> {
             return new Index.Indexer[x$0];
          });
-         return (UpdateTransaction)(indexers.length == 0?UpdateTransaction.NO_OP:new SecondaryIndexManager.WriteTimeTransaction(indexers, null));
+         return (UpdateTransaction)(indexers.length == 0?UpdateTransaction.NO_OP:new SecondaryIndexManager.WriteTimeTransaction(indexers));
       }
    }
 
    public CompactionTransaction newCompactionTransaction(DecoratedKey key, RegularAndStaticColumns regularAndStaticColumns, int versions, int nowInSec) {
-      return new SecondaryIndexManager.IndexGCTransaction(key, regularAndStaticColumns, versions, nowInSec, this.listIndexes(), null);
+      return new SecondaryIndexManager.IndexGCTransaction(key, regularAndStaticColumns, versions, nowInSec, this.listIndexes());
    }
 
    public CleanupTransaction newCleanupTransaction(DecoratedKey key, RegularAndStaticColumns regularAndStaticColumns, int nowInSec) {
-      return (CleanupTransaction)(!this.hasIndexes()?CleanupTransaction.NO_OP:new SecondaryIndexManager.CleanupGCTransaction(key, regularAndStaticColumns, nowInSec, this.listIndexes(), null));
+      return (CleanupTransaction)(!this.hasIndexes()?CleanupTransaction.NO_OP:new SecondaryIndexManager.CleanupGCTransaction(key, regularAndStaticColumns, nowInSec, this.listIndexes()));
    }
 
    private void executeBlocking(Callable<?> task, FutureCallback<Object> callback) {

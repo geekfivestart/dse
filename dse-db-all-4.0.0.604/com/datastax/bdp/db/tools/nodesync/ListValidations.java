@@ -2,10 +2,7 @@ package com.datastax.bdp.db.tools.nodesync;
 
 import com.datastax.bdp.db.nodesync.UserValidationProposer;
 import com.datastax.bdp.db.nodesync.ValidationOutcome;
-import com.datastax.driver.core.Metadata;
-import com.datastax.driver.core.Row;
-import com.datastax.driver.core.Session;
-import com.datastax.driver.core.UDTValue;
+import com.datastax.driver.core.*;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.datastax.driver.core.querybuilder.Select;
 import io.airlift.airline.Command;
@@ -56,24 +53,18 @@ public class ListValidations extends NodeSyncCommand {
    public ListValidations() {
    }
 
-   public final void execute(Metadata metadata, Session session, NodeProbes probes) {
-      Select select = QueryBuilder.select(new String[]{"id", "keyspace_name", "table_name", "status", "outcomes", "started_at", "ended_at", "segments_to_validate", "segments_validated", "metrics"}).from("system_distributed", "nodesync_user_validations");
-      Predicate<Row> statusFilter = (r) -> {
-         return this.all || Objects.equals(r.getString("status"), UserValidationProposer.Status.RUNNING.toString());
-      };
-      List<ListValidations.Validation> validations = (List)((Map)Streams.of(session.execute(select)).filter(statusFilter).map((x$0) -> {
-         return ListValidations.Validation.fromRow(x$0);
-      }).collect(Collectors.groupingBy((v) -> {
-         return v.key;
-      }, Collectors.reducing(ListValidations.Validation::combineWith)))).values().stream().filter(Optional::isPresent).map(Optional::get).collect(Collectors.toList());
-      List<Map<String, String>> table = new ArrayList(validations.size());
-      Iterator var8 = validations.iterator();
-
-      while(var8.hasNext()) {
-         ListValidations.Validation validation = (ListValidations.Validation)var8.next();
-         Map<String, String> map = new HashMap(6);
+   public final void execute(final Metadata metadata, final Session session, final NodeProbes probes) {
+      final Select select = QueryBuilder.select(new String[] { "id", "keyspace_name", "table_name", "status", "outcomes", "started_at", "ended_at", "segments_to_validate", "segments_validated", "metrics" }).from("system_distributed", "nodesync_user_validations");
+      final Predicate<Row> statusFilter = r -> this.all || Objects.equals(r.getString("status"), UserValidationProposer.Status.RUNNING.toString());
+      final List<Validation> validations = Streams.of((session.execute((Statement)select))).
+              filter(statusFilter).map(x -> Validation.fromRow(x)).
+              collect(Collectors.groupingBy(v -> v.key, Collectors.reducing(Validation::combineWith))).
+              values().stream().filter(Optional::isPresent).map(Optional::get).collect(Collectors.toList());
+      final List<Map<String, String>> table = new ArrayList<Map<String, String>>(validations.size());
+      for (final Validation validation : validations) {
+         final Map<String, String> map = new HashMap<String, String>(6);
          map.put("Identifier", validation.key.id);
-         map.put("Table", fullyQualifiedTableName(validation.key.keyspace, validation.key.table));
+         map.put("Table", NodeSyncCommand.fullyQualifiedTableName(validation.key.keyspace, validation.key.table));
          map.put("Status", validation.status.toString());
          map.put("Outcome", validation.summarizedOutcome());
          map.put("Duration", validation.duration().toString());
@@ -83,14 +74,11 @@ public class ListValidations extends NodeSyncCommand {
          map.put("Repaired", Units.toString(validation.bytesRepaired, SizeUnit.BYTES));
          table.add(map);
       }
-
-      String format = String.format("%%-%ds  %%-%ds  %%-%ds  %%-%ds  %%%ds  %%%ds  %%%ds  %%%ds  %%%ds%n", new Object[]{Integer.valueOf(columnWidth("Identifier", table)), Integer.valueOf(columnWidth("Table", table)), Integer.valueOf(columnWidth("Status", table)), Integer.valueOf(columnWidth("Outcome", table)), Integer.valueOf(columnWidth("Duration", table)), Integer.valueOf(columnWidth("ETA", table)), Integer.valueOf(columnWidth("Progress", table)), Integer.valueOf(columnWidth("Validated", table)), Integer.valueOf(columnWidth("Repaired", table))});
+      final String format = String.format("%%-%ds  %%-%ds  %%-%ds  %%-%ds  %%%ds  %%%ds  %%%ds  %%%ds  %%%ds%n", columnWidth("Identifier", table), columnWidth("Table", table), columnWidth("Status", table), columnWidth("Outcome", table), columnWidth("Duration", table), columnWidth("ETA", table), columnWidth("Progress", table), columnWidth("Validated", table), columnWidth("Repaired", table));
       System.out.println();
-      System.out.printf(format, new Object[]{"Identifier", "Table", "Status", "Outcome", "Duration", "ETA", "Progress", "Validated", "Repaired"});
+      System.out.printf(format, "Identifier", "Table", "Status", "Outcome", "Duration", "ETA", "Progress", "Validated", "Repaired");
       System.out.println();
-      table.forEach((m) -> {
-         System.out.printf(format, new Object[]{m.get("Identifier"), m.get("Table"), m.get("Status"), m.get("Outcome"), m.get("Duration"), m.get("ETA"), m.get("Progress"), m.get("Validated"), m.get("Repaired")});
-      });
+      table.forEach(m -> System.out.printf(format, m.get("Identifier"), m.get("Table"), m.get("Status"), m.get("Outcome"), m.get("Duration"), m.get("ETA"), m.get("Progress"), m.get("Validated"), m.get("Repaired")));
       System.out.println();
    }
 

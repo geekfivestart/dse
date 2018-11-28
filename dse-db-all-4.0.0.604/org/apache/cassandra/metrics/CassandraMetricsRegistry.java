@@ -79,7 +79,7 @@ public class CassandraMetricsRegistry extends MetricRegistry {
          return metric;
       } catch (IllegalArgumentException var5) {
          Metric existing = (Metric)Metrics.getMetrics().get(name.getMetricName());
-         return existing;
+         return (T)existing;
       }
    }
 
@@ -325,7 +325,7 @@ public class CassandraMetricsRegistry extends MetricRegistry {
       private long[] last;
 
       private JmxTimer(Timer metric, ObjectName objectName, TimeUnit rateUnit, TimeUnit durationUnit) {
-         super(metric, objectName, rateUnit, null);
+         super(metric, objectName, rateUnit);
          this.last = null;
          this.metric = metric;
          this.durationFactor = 1.0D / (double)durationUnit.toNanos(1L);

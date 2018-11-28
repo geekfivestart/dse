@@ -17,7 +17,7 @@ public interface ISSTableScanner extends UnfilteredPartitionIterator {
 
    String getBackingFiles();
 
-   static default void closeAllAndPropagate(Collection<ISSTableScanner> scanners, Throwable throwable) {
+   public static void closeAllAndPropagate(Collection<ISSTableScanner> scanners, Throwable throwable) {
       Iterator var2 = scanners.iterator();
 
       while(var2.hasNext()) {

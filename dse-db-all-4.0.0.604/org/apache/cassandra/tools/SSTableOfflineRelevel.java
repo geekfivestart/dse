@@ -114,82 +114,58 @@ public class SSTableOfflineRelevel {
 
       public void relevel(boolean dryRun) throws IOException {
          this.printLeveling(this.sstables);
-         List<SSTableReader> sortedSSTables = new ArrayList(this.sstables);
-         Collections.sort(sortedSSTables, new Comparator<SSTableReader>() {
+         ArrayList<SSTableReader> sortedSSTables = new ArrayList<SSTableReader>(this.sstables);
+         Collections.sort(sortedSSTables, new Comparator<SSTableReader>(){
+
+            @Override
             public int compare(SSTableReader o1, SSTableReader o2) {
-               return o1.last.compareTo((PartitionPosition)o2.last);
+               return o1.last.compareTo(o2.last);
             }
          });
-
-         Object levels;
-         ArrayList level;
-         SSTableReader sstable;
-         label90:
-         for(levels = new ArrayList(); !sortedSSTables.isEmpty(); ((List)levels).add(level)) {
+         List<List<SSTableReader>> levels = new ArrayList<List<SSTableReader>>();
+         while (!sortedSSTables.isEmpty()) {
             Iterator<SSTableReader> it = sortedSSTables.iterator();
-            level = new ArrayList();
+            ArrayList<SSTableReader> level = new ArrayList<SSTableReader>();
             DecoratedKey lastLast = null;
-
-            while(true) {
-               do {
-                  if(!it.hasNext()) {
-                     continue label90;
-                  }
-
-                  sstable = (SSTableReader)it.next();
-               } while(lastLast != null && lastLast.compareTo((PartitionPosition)sstable.first) >= 0);
-
+            while (it.hasNext()) {
+               SSTableReader sstable = it.next();
+               if (lastLast != null && lastLast.compareTo(sstable.first) >= 0) continue;
                level.add(sstable);
                lastLast = sstable.last;
                it.remove();
             }
+            levels.add(level);
          }
-
-         List<SSTableReader> l0 = new ArrayList();
-         int i;
-         if(this.approxExpectedLevels < ((List)levels).size()) {
-            for(i = this.approxExpectedLevels; i < ((List)levels).size(); ++i) {
-               l0.addAll((Collection)((List)levels).get(i));
+         ArrayList<SSTableReader> l0 = new ArrayList();
+         if (this.approxExpectedLevels < levels.size()) {
+            for (int i = this.approxExpectedLevels; i < levels.size(); ++i) {
+               l0.addAll((Collection)levels.get(i));
             }
-
-            levels = ((List)levels).subList(0, this.approxExpectedLevels);
+            levels = levels.subList(0, this.approxExpectedLevels);
          }
-
-         if(dryRun) {
+         if (dryRun) {
             System.out.println("Potential leveling: ");
          } else {
             System.out.println("New leveling: ");
          }
-
          System.out.println("L0=" + l0.size());
-
-         for(i = ((List)levels).size() - 1; i >= 0; --i) {
-            System.out.println(String.format("L%d=%d", new Object[]{Integer.valueOf(((List)levels).size() - i), Integer.valueOf(((List)((List)levels).get(i)).size())}));
+         for (int i = levels.size() - 1; i >= 0; --i) {
+            System.out.println(String.format("L%d=%d", levels.size() - i, ((List)levels.get(i)).size()));
          }
-
-         if(!dryRun) {
-            Iterator var11 = l0.iterator();
-
-            while(var11.hasNext()) {
-               SSTableReader sstable = (SSTableReader)var11.next();
-               if(sstable.getSSTableLevel() != 0) {
-                  sstable.descriptor.getMetadataSerializer().mutateLevel(sstable.descriptor, 0);
-               }
+         if (!dryRun) {
+            for (SSTableReader sstable : l0) {
+               if (sstable.getSSTableLevel() == 0) continue;
+               sstable.descriptor.getMetadataSerializer().mutateLevel(sstable.descriptor, 0);
             }
-
-            for(i = ((List)levels).size() - 1; i >= 0; --i) {
-               Iterator var13 = ((List)((List)levels).get(i)).iterator();
-
-               while(var13.hasNext()) {
-                  sstable = (SSTableReader)var13.next();
-                  int newLevel = ((List)levels).size() - i;
-                  if(newLevel != sstable.getSSTableLevel()) {
-                     sstable.descriptor.getMetadataSerializer().mutateLevel(sstable.descriptor, newLevel);
-                  }
+            for (int i = levels.size() - 1; i >= 0; --i) {
+               for (SSTableReader sstable : levels.get(i)) {
+                  int newLevel = levels.size() - i;
+                  if (newLevel == sstable.getSSTableLevel()) continue;
+                  sstable.descriptor.getMetadataSerializer().mutateLevel(sstable.descriptor, newLevel);
                }
             }
          }
-
       }
+
    }
 }

@@ -47,20 +47,13 @@ abstract class WriteHandlers {
       }
 
       public void onResponse(Response<EmptyPayload> response) {
-         ((AtomicInteger)this.responses.get(snitch.getDatacenter(response.from()))).getAndDecrement();
+         this.responses.get(snitch.getDatacenter(response.from())).getAndDecrement();
          this.acks.incrementAndGet();
-         Iterator var2 = this.responses.values().iterator();
-
-         AtomicInteger i;
-         do {
-            if(!var2.hasNext()) {
-               this.complete((Object)null);
-               return;
-            }
-
-            i = (AtomicInteger)var2.next();
-         } while(i.get() <= 0);
-
+         for (AtomicInteger i : this.responses.values()) {
+            if (i.get() <= 0) continue;
+            return;
+         }
+         this.complete(null);
       }
 
       protected int ackCount() {
@@ -92,7 +85,7 @@ abstract class WriteHandlers {
       public void onResponse(Response<EmptyPayload> response) {
          if(this.waitingFor(response.from())) {
             if(this.responses.incrementAndGet() == this.blockFor) {
-               this.complete((Object)null);
+               this.complete(null);
             }
 
          }

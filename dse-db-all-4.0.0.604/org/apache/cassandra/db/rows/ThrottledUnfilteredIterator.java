@@ -106,7 +106,7 @@ public class ThrottledUnfilteredIterator extends AbstractIterator<UnfilteredRowI
                   if(marker.isBoundary()) {
                      RangeTombstoneBoundaryMarker boundary = (RangeTombstoneBoundaryMarker)marker;
                      this.closeMarker = boundary.createCorrespondingCloseMarker(this.isReverseOrder());
-                     ThrottledUnfilteredIterator.this.overflowed = Collections.singleton(boundary.createCorrespondingOpenMarker(this.isReverseOrder())).iterator();
+                     ThrottledUnfilteredIterator.this.overflowed = (Iterator<Unfiltered>)Collections.<Unfiltered>singleton(boundary.createCorrespondingOpenMarker(this.isReverseOrder())).iterator();
                   } else {
                      assert marker.isClose(this.isReverseOrder());
 

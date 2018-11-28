@@ -235,7 +235,7 @@ public abstract class UnfilteredPartitionIterators {
          int i = 0;
 
          for(int length = this.numIterators; i < length; ++i) {
-            this.toMerge.add((Object)null);
+            this.toMerge.add(null);
          }
 
       }

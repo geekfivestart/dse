@@ -25,11 +25,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -100,12 +96,10 @@ public class DseClientToolPlugin extends AbstractPlugin {
       multiRow = true
    )
    public List<String> getSparkDataCenters() throws IOException {
-      Stream var10000 = Sets.union(Gossiper.instance.getLiveMembers(), Gossiper.instance.getUnreachableMembers()).stream().filter((host) -> {
-         return EndpointStateTracker.instance.getWorkloads(host).contains(Workload.Analytics);
-      });
-      EndpointStateTracker var10001 = EndpointStateTracker.instance;
-      EndpointStateTracker.instance.getClass();
-      return Lists.newArrayList((Iterable)var10000.map(var10001::getDatacenter).collect(Collectors.toSet()));
+      return Lists.newArrayList((Iterable)Sets.union((Set)Gossiper.instance.getLiveMembers(),
+              (Set<InetAddress>)Gossiper.instance.getUnreachableMembers()).stream().
+              filter(host -> EndpointStateTracker.instance.getWorkloads((InetAddress)host).contains((Object)Workload.Analytics)).
+              map((Function<InetAddress,String>) EndpointStateTracker.instance::getDatacenter).collect(Collectors.toSet()));
    }
 
    @Rpc(
@@ -180,7 +174,7 @@ public class DseClientToolPlugin extends AbstractPlugin {
 
             assert password != null && password.length > 0;
 
-            return MapBuilder.immutable().withKeys(new String[]{"id", "password"}).withValues(new ByteBuffer[]{ByteBuffer.wrap(id.getBytes()), ByteBuffer.wrap(password)}).build();
+            return MapBuilder.<String,ByteBuffer>immutable().withKeys(new String[]{"id", "password"}).withValues(new ByteBuffer[]{ByteBuffer.wrap(id.getBytes()), ByteBuffer.wrap(password)}).build();
          }
       }
    }

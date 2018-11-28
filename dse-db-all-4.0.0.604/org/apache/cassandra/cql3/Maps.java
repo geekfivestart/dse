@@ -68,17 +68,17 @@ public abstract class Maps {
       }).collect(Collectors.joining(", ", "{", "}"));
    }
 
-   public static <T> AbstractType<?> getExactMapTypeIfKnown(List<Pair<T, T>> entries, Function<T, AbstractType<?>> mapper) {
+   public static <T> AbstractType<?> getExactMapTypeIfKnown(List<Pair<T, T>> entries, java.util.function.Function<T, AbstractType<?>> mapper) {
       AbstractType<?> keyType = null;
       AbstractType<?> valueType = null;
-
-      Pair entry;
-      for(Iterator var4 = entries.iterator(); var4.hasNext(); valueType = selectType(valueType, (AbstractType)mapper.apply(entry.right))) {
-         entry = (Pair)var4.next();
-         keyType = selectType(keyType, (AbstractType)mapper.apply(entry.left));
+      for (Pair<T, T> entry : entries) {
+         keyType = Maps.selectType(keyType, mapper.apply(entry.left));
+         valueType = Maps.selectType(valueType, mapper.apply(entry.right));
       }
-
-      return keyType != null && valueType != null?MapType.getInstance(keyType, valueType, false):null;
+      if (keyType != null && valueType != null) {
+         return MapType.getInstance(keyType, valueType, false);
+      }
+      return null;
    }
 
    private static <T> AbstractType<?> selectType(AbstractType<?> type, AbstractType<?> otherType) {

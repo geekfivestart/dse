@@ -651,7 +651,7 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
 
          if(newStart.compareTo((PartitionPosition)this.first) > 0) {
             long dataStart = this.getExactPosition(newStart).position;
-            this.tidy.addCloseable(new SSTableReader.DropPageCache(this.dataFile, dataStart, (FileHandle)null, 0L, null));
+            this.tidy.addCloseable(new SSTableReader.DropPageCache(this.dataFile, dataStart, (FileHandle)null, 0L));
          }
 
          return this.cloneAndReplace(newStart, SSTableReader.OpenReason.MOVED_START);
@@ -1208,29 +1208,19 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
    }
 
    public void lock(MemoryOnlyStatus instance) {
-      Throwable ret = Throwables.perform((Throwable)null, (Stream)Arrays.stream(this.getFilesToBeLocked()).map((f) -> {
-         return () -> {
-            f.lock(instance);
-         };
-      }));
-      if(ret != null) {
+      Throwable ret = Throwables.perform(null, Arrays.stream(this.getFilesToBeLocked()).map(f -> () -> f.lock(instance)));
+      if (ret != null) {
          JVMStabilityInspector.inspectThrowable(ret);
-         logger.error("Failed to lock {}", this, ret);
+         logger.error("Failed to lock {}", (Object)this, (Object)ret);
       }
-
    }
 
    public void unlock(MemoryOnlyStatus instance) {
-      Throwable ret = Throwables.perform((Throwable)null, (Stream)Arrays.stream(this.getFilesToBeLocked()).map((f) -> {
-         return () -> {
-            f.unlock(instance);
-         };
-      }));
-      if(ret != null) {
+      Throwable ret = Throwables.perform(null, Arrays.stream(this.getFilesToBeLocked()).map(f -> () -> f.unlock(instance)));
+      if (ret != null) {
          JVMStabilityInspector.inspectThrowable(ret);
-         logger.error("Failed to unlock {}", this, ret);
+         logger.error("Failed to unlock {}", (Object)this, (Object)ret);
       }
-
    }
 
    public Iterable<MemoryLockedBuffer> getLockedMemory() {
@@ -1283,13 +1273,13 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
 
       CompletableFuture<Void> ensureReadMeter() {
          if(this.readMeter != null) {
-            return TPCUtils.completedFuture((Object)null);
+            return TPCUtils.completedFuture(null);
          } else if(!SchemaConstants.isLocalSystemKeyspace(this.desc.ksname) && !DatabaseDescriptor.isClientOrToolInitialized()) {
             return SystemKeyspace.getSSTableReadMeter(this.desc.ksname, this.desc.cfname, this.desc.generation).thenAccept(this::setReadMeter);
          } else {
             this.readMeter = null;
             this.readMeterSyncFuture = NULL;
-            return TPCUtils.completedFuture((Object)null);
+            return TPCUtils.completedFuture(null);
          }
       }
 
@@ -1374,7 +1364,7 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
       }
 
       CompletableFuture<Void> ensureReadMeter(boolean trackHotness) {
-         return trackHotness?this.global.ensureReadMeter():TPCUtils.completedFuture((Object)null);
+         return trackHotness?this.global.ensureReadMeter():TPCUtils.completedFuture(null);
       }
 
       InstanceTidier(Descriptor descriptor, TableId tableId) {
@@ -1464,7 +1454,7 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
       PartitionPosition right;
       boolean inclusiveRight;
 
-      KeysRange(AbstractBounds<PartitionPosition> var1) {
+      KeysRange(AbstractBounds<PartitionPosition> bounds) {
          assert !AbstractBounds.strictlyWrapsAround(bounds.left, bounds.right) : "[" + bounds.left + "," + bounds.right + "]";
 
          this.left = (PartitionPosition)bounds.left;

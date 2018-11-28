@@ -110,7 +110,7 @@ class ContinuousPageWriter {
          if(!this.canceled) {
             ContinuousPageWriter.logger.trace("Cancelling continuous page writer");
             this.canceled = true;
-            if(error != null && !this.error.compareAndSet((Object)null, error)) {
+            if(error != null && !this.error.compareAndSet(null, error)) {
                ContinuousPageWriter.logger.debug("Failed to set final error when cancelling session, another error was already there");
             }
 
@@ -140,7 +140,7 @@ class ContinuousPageWriter {
 
       public void setError(Frame error) {
          if(!this.completed()) {
-            if(this.error.compareAndSet((Object)null, error)) {
+            if(this.error.compareAndSet(null, error)) {
                this.complete();
             }
          } else {
@@ -161,7 +161,7 @@ class ContinuousPageWriter {
                   this.sendError();
                }
 
-               this.completionFuture.complete((Object)null);
+               this.completionFuture.complete(null);
             }
          } catch (Throwable var2) {
             JVMStabilityInspector.inspectThrowable(var2);

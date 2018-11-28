@@ -16,14 +16,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -47,7 +40,7 @@ import org.slf4j.LoggerFactory;
 public class Router implements RouterMXBean, IEndpointStateChangeSubscriber {
    public static final String EXCLUDED_HOSTS_FILE = "exclude.hosts";
    private static final Logger logger = LoggerFactory.getLogger(Router.class);
-   private volatile Router.State state = new Router.State(null);
+   private volatile State state = new State();
    private final Set<Router.UpdateCallback> updateCallbacks = Sets.newConcurrentHashSet();
    private final CassandraMetricsRegistry metrics;
    private final ExecutorService asyncStateUpdater;
@@ -75,7 +68,7 @@ public class Router implements RouterMXBean, IEndpointStateChangeSubscriber {
    }
 
    public RoutingPlan reroute(String keyspace, Set<String> failedEndpoints, Set<Range<Token>> failedRanges, SeededComparator<Endpoint> endpointComparator, @Nullable RefiningFilter<Range<Token>> rangeFilter, SetCoverFinder.Kind setCoverFinder) {
-      Collection<Endpoint> liveEndpoints = Collections2.filter((Collection)this.state.keyspaceEndpoints.get(keyspace), (input) -> {
+      Collection<Endpoint> liveEndpoints = Collections2.filter((List<Endpoint>)this.state.keyspaceEndpoints.get(keyspace), (input) -> {
          return !failedEndpoints.contains(input.getAddress().getHostAddress()) && !failedEndpoints.contains(input.getAddress().getCanonicalHostName());
       });
       logger.debug("Live endpoints: {}", liveEndpoints);
@@ -132,24 +125,23 @@ public class Router implements RouterMXBean, IEndpointStateChangeSubscriber {
 
    public void onChange(InetAddress endpoint, ApplicationState apState, VersionedValue value) {
       boolean updating = false;
-      if(apState != null) {
-         switch(null.$SwitchMap$org$apache$cassandra$gms$ApplicationState[apState.ordinal()]) {
-         case 1:
-            if(value != null && (value.value.startsWith("NORMAL") || value.value.startsWith("LEAVING") || value.value.startsWith("LEFT"))) {
+      if (apState != null) {
+         switch (apState) {
+            case STATUS: {
+               if (value == null || !value.value.startsWith("NORMAL") && !value.value.startsWith("LEAVING") && !value.value.startsWith("LEFT")) break;
+               updating = true;
+               this.refresh(true);
+               break;
+            }
+            case SCHEMA: {
                updating = true;
                this.refresh(true);
             }
-            break;
-         case 2:
-            updating = true;
-            this.refresh(true);
          }
       }
-
-      if(updating) {
+      if (updating) {
          logger.info("Updating shards state due to endpoint {} changing state {}={}", new Object[]{endpoint, apState, value.value});
       }
-
    }
 
    public void onDead(InetAddress endpoint, EndpointState epState) {
@@ -191,7 +183,7 @@ public class Router implements RouterMXBean, IEndpointStateChangeSubscriber {
    @VisibleForTesting
    public List<Endpoint> getEndpointContainers(String keyspace) {
       List<Endpoint> endpoints = (List)this.state.keyspaceEndpoints.get(keyspace);
-      return (List)(endpoints == null?Collections.emptyList():Lists.newLinkedList(Lists.transform(endpoints, Endpoint::<init>)));
+      return (List)(endpoints == null?Collections.emptyList():Lists.newLinkedList(Lists.transform(endpoints, Endpoint::new)));
    }
 
    private SetCoverResult<Endpoint, Range<Token>> calculateSetCover(SetCoverFinder<Endpoint, Range<Token>> coverFinder, SeededComparator<Endpoint> endpointComparator, @Nullable RefiningFilter<Range<Token>> rangeFilter, SetCoverFinder.Kind coverFinderKind) {
@@ -213,74 +205,53 @@ public class Router implements RouterMXBean, IEndpointStateChangeSubscriber {
    }
 
    private Set<Endpoint> makeEndpointsFromShards(Map<Endpoint, List<Range<Token>>> shards) {
-      Set<Endpoint> results = Sets.newHashSet();
-      Iterator var3 = shards.entrySet().iterator();
-
-      while(var3.hasNext()) {
-         Entry<Endpoint, List<Range<Token>>> shard = (Entry)var3.next();
-         Endpoint endpoint = (Endpoint)shard.getKey();
+      HashSet results = Sets.newHashSet();
+      for (Map.Entry<Endpoint, List<Range<Token>>> shard : shards.entrySet()) {
+         Endpoint endpoint = shard.getKey();
          endpoint.markLoadRate();
          InetAddress contactAddress = Addresses.Internode.getPreferredHost(endpoint.getAddress());
-         logger.debug("Contact address for routing endpoint {} is: {}", endpoint.getAddress(), contactAddress);
+         logger.debug("Contact address for routing endpoint {} is: {}", (Object)endpoint.getAddress(), (Object)contactAddress);
          Endpoint result = new Endpoint(contactAddress, endpoint.getProvidedTokenRanges());
-         result.setUsedTokenRanges((Collection)shard.getValue());
+         result.setUsedTokenRanges((Collection<Range<Token>>)shard.getValue());
          results.add(result);
       }
-
       return results;
    }
 
    private void updateEndpoints(Router.State state, String keyspace, Map<Range<Token>, Iterable<InetAddress>> rangeToEndpoints) {
-      Map<InetAddress, Set<Range<Token>>> endpointToRanges = Maps.newHashMap();
+      HashMap<InetAddress, Set<Range<Token>>>  endpointToRanges = Maps.newHashMap();
       Set<String> excludedHosts = this.getExcludedHosts();
-      Iterator var6 = rangeToEndpoints.entrySet().iterator();
-
-      InetAddress endpoint;
-      label43:
-      while(var6.hasNext()) {
-         Entry<Range<Token>, Iterable<InetAddress>> rangeEntry = (Entry)var6.next();
-         Iterator var8 = ((Iterable)rangeEntry.getValue()).iterator();
-
-         while(true) {
-            while(true) {
-               if(!var8.hasNext()) {
-                  continue label43;
+      for (Map.Entry<Range<Token>, Iterable<InetAddress>> rangeEntry : rangeToEndpoints.entrySet()) {
+         for (InetAddress endpoint : rangeEntry.getValue()) {
+            boolean alive = FailureDetector.instance.isAlive(endpoint);
+            boolean excluded = excludedHosts.contains(endpoint.getHostAddress());
+            Range<Token> range = rangeEntry.getKey();
+            if (alive && !excluded) {
+               logger.debug("Adding live routing endpoint {} for range {}", (Object)endpoint, range);
+               if (endpointToRanges.containsKey(endpoint)) {
+                  ((Set)endpointToRanges.get(endpoint)).add(range);
+                  continue;
                }
-
-               endpoint = (InetAddress)var8.next();
-               boolean alive = FailureDetector.instance.isAlive(endpoint);
-               boolean excluded = excludedHosts.contains(endpoint.getHostAddress());
-               Range<Token> range = (Range)rangeEntry.getKey();
-               if(alive && !excluded) {
-                  logger.debug("Adding live routing endpoint {} for range {}", endpoint, range);
-                  if(endpointToRanges.containsKey(endpoint)) {
-                     ((Set)endpointToRanges.get(endpoint)).add(range);
-                  } else {
-                     Set<Range<Token>> ranges = Sets.newHashSet();
-                     ranges.add(range);
-                     endpointToRanges.put(endpoint, ranges);
-                  }
-               } else if(excluded) {
-                  logger.debug("Discarded excluded routing endpoint {} for range {}", endpoint, range);
-               } else {
-                  logger.debug("Discarded dead routing endpoint {} for range {}", endpoint, range);
-               }
+               HashSet ranges = Sets.newHashSet();
+               ranges.add(range);
+               endpointToRanges.put(endpoint, ranges);
+               continue;
             }
+            if (excluded) {
+               logger.debug("Discarded excluded routing endpoint {} for range {}", (Object)endpoint, range);
+               continue;
+            }
+            logger.debug("Discarded dead routing endpoint {} for range {}", (Object)endpoint, range);
          }
       }
-
-      List<Endpoint> endpoints = Lists.newArrayListWithCapacity(endpointToRanges.size());
-      Iterator var15 = endpointToRanges.entrySet().iterator();
-
-      while(var15.hasNext()) {
-         Entry<InetAddress, Set<Range<Token>>> entry = (Entry)var15.next();
-         endpoint = (InetAddress)entry.getKey();
-         Set<Range<Token>> ranges = (Set)entry.getValue();
-         Endpoint endpoint = new Endpoint(endpoint, ranges);
+      ArrayList endpoints = Lists.newArrayListWithCapacity((int)endpointToRanges.size());
+      for (Map.Entry<InetAddress, Set<Range<Token>>>  entry : endpointToRanges.entrySet()) {
+         InetAddress address = (InetAddress)entry.getKey();
+         Set ranges = (Set)entry.getValue();
+         Endpoint endpoint = new Endpoint(address, ranges);
          endpoint.initLoadRate(this.metrics);
          endpoints.add(endpoint);
       }
-
       state.keyspaceEndpoints.put(keyspace, endpoints);
    }
 
@@ -317,32 +288,23 @@ public class Router implements RouterMXBean, IEndpointStateChangeSubscriber {
    }
 
    private void updateState() {
-      Router.State state = new Router.State(null);
-
+      State state = new State();
       try {
-         Iterator var2 = ((Set)this.keyspacesProvider.call()).iterator();
-
-         while(var2.hasNext()) {
-            String keyspace = (String)var2.next();
+         for (String keyspace : this.keyspacesProvider.call()) {
             Map<Range<Token>, Iterable<InetAddress>> rangeToEndpoints = this.getFilteredRangeToAddressMap(keyspace);
             state.keyspaceRanges.put(keyspace, rangeToEndpoints.keySet());
             this.updateEndpoints(state, keyspace, rangeToEndpoints);
-            Iterator var5 = this.updateCallbacks.iterator();
-
-            while(var5.hasNext()) {
-               Router.UpdateCallback callback = (Router.UpdateCallback)var5.next();
+            for (UpdateCallback callback : this.updateCallbacks) {
                callback.onUpdate(rangeToEndpoints);
             }
-
-            SetCoverFinder<Endpoint, Range<Token>> coverFinder = new SetCoverFinder((Set)state.keyspaceRanges.get(keyspace), (Collection)state.keyspaceEndpoints.get(keyspace), new Endpoint.GetProvidedRanges());
+            SetCoverFinder coverFinder = new SetCoverFinder(state.keyspaceRanges.get(keyspace), (Collection)state.keyspaceEndpoints.get(keyspace), new Endpoint.GetProvidedRanges());
             state.keyspaceCoverFinders.put(keyspace, coverFinder);
          }
-
          this.state = state;
-      } catch (Exception var7) {
-         logger.warn(var7.getMessage(), var7);
       }
-
+      catch (Exception ex) {
+         logger.warn(ex.getMessage(), (Throwable)ex);
+      }
    }
 
    public interface UpdateCallback {

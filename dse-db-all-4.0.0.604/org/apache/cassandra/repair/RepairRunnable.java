@@ -517,10 +517,7 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
    }
 
    private Set<InetAddress> filterLive(Set<InetAddress> allNeighbors) {
-      Stream var10000 = allNeighbors.stream();
-      IFailureDetector var10001 = FailureDetector.instance;
-      FailureDetector.instance.getClass();
-      return (Set)var10000.filter(var10001::isAlive).collect(Collectors.toSet());
+      return allNeighbors.stream().filter(FailureDetector.instance::isAlive).collect(Collectors.toSet());
    }
 
    private class RepairCompleteCallback implements FutureCallback<Object> {
@@ -531,7 +528,7 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
       final AtomicBoolean hasFailure;
       final ExecutorService executor;
 
-      public RepairCompleteCallback(UUID var1, Collection<Range<Token>> parentSession, long successfulRanges, TraceState startTime, AtomicBoolean traceState, ExecutorService hasFailure) {
+      public RepairCompleteCallback(UUID parentSession, Collection<Range<Token>> successfulRanges, long startTime, TraceState traceState, AtomicBoolean hasFailure, ExecutorService executor) {
          this.parentSession = parentSession;
          this.successfulRanges = successfulRanges;
          this.startTime = startTime;

@@ -284,7 +284,7 @@ class CqlRecordWriter extends RecordWriter<Map<String, ByteBuffer>, List<ByteBuf
       protected volatile boolean run;
       protected volatile IOException lastException;
 
-      public RangeClient(List<InetAddress> this$0) {
+      public RangeClient(List<InetAddress> endpoints) {
          super("client-" + endpoints);
          this.queue = new ArrayBlockingQueue(CqlRecordWriter.this.queueSize);
          this.run = true;

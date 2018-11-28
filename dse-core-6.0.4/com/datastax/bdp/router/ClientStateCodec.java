@@ -112,7 +112,6 @@ public class ClientStateCodec implements CBCodec<ClientState> {
 
    private int sizeOfInet(InetSocketAddress addr) {
       int size = 1;
-      int size;
       if(addr.isUnresolved()) {
          size = size + CBUtil.sizeOfString(addr.getHostName());
          size += 4;

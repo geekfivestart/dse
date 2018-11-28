@@ -66,9 +66,8 @@ public abstract class SchemaAlteringStatement extends CFStatement implements CQL
    }
 
    public Single<ResultMessage> executeInternal(QueryState state, QueryOptions options) {
-      return this.announceMigration(state, true).map((s) -> {
-         return new ResultMessage.SchemaChange(s);
-      }).toSingle(new ResultMessage.Void());
+      return (Single<ResultMessage>) this.announceMigration(state, true).<ResultMessage>map(
+              s -> new ResultMessage.SchemaChange(s)).toSingle(new ResultMessage.Void());
    }
 
    public StagedScheduler getScheduler() {

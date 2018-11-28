@@ -71,48 +71,28 @@ public class Validator implements Runnable {
 
    public void prepare(ColumnFamilyStore cfs, MerkleTrees tree) {
       this.trees = tree;
-      if(tree.partitioner().preservesOrder() && !this.evenTreeDistribution) {
-         List<DecoratedKey> keys = new ArrayList();
-         Random random = new Random();
-         Iterator var5 = tree.ranges().iterator();
-
-         label46:
-         while(true) {
-            while(true) {
-               if(!var5.hasNext()) {
-                  break label46;
-               }
-
-               Range<Token> range = (Range)var5.next();
-               Iterator var7 = cfs.keySamples(range).iterator();
-
-               DecoratedKey dk;
-               while(var7.hasNext()) {
-                  dk = (DecoratedKey)var7.next();
-
-                  assert range.contains((RingPosition)dk.getToken()) : "Token " + dk.getToken() + " is not within range " + this.desc.ranges;
-
-                  keys.add(dk);
-               }
-
-               if(keys.isEmpty()) {
-                  tree.init(range);
-               } else {
-                  int numKeys = keys.size();
-
-                  do {
-                     dk = (DecoratedKey)keys.get(random.nextInt(numKeys));
-                  } while(tree.split(dk.getToken()));
-
-                  keys.clear();
-               }
-            }
-         }
-      } else {
+      if (!tree.partitioner().preservesOrder() || this.evenTreeDistribution) {
          tree.init();
+      } else {
+         ArrayList<DecoratedKey> keys = new ArrayList<DecoratedKey>();
+         Random random = new Random();
+         for (Range<Token> range : tree.ranges()) {
+            DecoratedKey dk;
+            for (DecoratedKey sample : cfs.keySamples(range)) {
+               assert (range.contains(sample.getToken()));
+               keys.add(sample);
+            }
+            if (keys.isEmpty()) {
+               tree.init(range);
+               continue;
+            }
+            int numKeys = keys.size();
+            while (tree.split((dk = (DecoratedKey)keys.get(random.nextInt(numKeys))).getToken())) {
+            }
+            keys.clear();
+         }
       }
-
-      logger.debug("Prepared AEService trees of size {} for {}", Long.valueOf(this.trees.size()), this.desc);
+      logger.debug("Prepared AEService trees of size {} for {}", (Object)this.trees.size(), (Object)this.desc);
       this.ranges = tree.invalids();
    }
 
@@ -182,7 +162,7 @@ public class Validator implements Runnable {
 
    public void fail() {
       logger.error("Failed creating a merkle tree for {}, {} (see log for details)", this.desc, this.initiator);
-      MessagingService.instance().send(Verbs.REPAIR.VALIDATION_COMPLETE.newRequest(this.initiator, (Object)(new ValidationComplete(this.desc))));
+      MessagingService.instance().send(Verbs.REPAIR.VALIDATION_COMPLETE.newRequest(this.initiator, (new ValidationComplete(this.desc))));
    }
 
    public void run() {
@@ -191,7 +171,7 @@ public class Validator implements Runnable {
          Tracing.traceRepair("Sending completed merkle tree to {} for {}.{}", new Object[]{this.initiator, this.desc.keyspace, this.desc.columnFamily});
       }
 
-      MessagingService.instance().send(Verbs.REPAIR.VALIDATION_COMPLETE.newRequest(this.initiator, (Object)(new ValidationComplete(this.desc, this.trees))));
+      MessagingService.instance().send(Verbs.REPAIR.VALIDATION_COMPLETE.newRequest(this.initiator, (new ValidationComplete(this.desc, this.trees))));
    }
 
    static class CountingHasher implements Hasher {

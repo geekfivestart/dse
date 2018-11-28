@@ -118,13 +118,15 @@ public class DseState {
          try {
             Map<String, Object> state = this.doGetCurrentState();
             Map<String, String> indexingStatus = this.doGetCoreIndexingStatus(state);
-            switch(null.$SwitchMap$com$datastax$bdp$gms$DseState$CoreIndexingStatus[status.ordinal()]) {
-            case 1:
-            case 2:
-               indexingStatus.put(core, status.toString());
-               break;
-            case 3:
-               indexingStatus.remove(core);
+            switch (status) {
+               case INDEXING:
+               case FAILED: {
+                  indexingStatus.put(core, status.toString());
+                  break;
+               }
+               case FINISHED: {
+                  indexingStatus.remove(core);
+               }
             }
 
             state.put("coreIndexingStatus", indexingStatus);

@@ -19,50 +19,42 @@ public class Splitter {
    }
 
    public List<Token> splitOwnedRanges(int parts, List<Range<Token>> localRanges, boolean dontSplitRanges) {
-      if(localRanges != null && !localRanges.isEmpty() && parts != 1) {
-         double totalTokens = 0.0D;
-
-         Range r;
-         for(Iterator var6 = localRanges.iterator(); var6.hasNext(); totalTokens += ((Token)r.left).size((Token)r.right)) {
-            r = (Range)var6.next();
-         }
-
-         double perPart = totalTokens / (double)parts;
-         if(perPart == 0.0D) {
-            return Collections.singletonList(this.partitioner.getMaximumToken());
-         } else if(dontSplitRanges) {
-            return this.splitOwnedRangesNoPartialRanges(localRanges, perPart, parts);
-         } else {
-            List<Token> boundaries = new ArrayList();
-            double sum = 0.0D;
-
-            double currentRangeWidth;
-            for(Iterator var11 = localRanges.iterator(); var11.hasNext(); sum += currentRangeWidth) {
-               Range<Token> r = (Range)var11.next();
-               currentRangeWidth = ((Token)r.left).size((Token)r.right);
-
-               for(Token left = (Token)r.left; sum + currentRangeWidth >= perPart; sum = 0.0D) {
-                  double withinRangeBoundary = perPart - sum;
-                  double ratio = withinRangeBoundary / currentRangeWidth;
-                  left = this.partitioner.split(left, (Token)r.right, Math.min(ratio, 1.0D));
-                  boundaries.add(left);
-                  currentRangeWidth -= withinRangeBoundary;
-               }
-            }
-
-            if(boundaries.size() < parts) {
-               boundaries.add(this.partitioner.getMaximumToken());
-            } else {
-               boundaries.set(boundaries.size() - 1, this.partitioner.getMaximumToken());
-            }
-
-            assert boundaries.size() == parts : boundaries.size() + "!=" + parts + " " + boundaries + ":" + localRanges;
-
-            return boundaries;
-         }
-      } else {
+      if (localRanges == null || localRanges.isEmpty() || parts == 1) {
          return Collections.singletonList(this.partitioner.getMaximumToken());
       }
+      double totalTokens = 0.0;
+      for (Range<Token> r : localRanges) {
+         totalTokens += ((Token)r.left).size((Token)r.right);
+      }
+      double perPart = totalTokens / (double)parts;
+      if (perPart == 0.0) {
+         return Collections.singletonList(this.partitioner.getMaximumToken());
+      }
+      if (dontSplitRanges) {
+         return this.splitOwnedRangesNoPartialRanges(localRanges, perPart, parts);
+      }
+      ArrayList<Token> boundaries = new ArrayList<Token>();
+      double sum = 0.0;
+      for (Range<Token> r : localRanges) {
+         double currentRangeWidth = ((Token)r.left).size((Token)r.right);
+         Token left = (Token)r.left;
+         while (sum + currentRangeWidth >= perPart) {
+            double withinRangeBoundary = perPart - sum;
+            double ratio = withinRangeBoundary / currentRangeWidth;
+            left = this.partitioner.split(left, (Token)r.right, Math.min(ratio, 1.0));
+            boundaries.add(left);
+            currentRangeWidth -= withinRangeBoundary;
+            sum = 0.0;
+         }
+         sum += currentRangeWidth;
+      }
+      if (boundaries.size() < parts) {
+         boundaries.add(this.partitioner.getMaximumToken());
+      } else {
+         boundaries.set(boundaries.size() - 1, this.partitioner.getMaximumToken());
+      }
+      assert (boundaries.size() == parts);
+      return boundaries;
    }
 
    private List<Token> splitOwnedRangesNoPartialRanges(List<Range<Token>> localRanges, double perPart, int parts) {
@@ -126,7 +118,7 @@ public class Splitter {
          return 0.0D;
       } else if(token.equals(range.right)) {
          return 1.0D;
-      } else if(!range.contains((RingPosition)token)) {
+      } else if(!range.contains(token)) {
          return -1.0D;
       } else {
          double rangeSize = ((Token)range.left).size((Token)range.right);

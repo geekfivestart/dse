@@ -39,55 +39,58 @@ public class MergeReducer extends Reducer<Unfiltered, Unfiltered> {
       return this.listener == null;
    }
 
+
    public void reduce(int idx, Unfiltered current) {
       this.nextKind = current.kind();
-      switch(null.$SwitchMap$org$apache$cassandra$db$rows$Unfiltered$Kind[this.nextKind.ordinal()]) {
-      case 1:
-         this.rowMerger.add(idx, (Row)current);
-         break;
-      case 2:
-         this.maybeInitMarkerMerger();
-         this.markerMerger.add(idx, (RangeTombstoneMarker)current);
+      switch (this.nextKind) {
+         case ROW: {
+            this.rowMerger.add(idx, (Row)current);
+            break;
+         }
+         case RANGE_TOMBSTONE_MARKER: {
+            this.maybeInitMarkerMerger();
+            this.markerMerger.add(idx, (RangeTombstoneMarker)current);
+         }
       }
-
    }
 
    public Unfiltered getReduced() {
-      switch(null.$SwitchMap$org$apache$cassandra$db$rows$Unfiltered$Kind[this.nextKind.ordinal()]) {
-      case 1:
-         Row merged = this.rowMerger.merge(this.markerMerger == null?this.header.partitionLevelDeletion:this.markerMerger.activeDeletion());
-         if(merged == null) {
-            return null;
+      switch (this.nextKind) {
+         case ROW: {
+            Row merged = this.rowMerger.merge(this.markerMerger == null ? this.header.partitionLevelDeletion : this.markerMerger.activeDeletion());
+            if (merged == null) {
+               return null;
+            }
+            if (this.listener != null) {
+               this.listener.onMergedRows(merged, this.rowMerger.mergedRows());
+            }
+            return merged;
          }
-
-         if(this.listener != null) {
-            this.listener.onMergedRows(merged, this.rowMerger.mergedRows());
+         case RANGE_TOMBSTONE_MARKER: {
+            this.maybeInitMarkerMerger();
+            RangeTombstoneMarker merged = this.markerMerger.merge();
+            if (this.listener != null) {
+               this.listener.onMergedRangeTombstoneMarkers(merged, this.markerMerger.mergedMarkers());
+            }
+            return merged;
          }
-
-         return merged;
-      case 2:
-         this.maybeInitMarkerMerger();
-         RangeTombstoneMarker merged = this.markerMerger.merge();
-         if(this.listener != null) {
-            this.listener.onMergedRangeTombstoneMarkers(merged, this.markerMerger.mergedMarkers());
-         }
-
-         return merged;
-      default:
-         throw new AssertionError();
       }
+      throw new AssertionError();
    }
 
+
    public void onKeyChange() {
-      if(this.nextKind != null) {
-         switch(null.$SwitchMap$org$apache$cassandra$db$rows$Unfiltered$Kind[this.nextKind.ordinal()]) {
-         case 1:
+      if (this.nextKind == null) {
+         return;
+      }
+      switch (this.nextKind) {
+         case ROW: {
             this.rowMerger.clear();
             break;
-         case 2:
+         }
+         case RANGE_TOMBSTONE_MARKER: {
             this.markerMerger.clear();
          }
-
       }
    }
 }

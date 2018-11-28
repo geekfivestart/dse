@@ -31,7 +31,7 @@ final class ListSelector extends Selector {
             elements.add(serializer.deserialize(in, metadata));
          }
 
-         return new ListSelector(type, elements, null);
+         return new ListSelector(type, elements);
       }
    };
    private final AbstractType<?> type;
@@ -44,7 +44,7 @@ final class ListSelector extends Selector {
          }
 
          public Selector newInstance(QueryOptions options) {
-            return new ListSelector(type, factories.newInstances(options), null);
+            return new ListSelector(type, factories.newInstances(options));
          }
       };
    }

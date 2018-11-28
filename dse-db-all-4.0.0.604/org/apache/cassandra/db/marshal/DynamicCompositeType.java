@@ -285,7 +285,7 @@ public class DynamicCompositeType extends AbstractCompositeType {
       }
 
       public void serializeComparator(ByteBuffer bb) {
-         int headerx = false;
+         int headerx = 0;
          int header;
          if(this.isAlias) {
             header = '耀' | (byte)this.comparatorName.charAt(0) & 255;

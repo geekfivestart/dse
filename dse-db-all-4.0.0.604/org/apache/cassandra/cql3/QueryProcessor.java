@@ -79,6 +79,10 @@ public class QueryProcessor implements QueryHandler {
    public static final CassandraVersion CQL_VERSION = new CassandraVersion("3.4.5");
    public static final QueryProcessor instance = new QueryProcessor();
    private static final Logger logger = LoggerFactory.getLogger(QueryProcessor.class);
+   private static final ConcurrentMap<String, ParsedStatement.Prepared> internalStatements = new ConcurrentHashMap();
+   public static final CQLMetrics metrics = new CQLMetrics();
+   private static final AtomicInteger lastMinuteEvictionsCount = new AtomicInteger(0);
+   public static IAuditLogger auditLogger = DatabaseDescriptor.getAuditLogger();
    private static final Cache<MD5Digest, ParsedStatement.Prepared> preparedStatements = Caffeine.newBuilder().executor(MoreExecutors.directExecutor()).maximumWeight(capacityToBytes(DatabaseDescriptor.getPreparedStatementsCacheSizeMB())).weigher(QueryProcessor::measure).removalListener((key, prepared, cause) -> {
       MD5Digest md5Digest = (MD5Digest)key;
       if(cause.wasEvicted()) {
@@ -88,10 +92,7 @@ public class QueryProcessor implements QueryHandler {
       }
 
    }).build();
-   private static final ConcurrentMap<String, ParsedStatement.Prepared> internalStatements = new ConcurrentHashMap();
-   public static final CQLMetrics metrics = new CQLMetrics();
-   private static final AtomicInteger lastMinuteEvictionsCount = new AtomicInteger(0);
-   public static IAuditLogger auditLogger = DatabaseDescriptor.getAuditLogger();
+
 
    private static long capacityToBytes(long cacheSizeMB) {
       return cacheSizeMB * 1024L * 1024L;
@@ -514,7 +515,7 @@ public class QueryProcessor implements QueryHandler {
          if(!klass.isAssignableFrom(stmt.getClass())) {
             throw new IllegalArgumentException("Invalid query, must be a " + type + " statement but was: " + stmt.getClass());
          } else {
-            return (ParsedStatement)klass.cast(stmt);
+            return (T)(ParsedStatement)klass.cast(stmt);
          }
       } catch (RequestValidationException var4) {
          throw new IllegalArgumentException(var4.getMessage(), var4);

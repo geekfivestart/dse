@@ -14,8 +14,8 @@ public interface UpdateFunction<K, V> extends Function<K, V> {
 
    void allocated(long var1);
 
-   static default <K> UpdateFunction<K, K> noOp() {
-      return noOp;
+   public static <K> UpdateFunction<K, K> noOp() {
+      return (UpdateFunction<K, K>) noOp;
    }
 
    public static final class Simple<V> implements UpdateFunction<V, V> {

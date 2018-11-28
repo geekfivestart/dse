@@ -120,7 +120,7 @@ public class StatsMetadata extends MetadataComponent {
 
       public int serializedSize(Version version, StatsMetadata component) throws IOException {
          int size = 0;
-         int size = (int)((long)size + EstimatedHistogram.serializer.serializedSize(component.estimatedPartitionSize));
+         size = (int)((long)size + EstimatedHistogram.serializer.serializedSize(component.estimatedPartitionSize));
          size = (int)((long)size + EstimatedHistogram.serializer.serializedSize(component.estimatedColumnCount));
          size = (int)((long)size + CommitLogPosition.serializer.serializedSize((CommitLogPosition)component.commitLogIntervals.upperBound().orElse(CommitLogPosition.NONE)));
          size += 48;

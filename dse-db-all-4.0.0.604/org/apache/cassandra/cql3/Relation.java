@@ -55,34 +55,43 @@ public abstract class Relation {
    }
 
    public Restriction toRestriction(TableMetadata table, VariableSpecifications boundNames) {
-      switch(null.$SwitchMap$org$apache$cassandra$cql3$Operator[this.relationType.ordinal()]) {
-      case 1:
-         return this.newEQRestriction(table, boundNames);
-      case 2:
-         return this.newSliceRestriction(table, boundNames, Bound.END, false);
-      case 3:
-         return this.newSliceRestriction(table, boundNames, Bound.END, true);
-      case 4:
-         return this.newSliceRestriction(table, boundNames, Bound.START, true);
-      case 5:
-         return this.newSliceRestriction(table, boundNames, Bound.START, false);
-      case 6:
-         return this.newINRestriction(table, boundNames);
-      case 7:
-         return this.newContainsRestriction(table, boundNames, false);
-      case 8:
-         return this.newContainsRestriction(table, boundNames, true);
-      case 9:
-         return this.newIsNotRestriction(table, boundNames);
-      case 10:
-      case 11:
-      case 12:
-      case 13:
-      case 14:
-         return this.newLikeRestriction(table, boundNames, this.relationType);
-      default:
-         throw RequestValidations.invalidRequest("Unsupported \"!=\" relation: %s", new Object[]{this});
+      switch (this.relationType) {
+         case EQ: {
+            return this.newEQRestriction(table, boundNames);
+         }
+         case LT: {
+            return this.newSliceRestriction(table, boundNames, Bound.END, false);
+         }
+         case LTE: {
+            return this.newSliceRestriction(table, boundNames, Bound.END, true);
+         }
+         case GTE: {
+            return this.newSliceRestriction(table, boundNames, Bound.START, true);
+         }
+         case GT: {
+            return this.newSliceRestriction(table, boundNames, Bound.START, false);
+         }
+         case IN: {
+            return this.newINRestriction(table, boundNames);
+         }
+         case CONTAINS: {
+            return this.newContainsRestriction(table, boundNames, false);
+         }
+         case CONTAINS_KEY: {
+            return this.newContainsRestriction(table, boundNames, true);
+         }
+         case IS_NOT: {
+            return this.newIsNotRestriction(table, boundNames);
+         }
+         case LIKE_PREFIX:
+         case LIKE_SUFFIX:
+         case LIKE_CONTAINS:
+         case LIKE_MATCHES:
+         case LIKE: {
+            return this.newLikeRestriction(table, boundNames, this.relationType);
+         }
       }
+      throw RequestValidations.invalidRequest("Unsupported \"!=\" relation: %s", this);
    }
 
    protected abstract Restriction newEQRestriction(TableMetadata var1, VariableSpecifications var2);

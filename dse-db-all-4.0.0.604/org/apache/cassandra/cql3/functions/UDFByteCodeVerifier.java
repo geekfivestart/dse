@@ -141,7 +141,7 @@ public final class UDFByteCodeVerifier {
    private class ExecuteImplVisitor extends MethodVisitor {
       private final Set<String> errors;
 
-      ExecuteImplVisitor(Set<String> var1) {
+      ExecuteImplVisitor(Set<String> errors) {
          super(327680);
          this.errors = errors;
       }

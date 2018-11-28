@@ -27,7 +27,7 @@ import org.apache.cassandra.utils.versioning.VersionDependent;
 import org.apache.cassandra.utils.versioning.Versioned;
 
 public class UnfilteredSerializer extends VersionDependent<EncodingVersion> {
-   public static final Versioned<EncodingVersion, UnfilteredSerializer> serializers = EncodingVersion.versioned(UnfilteredSerializer::<init>);
+   public static final Versioned<EncodingVersion, UnfilteredSerializer> serializers = EncodingVersion.versioned(UnfilteredSerializer::new);
    private static final int END_OF_PARTITION = 1;
    private static final int IS_MARKER = 2;
    private static final int HAS_TIMESTAMP = 4;

@@ -70,21 +70,26 @@ public abstract class AbstractMarker extends Term.NonTerminal {
       }
 
       public Term.NonTerminal prepare(String keyspace, ColumnSpecification receiver) throws InvalidRequestException {
-         if(receiver.type.isCollection()) {
-            switch(null.$SwitchMap$org$apache$cassandra$db$marshal$CollectionType$Kind[((CollectionType)receiver.type).kind.ordinal()]) {
-            case 1:
-               return new Lists.Marker(this.bindIndex, receiver);
-            case 2:
-               return new Sets.Marker(this.bindIndex, receiver);
-            case 3:
-               return new Maps.Marker(this.bindIndex, receiver);
-            default:
-               throw new AssertionError();
+         if (receiver.type.isCollection()) {
+            switch (((CollectionType)receiver.type).kind) {
+               case LIST: {
+                  return new Lists.Marker(this.bindIndex, receiver);
+               }
+               case SET: {
+                  return new Sets.Marker(this.bindIndex, receiver);
+               }
+               case MAP: {
+                  return new Maps.Marker(this.bindIndex, receiver);
+               }
             }
-         } else {
-            return (Term.NonTerminal)(receiver.type.isUDT()?new UserTypes.Marker(this.bindIndex, receiver):new Constants.Marker(this.bindIndex, receiver));
+            throw new AssertionError();
          }
+         if (receiver.type.isUDT()) {
+            return new UserTypes.Marker(this.bindIndex, receiver);
+         }
+         return new Constants.Marker(this.bindIndex, receiver);
       }
+
 
       public AssignmentTestable.TestResult testAssignment(String keyspace, ColumnSpecification receiver) {
          return AssignmentTestable.TestResult.WEAKLY_ASSIGNABLE;

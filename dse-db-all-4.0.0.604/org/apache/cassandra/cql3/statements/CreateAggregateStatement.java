@@ -82,7 +82,7 @@ public final class CreateAggregateStatement extends SchemaAlteringStatement {
 
       AbstractType<?> stateType = this.prepareType("state type", this.stateTypeRaw);
       List<AbstractType<?>> stateArgs = stateArguments(stateType, this.argTypes);
-      Function f = (Function)Schema.instance.findFunction(this.stateFunc, stateArgs).orElse((Object)null);
+      Function f = (Function)Schema.instance.findFunction(this.stateFunc, stateArgs).orElse(null);
       if(!(f instanceof ScalarFunction)) {
          throw new InvalidRequestException("State function " + stateFuncSig(this.stateFunc, this.stateTypeRaw, this.argRawTypes) + " does not exist or is not a scalar function");
       } else {
@@ -93,7 +93,7 @@ public final class CreateAggregateStatement extends SchemaAlteringStatement {
          } else {
             if(this.finalFunc != null) {
                List<AbstractType<?>> finalArgs = Collections.singletonList(stateType);
-               f = (Function)Schema.instance.findFunction(this.finalFunc, finalArgs).orElse((Object)null);
+               f = (Function)Schema.instance.findFunction(this.finalFunc, finalArgs).orElse(null);
                if(!(f instanceof ScalarFunction)) {
                   throw new InvalidRequestException("Final function " + this.finalFunc + '(' + this.stateTypeRaw + ") does not exist or is not a scalar function");
                }
@@ -201,7 +201,7 @@ public final class CreateAggregateStatement extends SchemaAlteringStatement {
    }
 
    public Maybe<Event.SchemaChange> announceMigration(QueryState queryState, boolean isLocalOnly) throws RequestValidationException {
-      Function old = (Function)Schema.instance.findFunction(this.functionName, this.argTypes).orElse((Object)null);
+      Function old = (Function)Schema.instance.findFunction(this.functionName, this.argTypes).orElse(null);
       boolean replaced = old != null;
       if(replaced) {
          if(this.ifNotExists) {

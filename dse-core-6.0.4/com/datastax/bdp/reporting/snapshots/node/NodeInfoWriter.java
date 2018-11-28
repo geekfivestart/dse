@@ -54,7 +54,7 @@ public class NodeInfoWriter extends CqlWriter<NodeInfo> {
    }
 
    protected CqlWriter<NodeInfo>.WriterConfig createWriterConfig(CassandraVersion dseVersion) {
-      return new CqlWriter.WriterConfig(this.getInsertCQL(dseVersion), (nodeInfo) -> {
+      return new CqlWriter<NodeInfo>.WriterConfig(this.getInsertCQL(dseVersion), (nodeInfo) -> {
          return this.getVariables(nodeInfo, dseVersion);
       });
    }

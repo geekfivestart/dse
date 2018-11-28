@@ -5,7 +5,7 @@ import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.utils.FBUtilities;
 
 public interface ConfigurationLoader {
-   static default ConfigurationLoader create() throws ConfigurationException {
+   public static ConfigurationLoader create() throws ConfigurationException {
       String loaderClass = System.getProperty("cassandra.config.loader");
       return (ConfigurationLoader)(loaderClass == null?new YamlConfigurationLoader():(ConfigurationLoader)FBUtilities.construct(loaderClass, "configuration loading"));
    }

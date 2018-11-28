@@ -31,7 +31,7 @@ public class RangeUnionIterator<K extends Comparable<K>, D extends CombinedValue
       }
 
       if(head != null && head.hasNext()) {
-         D candidate = (CombinedValue)head.next();
+         D candidate = (D)(CombinedValue)head.next();
          List<RangeIterator<K, D>> processedRanges = new ArrayList();
          if(head.hasNext()) {
             processedRanges.add(head);
@@ -63,7 +63,7 @@ public class RangeUnionIterator<K extends Comparable<K>, D extends CombinedValue
          this.ranges.addAll(processedRanges);
          return candidate;
       } else {
-         return (CombinedValue)this.endOfData();
+         return (D)(CombinedValue)this.endOfData();
       }
    }
 

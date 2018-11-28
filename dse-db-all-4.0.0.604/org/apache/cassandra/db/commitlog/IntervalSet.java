@@ -2,11 +2,7 @@ package org.apache.cassandra.db.commitlog;
 
 import com.google.common.collect.ImmutableSortedMap;
 import java.io.IOException;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.NavigableMap;
-import java.util.Optional;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.Map.Entry;
 import org.apache.cassandra.db.TypeSizes;
 import org.apache.cassandra.io.ISerializer;
@@ -88,18 +84,15 @@ public class IntervalSet<T extends Comparable<T>> {
                ranges.put(pointSerializer.deserialize(in), pointSerializer.deserialize(in));
             }
 
-            return new IntervalSet(ImmutableSortedMap.copyOfSorted(ranges), null);
+            return new IntervalSet(ImmutableSortedMap.copyOfSorted(ranges));
          }
 
          public long serializedSize(IntervalSet<T> intervals) {
-            long size = (long)TypeSizes.sizeof(intervals.ranges.size());
-
-            Entry en;
-            for(Iterator var4 = intervals.ranges.entrySet().iterator(); var4.hasNext(); size += pointSerializer.serializedSize(en.getValue())) {
-               en = (Entry)var4.next();
+            long size = TypeSizes.sizeof(intervals.ranges.size());
+            for (Map.Entry<T,T> en : intervals.ranges.entrySet()) {
                size += pointSerializer.serializedSize(en.getKey());
+               size += pointSerializer.serializedSize(en.getValue());
             }
-
             return size;
          }
       };
@@ -125,12 +118,12 @@ public class IntervalSet<T extends Comparable<T>> {
 
          Entry<T, T> extend = this.ranges.floorEntry(end);
          if(extend != null && ((Comparable)extend.getValue()).compareTo(end) > 0) {
-            end = (Comparable)extend.getValue();
+            end = extend.getValue();
          }
 
          extend = this.ranges.lowerEntry(start);
          if(extend != null && ((Comparable)extend.getValue()).compareTo(start) >= 0) {
-            start = (Comparable)extend.getKey();
+            start = extend.getKey();
          }
 
          this.ranges.subMap(start, end).clear();
@@ -142,13 +135,13 @@ public class IntervalSet<T extends Comparable<T>> {
 
          while(var2.hasNext()) {
             Entry<T, T> en = (Entry)var2.next();
-            this.add((Comparable)en.getKey(), (Comparable)en.getValue());
+            this.add(en.getKey(), en.getValue());
          }
 
       }
 
       public IntervalSet<T> build() {
-         return new IntervalSet(ImmutableSortedMap.copyOfSorted(this.ranges), null);
+         return new IntervalSet(ImmutableSortedMap.copyOfSorted(this.ranges));
       }
    }
 }

@@ -21,54 +21,44 @@ public abstract class IncrementalTrieWriterBase<Value, Dest, Node extends Increm
       this.stack.addLast(root);
    }
 
-   public void add(ByteSource next, Value value) throws IOException {
+   public void add(final ByteSource next, final Value value) throws IOException {
       ++this.count;
       int stackpos = 0;
       next.reset();
       int n = next.next();
-      if(this.prev != null) {
+      if (this.prev != null) {
          this.prev.reset();
-
          int p;
-         for(p = this.prev.next(); n == p; p = this.prev.next()) {
-            assert n != -1 : String.format("Incremental trie requires unique sorted keys, got equal %s after %s.", new Object[]{next, this.prev});
-
+         for (p = this.prev.next(); n == p; n = next.next(), p = this.prev.next()) {
+            assert n != -1 : String.format("Incremental trie requires unique sorted keys, got equal %s after %s.", next, this.prev);
             ++stackpos;
-            n = next.next();
          }
-
-         assert p < n : String.format("Incremental trie requires sorted keys, got %s after %s.", new Object[]{next, this.prev});
+         assert p < n : String.format("Incremental trie requires sorted keys, got %s after %s.", next, this.prev);
       }
-
       this.prev = next;
-
-      while(this.stack.size() > stackpos + 1) {
+      while (this.stack.size() > stackpos + 1) {
          this.completeLast();
       }
-
-      IncrementalTrieWriterBase.BaseNode node;
-      for(node = (IncrementalTrieWriterBase.BaseNode)this.stack.getLast(); n != -1; n = next.next()) {
-         this.stack.addLast(node = node.addChild((byte)n));
+      Node node = this.stack.getLast();
+      while (n != -1) {
+         this.stack.addLast(node = ((BaseNode<Value, Node>)node).addChild((byte)n));
          ++stackpos;
+         n = next.next();
       }
-
-      Value existingPayload = node.setPayload(value);
-
+      final Value existingPayload = ((BaseNode<Value, Node>)node).setPayload(value);
       assert existingPayload == null;
-
    }
 
    public long complete() throws IOException {
-      Node root = (IncrementalTrieWriterBase.BaseNode)this.stack.getFirst();
+      Node root = this.stack.getFirst();
       return root.filePos != -1L?root.filePos:this.performCompletion().filePos;
    }
 
    Node performCompletion() throws IOException {
-      IncrementalTrieWriterBase.BaseNode root;
-      for(root = null; !this.stack.isEmpty(); root = this.completeLast()) {
-         ;
+      Node root = null;
+      while (!this.stack.isEmpty()) {
+         root = this.completeLast();
       }
-
       this.stack.addLast(root);
       return root;
    }
@@ -78,7 +68,7 @@ public abstract class IncrementalTrieWriterBase<Value, Dest, Node extends Increm
    }
 
    protected Node completeLast() throws IOException {
-      Node node = (IncrementalTrieWriterBase.BaseNode)this.stack.removeLast();
+      Node node = this.stack.removeLast();
       this.complete(node);
       return node;
    }

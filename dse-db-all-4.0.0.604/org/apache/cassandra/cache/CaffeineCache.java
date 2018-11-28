@@ -62,7 +62,7 @@ public class CaffeineCache<K extends IMeasurableMemory, V extends IMeasurableMem
    }
 
    public V get(K key) {
-      return (IMeasurableMemory)this.cache.getIfPresent(key);
+      return this.cache.getIfPresent(key);
    }
 
    public void put(K key, V value) {

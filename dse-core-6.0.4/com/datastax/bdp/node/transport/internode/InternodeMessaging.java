@@ -44,7 +44,7 @@ public class InternodeMessaging implements InternodeProtocolRegistry, Provider<I
 
    @Inject
    public InternodeMessaging() {
-      this.codec = new MessageCodec(2, this.MAX_FRAME_LENGTH);
+      this.codec = new MessageCodec((byte)2, this.MAX_FRAME_LENGTH);
       this.activationStarted = false;
       this.serverBuilder.withSSLOptions(SSLOptions.getDefaultForInterNode()).withAcceptorThreads(DseConfig.getInternodeMessagingServerAcceptorThreads()).withWorkerThreads(DseConfig.getInternodeMessagingServerWorkerThreads()).withMessageCodec(this.codec);
       this.clientBuilder.withSSLOptions(SSLOptions.getDefaultForInterNode()).withMaxConnections(DseConfig.getInternodeMessagingClientMaxConnections()).withWorkerThreads(DseConfig.getInternodeMessagingClientWorkerThreads()).withHandshakeTimeoutSecs(DseConfig.getInternodeMessagingClientHandshakeTimeout()).withMessageCodec(this.codec);

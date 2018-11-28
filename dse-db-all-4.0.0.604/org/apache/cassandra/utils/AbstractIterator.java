@@ -20,20 +20,21 @@ public abstract class AbstractIterator<V> implements Iterator<V>, PeekingIterato
    protected abstract V computeNext();
 
    public boolean hasNext() {
-      switch(null.$SwitchMap$org$apache$cassandra$utils$AbstractIterator$State[this.state.ordinal()]) {
-      case 1:
-         this.state = AbstractIterator.State.FAILED;
-         this.next = this.computeNext();
-      default:
-         if(this.state == AbstractIterator.State.DONE) {
-            return false;
+      switch (this.state) {
+         case MUST_FETCH: {
+            this.state = State.FAILED;
+            this.next = this.computeNext();
          }
-
-         this.state = AbstractIterator.State.HAS_NEXT;
-         return true;
-      case 2:
-         throw new IllegalStateException();
+         default: {
+            if (this.state == State.DONE) {
+               return false;
+            }
+            this.state = State.HAS_NEXT;
+            return true;
+         }
+         case FAILED:
       }
+      throw new IllegalStateException();
    }
 
    public V next() {

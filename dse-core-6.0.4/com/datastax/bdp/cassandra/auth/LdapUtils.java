@@ -20,6 +20,7 @@ import javax.annotation.Nullable;
 import javax.net.ssl.TrustManagerFactory;
 import org.apache.cassandra.auth.AuthenticatedUser;
 import org.apache.cassandra.concurrent.TPC;
+import org.apache.cassandra.concurrent.TPCUtils;
 import org.apache.cassandra.concurrent.TPCUtils.WouldBlockException;
 import org.apache.cassandra.exceptions.AuthenticationException;
 import org.apache.cassandra.exceptions.ConfigurationException;
@@ -179,7 +180,7 @@ public class LdapUtils implements LdapUtilsMXBean {
          this.connectionTimeout = Long.getLong("dse.ldap.connection.timeout.ms", 30000L).longValue();
          this.connectionPool.setMinIdle(Integer.getInteger("dse.ldap.pool.min.idle", 0).intValue());
          String exhaustedAction = System.getProperty("dse.ldap.pool.exhausted.action", "block");
-         byte exhaustedValue = exhaustedAction.equals("fail")?0:(exhaustedAction.equals("grow")?2:1);
+         byte exhaustedValue = exhaustedAction.equals("fail")?(byte)0:(byte)(exhaustedAction.equals("grow")?2:1);
          this.connectionPool.setWhenExhaustedAction((byte)exhaustedValue);
          this.connectionPool.setMaxWait(Long.getLong("dse.ldap.pool.max.wait", 30000L).longValue());
          this.connectionPool.setTestOnBorrow(Boolean.parseBoolean(System.getProperty("dse.ldap.pool.test.borrow", "false")));
@@ -224,7 +225,7 @@ public class LdapUtils implements LdapUtilsMXBean {
 
    public void setupAuthentication() {
       this.setup();
-      JMX.registerMBean(this, JMX.Type.CORE, MapBuilder.immutable().withKeys(new String[]{"name"}).withValues(new String[]{"LdapAuthenticator"}).build());
+      JMX.registerMBean(this, JMX.Type.CORE, MapBuilder.<String,String>immutable().withKeys(new String[]{"name"}).withValues(new String[]{"LdapAuthenticator"}).build());
    }
 
    public AuthenticatedUser authenticate(Credentials credentials) throws AuthenticationException {
@@ -375,7 +376,7 @@ public class LdapUtils implements LdapUtilsMXBean {
          throw new WouldBlockException("Binding LDAP user would block TPC thread");
       } else {
          LdapConnection connection = null;
-         LdapException t = null;
+         Exception t = null;
 
          try {
             connection = this.connectionPool.getConnection();
@@ -409,193 +410,167 @@ public class LdapUtils implements LdapUtilsMXBean {
       }
    }
 
-   private Dn fetchUserDn(String username) throws AuthenticationException {
-      if(TPC.isTPCThread()) {
-         throw new WouldBlockException("Fetching user from LDAP would block TPC thread");
-      } else {
-         LdapConnection connection = null;
-         DseAuthenticationException t = null;
-
-         label146: {
-            Dn var6;
-            try {
-               connection = this.connectionPool.getConnection();
-               connection.setTimeOut(this.connectionTimeout);
-               if(logger.isTraceEnabled()) {
-                  logger.trace("[ldap-fetch-user] username: " + username + " connection: " + connection);
-               }
-
-               if(this.anonymousSearch) {
-                  if(logger.isTraceEnabled()) {
-                     logger.trace("[ldap-fetch-user] anonymous bind to connection");
-                  }
-
-                  connection.anonymousBind();
-               } else {
-                  if(logger.isTraceEnabled()) {
-                     logger.trace("[ldap-fetch-user] bind to connection");
-                  }
-
-                  connection.bind();
-               }
-
-               String userSearchFilterStr = MessageFormat.format(this.userSearchFilter, new Object[]{username});
-               if(logger.isTraceEnabled()) {
-                  logger.trace("[ldap-fetch-user] user_search_base: " + this.userSearchBase + ", user_search_filter: " + userSearchFilterStr);
-               }
-
-               EntryCursor cursor = connection.search(this.userSearchBase, userSearchFilterStr, SearchScope.SUBTREE, new String[0]);
-               if(!cursor.next()) {
-                  break label146;
-               }
-
-               if(logger.isTraceEnabled()) {
-                  logger.trace("[ldap-fetch-user] found entry for username: " + username);
-               }
-
-               var6 = ((Entry)cursor.get()).getDn();
-            } catch (LdapAuthenticationException var11) {
-               if(logger.isTraceEnabled()) {
-                  logger.trace("[ldap-fetch-user] ERROR - failed to fetch username: " + username, var11);
-               }
-               break label146;
-            } catch (LdapException | RuntimeException | CursorException var12) {
-               if(logger.isTraceEnabled()) {
-                  logger.trace("[ldap-fetch-user] ERROR - failed to fetch username: " + username, var12);
-               }
-
-               AuthenticationException exception = new DseAuthenticationException("LDAP authentication failure");
-               exception.initCause(var12);
-               t = exception;
-               throw exception;
-            } finally {
-               this.freeConnection(connection, t);
-            }
-
-            return var6;
-         }
-
-         if(logger.isTraceEnabled()) {
-            logger.trace("[ldap-fetch-user] ERROR - failed to fetch username: " + username);
-         }
-
-         throw new DseAuthenticationException("Username and/or password are incorrect");
+   private Dn fetchUserDn(final String username) throws AuthenticationException {
+      if (TPC.isTPCThread()) {
+         throw new TPCUtils.WouldBlockException("Fetching user from LDAP would block TPC thread");
       }
+      LdapConnection connection = null;
+      Throwable t = null;
+      try {
+         connection = this.connectionPool.getConnection();
+         connection.setTimeOut(this.connectionTimeout);
+         if (LdapUtils.logger.isTraceEnabled()) {
+            LdapUtils.logger.trace("[ldap-fetch-user] username: " + username + " connection: " + connection);
+         }
+         if (this.anonymousSearch) {
+            if (LdapUtils.logger.isTraceEnabled()) {
+               LdapUtils.logger.trace("[ldap-fetch-user] anonymous bind to connection");
+            }
+            connection.anonymousBind();
+         }
+         else {
+            if (LdapUtils.logger.isTraceEnabled()) {
+               LdapUtils.logger.trace("[ldap-fetch-user] bind to connection");
+            }
+            connection.bind();
+         }
+         final String userSearchFilterStr = MessageFormat.format(this.userSearchFilter, username);
+         if (LdapUtils.logger.isTraceEnabled()) {
+            LdapUtils.logger.trace("[ldap-fetch-user] user_search_base: " + this.userSearchBase + ", user_search_filter: " + userSearchFilterStr);
+         }
+         final EntryCursor cursor = connection.search(this.userSearchBase, userSearchFilterStr, SearchScope.SUBTREE, new String[0]);
+         if (cursor.next()) {
+            if (LdapUtils.logger.isTraceEnabled()) {
+               LdapUtils.logger.trace("[ldap-fetch-user] found entry for username: " + username);
+            }
+            return ((Entry)cursor.get()).getDn();
+         }
+      }
+      catch (LdapAuthenticationException ignored) {
+         if (LdapUtils.logger.isTraceEnabled()) {
+            LdapUtils.logger.trace("[ldap-fetch-user] ERROR - failed to fetch username: " + username, (Throwable)ignored);
+         }
+      }
+      catch (CursorException | LdapException | RuntimeException ex2) {
+         final Exception e = ex2;
+         if (LdapUtils.logger.isTraceEnabled()) {
+            LdapUtils.logger.trace("[ldap-fetch-user] ERROR - failed to fetch username: " + username, (Throwable)e);
+         }
+         final AuthenticationException exception = new DseAuthenticationException("LDAP authentication failure");
+         exception.initCause((Throwable)e);
+         t = (Throwable)exception;
+         throw exception;
+      }
+      finally {
+         this.freeConnection(connection, t);
+      }
+      if (LdapUtils.logger.isTraceEnabled()) {
+         LdapUtils.logger.trace("[ldap-fetch-user] ERROR - failed to fetch username: " + username);
+      }
+      throw new DseAuthenticationException("Username and/or password are incorrect");
    }
 
-   public List<String> fetchUserGroups(String username) {
-      if(TPC.isTPCThread()) {
-         throw new WouldBlockException("Fetching groups from LDAP would block TPC thread");
-      } else {
-         List<String> groups = new ArrayList();
-         LdapConnection connection = null;
-         CursorException t = null;
-
-         try {
-            connection = this.connectionPool.getConnection();
-            connection.setTimeOut(this.connectionTimeout);
-            if(logger.isTraceEnabled()) {
-               logger.trace("[ldap-fetch-user-groups] username: " + username + " connection: " + connection);
-            }
-
-            if(this.anonymousSearch) {
-               if(logger.isTraceEnabled()) {
-                  logger.trace("[ldap-fetch-user-groups] anonymous bind to connection");
-               }
-
-               connection.anonymousBind();
-            } else {
-               if(logger.isTraceEnabled()) {
-                  logger.trace("[ldap-fetch-user-groups] bind to connection");
-               }
-
-               connection.bind();
-            }
-
-            String userSearchFilterStr;
-            EntryCursor cursor;
-            String groupName;
-            if(this.groupSearchType == LdapUtils.GroupSearchType.DIRECTORY_SEARCH) {
-               userSearchFilterStr = MessageFormat.format(this.userSearchFilter, new Object[]{username});
-               if(logger.isTraceEnabled()) {
-                  logger.trace("[ldap-fetch-user-groups] performing directory search for groups - fetching username: " + username + " with user_search_base: " + this.userSearchBase + ", user_search_filter: " + userSearchFilterStr);
-               }
-
-               cursor = connection.search(this.userSearchBase, userSearchFilterStr, SearchScope.SUBTREE, new String[0]);
-               if(cursor.next()) {
-                  Dn userDn = ((Entry)cursor.get()).getDn();
-                  String groupSearchFilterStr = MessageFormat.format(this.groupSearchFilter, new Object[]{userDn.toString()});
-                  if(logger.isTraceEnabled()) {
-                     logger.trace("[ldap-fetch-user-groups] looking for groups for userDN: " + userDn + " with group_search_base: " + this.groupSearchBase + ", group_search_filter: " + groupSearchFilterStr);
-                  }
-
-                  cursor = connection.search(this.groupSearchBase, MessageFormat.format(this.groupSearchFilter, new Object[]{userDn.toString()}), SearchScope.SUBTREE, new String[0]);
-
-                  while(cursor.next()) {
-                     Entry entry = (Entry)cursor.get();
-                     if(entry.containsAttribute(new String[]{this.groupNameAttribute})) {
-                        groupName = entry.get(this.groupNameAttribute).getString();
-                        if(logger.isTraceEnabled()) {
-                           logger.trace("[ldap-fetch-user-groups] found group: " + groupName + " for username: " + username);
-                        }
-
-                        groups.add(groupName);
-                     } else if(logger.isTraceEnabled()) {
-                        logger.trace("[ldap-fetch-user-groups] ERROR - group entry: " + entry.getDn() + " does not contain group_name_attribute: " + this.groupNameAttribute);
-                     }
-                  }
-               } else if(logger.isTraceEnabled()) {
-                  logger.trace("[ldap-fetch-user-groups] FAILURE - could not find user entry for username: " + username);
-               }
-            } else {
-               userSearchFilterStr = MessageFormat.format(this.userSearchFilter, new Object[]{username});
-               if(logger.isTraceEnabled()) {
-                  logger.trace("[ldap-fetch-user-groups] performing member-of lookup for groups - fetching username: " + username + " with user_search_base: " + this.userSearchBase + ", user_search_filter: " + userSearchFilterStr);
-               }
-
-               cursor = connection.search(this.userSearchBase, userSearchFilterStr, SearchScope.SUBTREE, new String[]{this.userMemberOfAttribute});
-               if(cursor.next()) {
-                  Entry entry = (Entry)cursor.get();
-                  if(entry.containsAttribute(new String[]{this.userMemberOfAttribute})) {
-                     Iterator var19 = entry.get(this.userMemberOfAttribute).iterator();
-
-                     while(var19.hasNext()) {
-                        Value value = (Value)var19.next();
-                        groupName = null;
-                        Iterator var11 = (new Dn(new String[]{value.toString()})).iterator();
-
-                        while(var11.hasNext()) {
-                           Rdn rdn = (Rdn)var11.next();
-                           if(rdn.getType().equalsIgnoreCase(this.groupNameAttribute)) {
-                              groupName = rdn.getValue();
-                           }
-                        }
-
-                        if(!Strings.isNullOrEmpty(groupName)) {
-                           if(logger.isTraceEnabled()) {
-                              logger.trace("[ldap-fetch-user-groups] found group: " + groupName + " for username: " + username);
-                           }
-
-                           groups.add(groupName);
-                        }
-                     }
-                  }
-               } else if(logger.isTraceEnabled()) {
-                  logger.trace("[ldap-fetch-user-groups] FAILURE - could not find user entry for username: " + username + " or user entry did not have any memberOf attribute entries");
-               }
-            }
-         } catch (LdapException | RuntimeException | CursorException var16) {
-            if(logger.isTraceEnabled()) {
-               logger.trace("[ldap-fetch-user-groups] ERROR - failed to fetch groups for username: " + username, var16);
-            }
-
-            t = var16;
-         } finally {
-            this.freeConnection(connection, t);
-         }
-
-         return groups;
+   public List<String> fetchUserGroups(final String username) {
+      if (TPC.isTPCThread()) {
+         throw new TPCUtils.WouldBlockException("Fetching groups from LDAP would block TPC thread");
       }
+      final List<String> groups = new ArrayList<String>();
+      LdapConnection connection = null;
+      Throwable t = null;
+      try {
+         connection = this.connectionPool.getConnection();
+         connection.setTimeOut(this.connectionTimeout);
+         if (LdapUtils.logger.isTraceEnabled()) {
+            LdapUtils.logger.trace("[ldap-fetch-user-groups] username: " + username + " connection: " + connection);
+         }
+         if (this.anonymousSearch) {
+            if (LdapUtils.logger.isTraceEnabled()) {
+               LdapUtils.logger.trace("[ldap-fetch-user-groups] anonymous bind to connection");
+            }
+            connection.anonymousBind();
+         }
+         else {
+            if (LdapUtils.logger.isTraceEnabled()) {
+               LdapUtils.logger.trace("[ldap-fetch-user-groups] bind to connection");
+            }
+            connection.bind();
+         }
+         if (this.groupSearchType == GroupSearchType.DIRECTORY_SEARCH) {
+            final String userSearchFilterStr = MessageFormat.format(this.userSearchFilter, username);
+            if (LdapUtils.logger.isTraceEnabled()) {
+               LdapUtils.logger.trace("[ldap-fetch-user-groups] performing directory search for groups - fetching username: " + username + " with user_search_base: " + this.userSearchBase + ", user_search_filter: " + userSearchFilterStr);
+            }
+            EntryCursor cursor = connection.search(this.userSearchBase, userSearchFilterStr, SearchScope.SUBTREE, new String[0]);
+            if (cursor.next()) {
+               final Dn userDn = ((Entry)cursor.get()).getDn();
+               final String groupSearchFilterStr = MessageFormat.format(this.groupSearchFilter, userDn.toString());
+               if (LdapUtils.logger.isTraceEnabled()) {
+                  LdapUtils.logger.trace("[ldap-fetch-user-groups] looking for groups for userDN: " + userDn + " with group_search_base: " + this.groupSearchBase + ", group_search_filter: " + groupSearchFilterStr);
+               }
+               cursor = connection.search(this.groupSearchBase, MessageFormat.format(this.groupSearchFilter, userDn.toString()), SearchScope.SUBTREE, new String[0]);
+               while (cursor.next()) {
+                  final Entry entry = (Entry)cursor.get();
+                  if (entry.containsAttribute(new String[] { this.groupNameAttribute })) {
+                     final String groupName = entry.get(this.groupNameAttribute).getString();
+                     if (LdapUtils.logger.isTraceEnabled()) {
+                        LdapUtils.logger.trace("[ldap-fetch-user-groups] found group: " + groupName + " for username: " + username);
+                     }
+                     groups.add(groupName);
+                  }
+                  else {
+                     if (!LdapUtils.logger.isTraceEnabled()) {
+                        continue;
+                     }
+                     LdapUtils.logger.trace("[ldap-fetch-user-groups] ERROR - group entry: " + entry.getDn() + " does not contain group_name_attribute: " + this.groupNameAttribute);
+                  }
+               }
+            }
+            else if (LdapUtils.logger.isTraceEnabled()) {
+               LdapUtils.logger.trace("[ldap-fetch-user-groups] FAILURE - could not find user entry for username: " + username);
+            }
+         }
+         else {
+            final String userSearchFilterStr = MessageFormat.format(this.userSearchFilter, username);
+            if (LdapUtils.logger.isTraceEnabled()) {
+               LdapUtils.logger.trace("[ldap-fetch-user-groups] performing member-of lookup for groups - fetching username: " + username + " with user_search_base: " + this.userSearchBase + ", user_search_filter: " + userSearchFilterStr);
+            }
+            final EntryCursor cursor = connection.search(this.userSearchBase, userSearchFilterStr, SearchScope.SUBTREE, new String[] { this.userMemberOfAttribute });
+            if (cursor.next()) {
+               final Entry entry2 = (Entry)cursor.get();
+               if (entry2.containsAttribute(new String[] { this.userMemberOfAttribute })) {
+                  for (final Value value : entry2.get(this.userMemberOfAttribute)) {
+                     String groupName = null;
+                     for (final Rdn rdn : new Dn(new String[] { value.toString() })) {
+                        if (rdn.getType().equalsIgnoreCase(this.groupNameAttribute)) {
+                           groupName = rdn.getValue();
+                        }
+                     }
+                     if (!Strings.isNullOrEmpty(groupName)) {
+                        if (LdapUtils.logger.isTraceEnabled()) {
+                           LdapUtils.logger.trace("[ldap-fetch-user-groups] found group: " + groupName + " for username: " + username);
+                        }
+                        groups.add(groupName);
+                     }
+                  }
+               }
+            }
+            else if (LdapUtils.logger.isTraceEnabled()) {
+               LdapUtils.logger.trace("[ldap-fetch-user-groups] FAILURE - could not find user entry for username: " + username + " or user entry did not have any memberOf attribute entries");
+            }
+         }
+      }
+      catch (CursorException ex) {}
+      catch (LdapException ex2) {}
+      catch (RuntimeException e) {
+         if (LdapUtils.logger.isTraceEnabled()) {
+            LdapUtils.logger.trace("[ldap-fetch-user-groups] ERROR - failed to fetch groups for username: " + username, (Throwable)e);
+         }
+         t = e;
+      }
+      finally {
+         this.freeConnection(connection, t);
+      }
+      return groups;
    }
 
    public long getSearchCacheSize() {

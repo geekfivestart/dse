@@ -210,37 +210,12 @@ final class HintsDispatchExecutor {
 
       private void convert(HintsDescriptor descriptor) {
          File file = new File(HintsDispatchExecutor.this.hintsDirectory, descriptor.fileName());
-         HintsReader reader = HintsReader.open(file, this.rateLimiter);
-         Throwable var4 = null;
-
-         try {
-            reader.forEach((page) -> {
-               Iterator var10000 = page.hintsIterator();
-               HintsService var10001 = HintsService.instance;
-               HintsService.instance.getClass();
-               var10000.forEachRemaining(var10001::writeForAllReplicas);
-            });
+         try (HintsReader reader = HintsReader.open(file, this.rateLimiter);){
+            reader.forEach(page -> page.hintsIterator().forEachRemaining(HintsService.instance::writeForAllReplicas));
             this.store.delete(descriptor);
             this.store.cleanUp(descriptor);
-            HintsDispatchExecutor.logger.info("Finished converting hints file {}", descriptor.fileName());
-         } catch (Throwable var13) {
-            var4 = var13;
-            throw var13;
-         } finally {
-            if(reader != null) {
-               if(var4 != null) {
-                  try {
-                     reader.close();
-                  } catch (Throwable var12) {
-                     var4.addSuppressed(var12);
-                  }
-               } else {
-                  reader.close();
-               }
-            }
-
+            logger.info("Finished converting hints file {}", (Object)descriptor.fileName());
          }
-
       }
    }
 
@@ -248,7 +223,7 @@ final class HintsDispatchExecutor {
       private final HintsCatalog catalog;
       private final Supplier<UUID> hostIdSupplier;
 
-      private TransferHintsTask(HintsCatalog var1, Supplier<UUID> catalog) {
+      private TransferHintsTask(HintsCatalog catalog, Supplier<UUID> hostIdSupplier) {
          this.catalog = catalog;
          this.hostIdSupplier = hostIdSupplier;
       }

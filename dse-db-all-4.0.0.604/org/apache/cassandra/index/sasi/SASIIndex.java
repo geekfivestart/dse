@@ -70,7 +70,7 @@ import org.apache.cassandra.utils.flow.Flow;
 
 public class SASIIndex implements Index, INotificationConsumer {
    public static final String USAGE_WARNING = "SASI index was enabled for '%s.%s'. SASI is still in beta, take extra caution when using it in production.";
-   private static final SASIIndex.SASIIndexBuildingSupport INDEX_BUILDER_SUPPORT = new SASIIndex.SASIIndexBuildingSupport(null);
+   private static final SASIIndex.SASIIndexBuildingSupport INDEX_BUILDER_SUPPORT = new SASIIndex.SASIIndexBuildingSupport();
    private final ColumnFamilyStore baseCfs;
    private final IndexMetadata config;
    private final ColumnIndex index;
@@ -82,7 +82,7 @@ public class SASIIndex implements Index, INotificationConsumer {
       this.index = new ColumnIndex(baseCfs.metadata().partitionKeyType, column, config);
       Tracker tracker = baseCfs.getTracker();
       tracker.subscribe(this);
-      SortedMap<SSTableReader, Multimap<ColumnMetadata, ColumnIndex>> toRebuild = new TreeMap((a, b) -> {
+      SortedMap toRebuild = new TreeMap<SSTableReader,Multimap<ColumnMetadata, ColumnIndex>>((a, b) -> {
          return Integer.compare(a.descriptor.generation, b.descriptor.generation);
       });
 
@@ -292,7 +292,7 @@ public class SASIIndex implements Index, INotificationConsumer {
       }
 
       public SecondaryIndexBuilder getIndexBuildTask(ColumnFamilyStore cfs, Set<Index> indexes, Collection<SSTableReader> sstablesToRebuild) {
-         NavigableMap<SSTableReader, Multimap<ColumnMetadata, ColumnIndex>> sstables = new TreeMap(Comparator.comparingInt((a) -> {
+         NavigableMap<SSTableReader, Multimap<ColumnMetadata, ColumnIndex>> sstables = new TreeMap<SSTableReader, Multimap<ColumnMetadata, ColumnIndex>>(Comparator.comparingInt((a) -> {
             return a.descriptor.generation;
          }));
          indexes.stream().filter((i) -> {

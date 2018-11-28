@@ -123,18 +123,9 @@ public class ChunkCacheImpl implements AsyncCacheLoader<ChunkCacheImpl.Key, Chun
    public int size() {
       return this.cache.synchronous().asMap().size();
    }
-
-   public long weightedSize() {
-      Optional var10000 = this.cache.synchronous().policy().eviction().map((policy) -> {
-         OptionalLong var10000 = policy.weightedSize();
-         LoadingCache var10001 = this.cache.synchronous();
-         var10001.getClass();
-         return Long.valueOf(var10000.orElseGet(var10001::estimatedSize));
-      });
-      LoadingCache var10001 = this.cache.synchronous();
-      var10001.getClass();
-      return ((Long)var10000.orElseGet(var10001::estimatedSize)).longValue();
-   }
+    public long weightedSize() {
+        return this.cache.synchronous().policy().eviction().map(policy -> policy.weightedSize().orElseGet(this.cache.synchronous()::estimatedSize)).orElseGet(this.cache.synchronous()::estimatedSize);
+    }
 
    class CachingRebufferer implements Rebufferer, RebuffererFactory {
       private final ChunkReader source;
@@ -322,9 +313,9 @@ public class ChunkCacheImpl implements AsyncCacheLoader<ChunkCacheImpl.Key, Chun
       }
 
       public int hashCode() {
-         int prime = true;
+         int prime = 31;
          int result = 1;
-         int result = 31 * result + this.path().hashCode();
+         result = 31 * result + this.path().hashCode();
          result = 31 * result + this.file.getClass().hashCode();
          result = 31 * result + Long.hashCode(this.position);
          return result;

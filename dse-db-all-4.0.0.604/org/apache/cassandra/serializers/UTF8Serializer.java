@@ -21,105 +21,108 @@ public class UTF8Serializer extends AbstractTextSerializer {
       }
 
       static boolean validate(ByteBuffer buf) {
-         if(buf == null) {
+         if (buf == null) {
             return false;
-         } else {
-            buf = buf.slice();
-            int b = false;
-            UTF8Serializer.UTF8Validator.State state = UTF8Serializer.UTF8Validator.State.START;
-
-            while(buf.remaining() > 0) {
-               int b = buf.get();
-               switch(null.$SwitchMap$org$apache$cassandra$serializers$UTF8Serializer$UTF8Validator$State[state.ordinal()]) {
-               case 1:
-                  if(b >= 0) {
-                     if(b > 127) {
+         }
+         buf = buf.slice();
+         int b = 0;
+         State state = State.START;
+         while (buf.remaining() > 0) {
+            b = buf.get();
+            switch (state) {
+               case START: {
+                  if (b >= 0) {
+                     if (b > 127) {
                         return false;
                      }
-                  } else if(b >> 5 == -2) {
-                     if(b == -64) {
-                        state = UTF8Serializer.UTF8Validator.State.TWO_80;
-                     } else {
-                        if((b & 30) == 0) {
-                           return false;
-                        }
-
-                        state = UTF8Serializer.UTF8Validator.State.TWO;
+                     continue;
+                  }
+                  else if (b >> 5 == -2) {
+                     if (b == -64) {
+                        state = State.TWO_80;
+                        continue;
                      }
-                  } else if(b >> 4 == -2) {
-                     if(b == -32) {
-                        state = UTF8Serializer.UTF8Validator.State.THREE_a0bf;
-                     } else {
-                        state = UTF8Serializer.UTF8Validator.State.THREE_80bf_2;
-                     }
-                  } else {
-                     if(b >> 3 != -2) {
+                     if ((b & 0x1E) == 0x0) {
                         return false;
                      }
-
-                     if(b == -16) {
-                        state = UTF8Serializer.UTF8Validator.State.FOUR_90bf;
-                     } else {
-                        state = UTF8Serializer.UTF8Validator.State.FOUR_80bf_3;
+                     state = State.TWO;
+                     continue;
+                  }
+                  else if (b >> 4 == -2) {
+                     if (b == -32) {
+                        state = State.THREE_a0bf;
+                        continue;
                      }
+                     state = State.THREE_80bf_2;
+                     continue;
                   }
-                  break;
-               case 2:
-                  if((b & 192) != 128) {
+                  else {
+                     if (b >> 3 != -2) {
+                        return false;
+                     }
+                     if (b == -16) {
+                        state = State.FOUR_90bf;
+                        continue;
+                     }
+                     state = State.FOUR_80bf_3;
+                     continue;
+                  }
+               }
+               case TWO: {
+                  if ((b & 0xC0) != 0x80) {
                      return false;
                   }
-
-                  state = UTF8Serializer.UTF8Validator.State.START;
-                  break;
-               case 3:
-                  if(b != -128) {
+                  state = State.START;
+                  continue;
+               }
+               case TWO_80: {
+                  if (b != -128) {
                      return false;
                   }
-
-                  state = UTF8Serializer.UTF8Validator.State.START;
-                  break;
-               case 4:
-                  if((b & 224) == 128) {
+                  state = State.START;
+                  continue;
+               }
+               case THREE_a0bf: {
+                  if ((b & 0xE0) == 0x80) {
                      return false;
                   }
-
-                  state = UTF8Serializer.UTF8Validator.State.THREE_80bf_1;
-                  break;
-               case 5:
-                  if((b & 192) != 128) {
+                  state = State.THREE_80bf_1;
+                  continue;
+               }
+               case THREE_80bf_1: {
+                  if ((b & 0xC0) != 0x80) {
                      return false;
                   }
-
-                  state = UTF8Serializer.UTF8Validator.State.START;
-                  break;
-               case 6:
-                  if((b & 192) != 128) {
+                  state = State.START;
+                  continue;
+               }
+               case THREE_80bf_2: {
+                  if ((b & 0xC0) != 0x80) {
                      return false;
                   }
-
-                  state = UTF8Serializer.UTF8Validator.State.THREE_80bf_1;
-                  break;
-               case 7:
-                  if((b & 48) == 0) {
+                  state = State.THREE_80bf_1;
+                  continue;
+               }
+               case FOUR_90bf: {
+                  if ((b & 0x30) == 0x0) {
                      return false;
                   }
-
-                  state = UTF8Serializer.UTF8Validator.State.THREE_80bf_2;
-                  break;
-               case 8:
-                  if((b & 192) != 128) {
+                  state = State.THREE_80bf_2;
+                  continue;
+               }
+               case FOUR_80bf_3: {
+                  if ((b & 0xC0) != 0x80) {
                      return false;
                   }
-
-                  state = UTF8Serializer.UTF8Validator.State.THREE_80bf_2;
-                  break;
-               default:
+                  state = State.THREE_80bf_2;
+                  continue;
+               }
+               default: {
                   return false;
                }
             }
-
-            return state == UTF8Serializer.UTF8Validator.State.START;
          }
+         return state == State.START;
       }
 
       static enum State {

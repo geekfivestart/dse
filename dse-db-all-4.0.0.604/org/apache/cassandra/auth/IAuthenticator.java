@@ -12,7 +12,7 @@ public interface IAuthenticator {
    }
 
    default <T extends IAuthenticator> T implementation() {
-      return this;
+      return (T)this;
    }
 
    default <T extends IAuthenticator> boolean isImplementationOf(Class<T> implClass) {

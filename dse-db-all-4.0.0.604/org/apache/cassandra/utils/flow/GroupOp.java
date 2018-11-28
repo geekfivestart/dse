@@ -8,7 +8,7 @@ public interface GroupOp<I, O> {
 
    O map(List<I> var1) throws Exception;
 
-   static default <I, O> Flow<O> group(Flow<I> source, GroupOp<I, O> op) {
+   public static <I, O> Flow<O> group(Flow<I> source, GroupOp<I, O> op) {
       return new GroupOp.GroupFlow(op, source);
    }
 
@@ -43,7 +43,7 @@ public interface GroupOp<I, O> {
          this.entries.add(entry);
          if(out != null) {
             this.completeOnNextRequest = true;
-            this.subscriber.onNext(out);
+            this.subscriber.onNext((O)out);
          } else {
             this.onComplete();
          }
@@ -69,7 +69,7 @@ public interface GroupOp<I, O> {
 
          this.entries.add(entry);
          if(out != null) {
-            this.subscriber.onNext(out);
+            this.subscriber.onNext((O)out);
          } else {
             this.requestInLoop(this.source);
          }
@@ -91,7 +91,7 @@ public interface GroupOp<I, O> {
          }
 
          if(out != null) {
-            this.subscriber.onFinal(out);
+            this.subscriber.onFinal((O)out);
          } else {
             this.subscriber.onComplete();
          }

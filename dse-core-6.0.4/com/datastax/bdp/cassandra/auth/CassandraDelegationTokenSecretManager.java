@@ -65,7 +65,7 @@ public class CassandraDelegationTokenSecretManager extends AbstractDelegationTok
 
    public CassandraDelegationTokenIdentifier cancelToken(CassandraDelegationTokenIdentifier identifier, String canceller) throws IOException {
       logger.info("User {} requested removal of token: {}", canceller, CassandraDelegationTokenIdentifier.toStringFromId((TokenIdentifier)identifier));
-      String cancellerName = (String)Optional.ofNullable(canceller).map(KerberosServerUtils::getOrExtractServiceName).orElse((Object)null);
+      String cancellerName = (String)Optional.ofNullable(canceller).map(KerberosServerUtils::getOrExtractServiceName).orElse(null);
       if(Objects.equals(canceller, identifier.getUser().getUserName()) || identifier.hasRenewer() && Objects.equals(cancellerName, identifier.getRenewer().toString())) {
          return this.cancelToken(identifier);
       } else {
@@ -110,7 +110,7 @@ public class CassandraDelegationTokenSecretManager extends AbstractDelegationTok
 
    public long renewToken(CassandraDelegationTokenIdentifier identifier, String renewer) throws IOException {
       logger.info("User {} requested renewal of token: {}", renewer, CassandraDelegationTokenIdentifier.toStringFromId((TokenIdentifier)identifier));
-      String renewerName = (String)Optional.ofNullable(renewer).map(KerberosServerUtils::getOrExtractServiceName).orElse((Object)null);
+      String renewerName = (String)Optional.ofNullable(renewer).map(KerberosServerUtils::getOrExtractServiceName).orElse(null);
       if(identifier.hasRenewer() && Objects.equals(identifier.getRenewer().toString(), renewerName)) {
          return this.renewToken(identifier);
       } else {

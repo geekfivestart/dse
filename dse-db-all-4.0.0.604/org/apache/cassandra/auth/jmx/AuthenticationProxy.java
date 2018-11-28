@@ -36,7 +36,7 @@ public final class AuthenticationProxy implements JMXAuthenticator {
          loginContext.login();
          Subject subject = loginContext.getSubject();
          if(!subject.isReadOnly()) {
-            AccessController.doPrivileged(() -> {
+            AccessController.doPrivileged((PrivilegedAction<Void>)() -> {
                subject.setReadOnly();
                return null;
             });

@@ -27,35 +27,37 @@ public abstract class DiskOptimizationStrategy {
    }
 
    public static DiskOptimizationStrategy create(Config conf) {
-      int minBufferSize = MIN_BUFFER_SIZE > 0?MIN_BUFFER_SIZE:4096;
-      if(Integer.bitCount(minBufferSize) != 1) {
-         throw new ConfigurationException(String.format("Min buffer size must be a power of two, instead got %d", new Object[]{Integer.valueOf(minBufferSize)}));
-      } else {
-         int maxBufferSize = MAX_BUFFER_SIZE > 0?MAX_BUFFER_SIZE:65536;
-         if(Integer.bitCount(maxBufferSize) != 1) {
-            throw new ConfigurationException(String.format("Max buffer size must be a power of two, instead got %d", new Object[]{Integer.valueOf(maxBufferSize)}));
-         } else if(minBufferSize > maxBufferSize) {
-            throw new ConfigurationException(String.format("Max buffer size %d must be >= than min buffer size %d", new Object[]{Integer.valueOf(maxBufferSize), Integer.valueOf(minBufferSize)}));
-         } else {
-            if(maxBufferSize > 65536) {
-               logger.warn("Buffers larger than 64k ({}) are currently not supported by the buffer pool. This will cause longer allocation times for each buffer read from disk, consider lowering -D{} but make sure it is still a power of two and >= -D{}.", new Object[]{Integer.valueOf(maxBufferSize), "dse.max_buffer_size", "dse.min_buffer_size"});
-            }
-
-            Object ret;
-            switch(null.$SwitchMap$org$apache$cassandra$config$Config$DiskOptimizationStrategy[conf.disk_optimization_strategy.ordinal()]) {
-            case 1:
-               ret = new SsdDiskOptimizationStrategy(minBufferSize, maxBufferSize, conf.disk_optimization_page_cross_chance);
-               break;
-            case 2:
-               ret = new SpinningDiskOptimizationStrategy(minBufferSize, maxBufferSize);
-               break;
-            default:
-               throw new ConfigurationException("Unknown disk optimization strategy: " + conf.disk_optimization_strategy);
-            }
-
-            return (DiskOptimizationStrategy)ret;
+      DiskOptimizationStrategy ret;
+      int minBufferSize;
+      int maxBufferSize;
+      int n = minBufferSize = MIN_BUFFER_SIZE > 0 ? MIN_BUFFER_SIZE : 4096;
+      if (Integer.bitCount(minBufferSize) != 1) {
+         throw new ConfigurationException(String.format("Min buffer size must be a power of two, instead got %d", minBufferSize));
+      }
+      int n2 = maxBufferSize = MAX_BUFFER_SIZE > 0 ? MAX_BUFFER_SIZE : 65536;
+      if (Integer.bitCount(maxBufferSize) != 1) {
+         throw new ConfigurationException(String.format("Max buffer size must be a power of two, instead got %d", maxBufferSize));
+      }
+      if (minBufferSize > maxBufferSize) {
+         throw new ConfigurationException(String.format("Max buffer size %d must be >= than min buffer size %d", maxBufferSize, minBufferSize));
+      }
+      if (maxBufferSize > 65536) {
+         logger.warn("Buffers larger than 64k ({}) are currently not supported by the buffer pool. This will cause longer allocation times for each buffer read from disk, consider lowering -D{} but make sure it is still a power of two and >= -D{}.", new Object[]{maxBufferSize, MAX_BUFFER_SIZE_NAME, MIN_BUFFER_SIZE_NAME});
+      }
+      switch (conf.disk_optimization_strategy) {
+         case ssd: {
+            ret = new SsdDiskOptimizationStrategy(minBufferSize, maxBufferSize, conf.disk_optimization_page_cross_chance);
+            break;
+         }
+         case spinning: {
+            ret = new SpinningDiskOptimizationStrategy(minBufferSize, maxBufferSize);
+            break;
+         }
+         default: {
+            throw new ConfigurationException("Unknown disk optimization strategy: " + (Object)((Object)conf.disk_optimization_strategy));
          }
       }
+      return ret;
    }
 
    public abstract String diskType();

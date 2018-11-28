@@ -54,9 +54,9 @@ import org.slf4j.LoggerFactory;
 public abstract class RowFilter implements Iterable<RowFilter.Expression> {
    private static final Logger logger = LoggerFactory.getLogger(RowFilter.class);
    public static final Versioned<ReadVerbs.ReadVersion, RowFilter.Serializer> serializers = ReadVerbs.ReadVersion.versioned((x$0) -> {
-      return new RowFilter.Serializer(x$0, null);
+      return new RowFilter.Serializer(x$0);
    });
-   public static final RowFilter NONE = new RowFilter.CQLFilter(Collections.emptyList(), null);
+   public static final RowFilter NONE = new RowFilter.CQLFilter(Collections.emptyList());
    protected final List<RowFilter.Expression> expressions;
 
    protected RowFilter(List<RowFilter.Expression> expressions) {
@@ -64,11 +64,11 @@ public abstract class RowFilter implements Iterable<RowFilter.Expression> {
    }
 
    public static RowFilter create() {
-      return new RowFilter.CQLFilter(new ArrayList(), null);
+      return new RowFilter.CQLFilter(new ArrayList());
    }
 
    public static RowFilter create(int capacity) {
-      return new RowFilter.CQLFilter(new ArrayList(capacity), null);
+      return new RowFilter.CQLFilter(new ArrayList(capacity));
    }
 
    public RowFilter.SimpleExpression add(ColumnMetadata def, Operator op, ByteBuffer value) {
@@ -243,7 +243,7 @@ public abstract class RowFilter implements Iterable<RowFilter.Expression> {
             expressions.add(((RowFilter.Expression.Serializer)RowFilter.Expression.serializers.get(this.version)).deserialize(in, metadata));
          }
 
-         return new RowFilter.CQLFilter(expressions, null);
+         return new RowFilter.CQLFilter(expressions);
       }
 
       public long serializedSize(RowFilter filter) {
@@ -259,7 +259,7 @@ public abstract class RowFilter implements Iterable<RowFilter.Expression> {
    }
 
    public abstract static class UserExpression extends RowFilter.Expression {
-      private static final RowFilter.UserExpression.DeserializerRegistry deserializers = new RowFilter.UserExpression.DeserializerRegistry(null);
+      private static final RowFilter.UserExpression.DeserializerRegistry deserializers = new RowFilter.UserExpression.DeserializerRegistry();
 
       public static void register(Class<? extends RowFilter.UserExpression> expressionClass, RowFilter.UserExpression.Deserializer deserializer) {
          deserializers.registerUserExpressionClass(expressionClass, deserializer);
@@ -455,119 +455,104 @@ public abstract class RowFilter implements Iterable<RowFilter.Expression> {
       }
 
       private boolean isSatisfiedByInternal(TableMetadata metadata, DecoratedKey partitionKey, Row row) {
-         assert this.value != null;
-
-         ByteBuffer foundValue;
-         ByteBuffer foundValue;
-         switch(null.$SwitchMap$org$apache$cassandra$cql3$Operator[this.operator.ordinal()]) {
-         case 1:
-         case 2:
-         case 3:
-         case 4:
-         case 5:
-            assert !this.column.isComplex() : "Only CONTAINS and CONTAINS_KEY are supported for 'complex' types";
-
-            if(this.column.type.isCounter()) {
-               foundValue = this.getValue(metadata, partitionKey, row);
-               if(foundValue == null) {
-                  return false;
-               } else {
-                  foundValue = LongType.instance.decompose(Long.valueOf(CounterContext.instance().total(foundValue)));
-                  return this.operator.isSatisfiedBy(LongType.instance, foundValue, this.value);
+         assert (this.value != null);
+         switch (this.operator) {
+            case EQ:
+            case LT:
+            case LTE:
+            case GTE:
+            case GT: {
+               assert (!this.column.isComplex());
+               if (this.column.type.isCounter()) {
+                  ByteBuffer foundValue = this.getValue(metadata, partitionKey, row);
+                  if (foundValue == null) {
+                     return false;
+                  }
+                  ByteBuffer counterValue = LongType.instance.decompose(CounterContext.instance().total(foundValue));
+                  return this.operator.isSatisfiedBy(LongType.instance, counterValue, this.value);
                }
-            } else {
-               foundValue = this.getValue(metadata, partitionKey, row);
+               ByteBuffer foundValue = this.getValue(metadata, partitionKey, row);
                return foundValue != null && this.operator.isSatisfiedBy(this.column.type, foundValue, this.value);
             }
-         case 6:
-         case 7:
-         case 8:
-         case 9:
-         case 10:
-            assert !this.column.isComplex() : "Only CONTAINS and CONTAINS_KEY are supported for 'complex' types";
-
-            foundValue = this.getValue(metadata, partitionKey, row);
-            return foundValue != null && this.operator.isSatisfiedBy(this.column.type, foundValue, this.value);
-         case 11:
-            assert this.column.type.isCollection();
-
-            CollectionType<?> type = (CollectionType)this.column.type;
-            if(!this.column.isComplex()) {
-               foundValue = this.getValue(metadata, partitionKey, row);
-               if(foundValue == null) {
-                  return false;
-               } else {
-                  switch(null.$SwitchMap$org$apache$cassandra$db$marshal$CollectionType$Kind[type.kind.ordinal()]) {
-                  case 1:
-                     ListType<?> listType = (ListType)type;
-                     return ((List)listType.compose(foundValue)).contains(listType.getElementsType().compose(this.value));
-                  case 2:
-                     SetType<?> setType = (SetType)type;
-                     return ((Set)setType.compose(foundValue)).contains(setType.getElementsType().compose(this.value));
-                  case 3:
-                     MapType<?, ?> mapType = (MapType)type;
-                     return ((Map)mapType.compose(foundValue)).containsValue(mapType.getValuesType().compose(this.value));
-                  default:
-                     throw new AssertionError();
-                  }
-               }
-            } else {
-               ComplexColumnData complexData = row.getComplexColumnData(this.column);
-               if(complexData != null) {
-                  Iterator var12 = complexData.iterator();
-
-                  while(var12.hasNext()) {
-                     Cell cell = (Cell)var12.next();
-                     if(type.kind == CollectionType.Kind.SET) {
-                        if(type.nameComparator().compare(cell.path().get(0), this.value) == 0) {
-                           return true;
-                        }
-                     } else if(type.valueComparator().compare(cell.value(), this.value) == 0) {
+            case NEQ:
+            case LIKE_PREFIX:
+            case LIKE_SUFFIX:
+            case LIKE_CONTAINS:
+            case LIKE_MATCHES: {
+               assert (!this.column.isComplex());
+               ByteBuffer foundValue = this.getValue(metadata, partitionKey, row);
+               return foundValue != null && this.operator.isSatisfiedBy(this.column.type, foundValue, this.value);
+            }
+            case CONTAINS: {
+               assert (this.column.type.isCollection());
+               CollectionType type = (CollectionType)this.column.type;
+               if (this.column.isComplex()) {
+                  ComplexColumnData complexData = row.getComplexColumnData(this.column);
+                  if (complexData != null) {
+                     for (Cell cell : complexData) {
+                        if (!(type.kind == CollectionType.Kind.SET ? type.nameComparator().compare(cell.path().get(0), this.value) == 0 : type.valueComparator().compare(cell.value(), this.value) == 0)) continue;
                         return true;
                      }
                   }
+                  return false;
                }
-
-               return false;
+               ByteBuffer foundValue = this.getValue(metadata, partitionKey, row);
+               if (foundValue == null) {
+                  return false;
+               }
+               switch (type.kind) {
+                  case LIST: {
+                     ListType listType = (ListType)type;
+                     return ((List)listType.compose(foundValue)).contains(listType.getElementsType().compose(this.value));
+                  }
+                  case SET: {
+                     SetType setType = (SetType)type;
+                     return ((Set)setType.compose(foundValue)).contains(setType.getElementsType().compose(this.value));
+                  }
+                  case MAP: {
+                     MapType mapType = (MapType)type;
+                     return ((Map)mapType.compose(foundValue)).containsValue(mapType.getValuesType().compose(this.value));
+                  }
+               }
+               throw new AssertionError();
             }
-         case 12:
-            if($assertionsDisabled || this.column.type.isCollection() && this.column.type instanceof MapType) {
-               MapType<?, ?> mapType = (MapType)this.column.type;
-               if(this.column.isComplex()) {
+            case CONTAINS_KEY: {
+               assert (this.column.type.isCollection() && this.column.type instanceof MapType);
+               MapType mapType = (MapType)this.column.type;
+               if (this.column.isComplex()) {
                   return row.getCell(this.column, CellPath.create(this.value)) != null;
                }
-
                ByteBuffer foundValue = this.getValue(metadata, partitionKey, row);
                return foundValue != null && mapType.getSerializer().getSerializedValue(foundValue, this.value, mapType.getKeysType()) != null;
             }
-
-            throw new AssertionError();
-         case 13:
-            throw new AssertionError();
-         default:
-            throw new AssertionError();
+            case IN: {
+               throw new AssertionError();
+            }
          }
+         throw new AssertionError();
       }
 
+
       public String toString() {
-         AbstractType<?> type = this.column.type;
-         switch(null.$SwitchMap$org$apache$cassandra$cql3$Operator[this.operator.ordinal()]) {
-         case 11:
-            assert type instanceof CollectionType;
-
-            CollectionType<?> ct = (CollectionType)type;
-            type = ct.kind == CollectionType.Kind.SET?ct.nameComparator():ct.valueComparator();
-            break;
-         case 12:
-            assert type instanceof MapType;
-
-            type = ((MapType)type).nameComparator();
-            break;
-         case 13:
-            type = ListType.getInstance((AbstractType)type, false);
+         AbstractType type = this.column.type;
+         switch (this.operator) {
+            case CONTAINS: {
+               assert (type instanceof CollectionType);
+               CollectionType ct = (CollectionType)type;
+               type = ct.kind == CollectionType.Kind.SET ? ct.nameComparator() : ct.valueComparator();
+               break;
+            }
+            case CONTAINS_KEY: {
+               assert (type instanceof MapType);
+               type = ((MapType)type).nameComparator();
+               break;
+            }
+            case IN: {
+               type = ListType.getInstance(type, false);
+               break;
+            }
          }
-
-         return String.format("%s %s %s", new Object[]{this.column.name, this.operator, ((AbstractType)type).getString(this.value)});
+         return String.format("%s %s %s", new Object[]{this.column.name, this.operator, type.getString(this.value)});
       }
 
       public RowFilter.Expression.Kind kind() {
@@ -577,7 +562,7 @@ public abstract class RowFilter implements Iterable<RowFilter.Expression> {
 
    public abstract static class Expression {
       private static final Versioned<ReadVerbs.ReadVersion, RowFilter.Expression.Serializer> serializers = ReadVerbs.ReadVersion.versioned((x$0) -> {
-         return new RowFilter.Expression.Serializer(x$0, null);
+         return new RowFilter.Expression.Serializer(x$0);
       });
       protected final ColumnMetadata column;
       protected final Operator operator;
@@ -633,16 +618,18 @@ public abstract class RowFilter implements Iterable<RowFilter.Expression> {
       public abstract Flow<Boolean> isSatisfiedBy(TableMetadata var1, DecoratedKey var2, Row var3);
 
       protected ByteBuffer getValue(TableMetadata metadata, DecoratedKey partitionKey, Row row) {
-         switch(null.$SwitchMap$org$apache$cassandra$schema$ColumnMetadata$Kind[this.column.kind.ordinal()]) {
-         case 1:
-            return metadata.partitionKeyType instanceof CompositeType?CompositeType.extractComponent(partitionKey.getKey(), this.column.position()):partitionKey.getKey();
-         case 2:
-            return row.clustering().get(this.column.position());
-         default:
-            Cell cell = row.getCell(this.column);
-            return cell == null?null:cell.value();
+         switch (this.column.kind) {
+            case PARTITION_KEY: {
+               return metadata.partitionKeyType instanceof CompositeType ? CompositeType.extractComponent(partitionKey.getKey(), this.column.position()) : partitionKey.getKey();
+            }
+            case CLUSTERING: {
+               return row.clustering().get(this.column.position());
+            }
          }
+         Cell cell = row.getCell(this.column);
+         return cell == null ? null : cell.value();
       }
+
 
       public boolean equals(Object o) {
          if(this == o) {
@@ -664,77 +651,82 @@ public abstract class RowFilter implements Iterable<RowFilter.Expression> {
             super(version);
          }
 
-         public void serialize(RowFilter.Expression expression, DataOutputPlus out) throws IOException {
+         public void serialize(Expression expression, DataOutputPlus out) throws IOException {
             out.writeByte(expression.kind().ordinal());
-            if(expression.kind() == RowFilter.Expression.Kind.CUSTOM) {
-               IndexMetadata.serializer.serialize(((RowFilter.CustomExpression)expression).targetIndex, out);
+            if (expression.kind() == Kind.CUSTOM) {
+               IndexMetadata.serializer.serialize(((CustomExpression)expression).targetIndex, out);
                ByteBufferUtil.writeWithShortLength(expression.value, out);
-            } else if(expression.kind() == RowFilter.Expression.Kind.USER) {
-               RowFilter.UserExpression.serialize((RowFilter.UserExpression)expression, out, (ReadVerbs.ReadVersion)this.version);
-            } else {
-               ByteBufferUtil.writeWithShortLength(expression.column.name.bytes, out);
-               expression.operator.writeTo(out);
-               switch(null.$SwitchMap$org$apache$cassandra$db$filter$RowFilter$Expression$Kind[expression.kind().ordinal()]) {
-               case 1:
-                  ByteBufferUtil.writeWithShortLength(((RowFilter.SimpleExpression)expression).value, out);
+               return;
+            }
+            if (expression.kind() == Kind.USER) {
+               UserExpression.serialize((UserExpression)expression, out, (ReadVerbs.ReadVersion)this.version);
+               return;
+            }
+            ByteBufferUtil.writeWithShortLength(expression.column.name.bytes, out);
+            expression.operator.writeTo(out);
+            switch (expression.kind()) {
+               case SIMPLE: {
+                  ByteBufferUtil.writeWithShortLength(((SimpleExpression)expression).value, out);
                   break;
-               case 2:
-                  RowFilter.MapEqualityExpression mexpr = (RowFilter.MapEqualityExpression)expression;
+               }
+               case MAP_EQUALITY: {
+                  MapEqualityExpression mexpr = (MapEqualityExpression)expression;
                   ByteBufferUtil.writeWithShortLength(mexpr.key, out);
                   ByteBufferUtil.writeWithShortLength(mexpr.value, out);
                }
-
             }
          }
 
-         public RowFilter.Expression deserialize(DataInputPlus in, TableMetadata metadata) throws IOException {
-            RowFilter.Expression.Kind kind = RowFilter.Expression.Kind.values()[in.readByte()];
-            if(kind == RowFilter.Expression.Kind.CUSTOM) {
-               return new RowFilter.CustomExpression(metadata, IndexMetadata.serializer.deserialize(in, metadata), ByteBufferUtil.readWithShortLength(in));
-            } else if(kind == RowFilter.Expression.Kind.USER) {
-               return RowFilter.UserExpression.deserialize(in, (ReadVerbs.ReadVersion)this.version, metadata);
-            } else {
-               ByteBuffer name = ByteBufferUtil.readWithShortLength(in);
-               Operator operator = Operator.readFrom(in);
-               ColumnMetadata column = metadata.getColumn(name);
-               if(!metadata.isCompactTable() && column == null) {
-                  throw new RuntimeException("Unknown (or dropped) column " + UTF8Type.instance.getString(name) + " during deserialization");
-               } else {
-                  switch(null.$SwitchMap$org$apache$cassandra$db$filter$RowFilter$Expression$Kind[kind.ordinal()]) {
-                  case 1:
-                     return new RowFilter.SimpleExpression(column, operator, ByteBufferUtil.readWithShortLength(in));
-                  case 2:
-                     ByteBuffer key = ByteBufferUtil.readWithShortLength(in);
-                     ByteBuffer value = ByteBufferUtil.readWithShortLength(in);
-                     return new RowFilter.MapEqualityExpression(column, key, operator, value);
-                  default:
-                     throw new AssertionError();
-                  }
+         public Expression deserialize(DataInputPlus in, TableMetadata metadata) throws IOException {
+            Kind kind = Kind.values()[in.readByte()];
+            if (kind == Kind.CUSTOM) {
+               return new CustomExpression(metadata, IndexMetadata.serializer.deserialize(in, metadata), ByteBufferUtil.readWithShortLength(in));
+            }
+            if (kind == Kind.USER) {
+               return UserExpression.deserialize(in, (ReadVerbs.ReadVersion)this.version, metadata);
+            }
+            ByteBuffer name = ByteBufferUtil.readWithShortLength(in);
+            Operator operator = Operator.readFrom(in);
+            ColumnMetadata column = metadata.getColumn(name);
+            if (!metadata.isCompactTable() && column == null) {
+               throw new RuntimeException("Unknown (or dropped) column " + UTF8Type.instance.getString(name) + " during deserialization");
+            }
+            switch (kind) {
+               case SIMPLE: {
+                  return new SimpleExpression(column, operator, ByteBufferUtil.readWithShortLength(in));
+               }
+               case MAP_EQUALITY: {
+                  ByteBuffer key = ByteBufferUtil.readWithShortLength(in);
+                  ByteBuffer value = ByteBufferUtil.readWithShortLength(in);
+                  return new MapEqualityExpression(column, key, operator, value);
                }
             }
+            throw new AssertionError();
          }
 
-         public long serializedSize(RowFilter.Expression expression) {
+         public long serializedSize(Expression expression) {
             long size = 1L;
-            if(expression.kind() != RowFilter.Expression.Kind.CUSTOM && expression.kind() != RowFilter.Expression.Kind.USER) {
+            if (expression.kind() != Kind.CUSTOM && expression.kind() != Kind.USER) {
                size += (long)(ByteBufferUtil.serializedSizeWithShortLength(expression.column().name.bytes) + expression.operator.serializedSize());
             }
-
-            switch(null.$SwitchMap$org$apache$cassandra$db$filter$RowFilter$Expression$Kind[expression.kind().ordinal()]) {
-            case 1:
-               size += (long)ByteBufferUtil.serializedSizeWithShortLength(((RowFilter.SimpleExpression)expression).value);
-               break;
-            case 2:
-               RowFilter.MapEqualityExpression mexpr = (RowFilter.MapEqualityExpression)expression;
-               size += (long)(ByteBufferUtil.serializedSizeWithShortLength(mexpr.key) + ByteBufferUtil.serializedSizeWithShortLength(mexpr.value));
-               break;
-            case 3:
-               size += IndexMetadata.serializer.serializedSize(((RowFilter.CustomExpression)expression).targetIndex) + (long)ByteBufferUtil.serializedSizeWithShortLength(expression.value);
-               break;
-            case 4:
-               size += RowFilter.UserExpression.serializedSize((RowFilter.UserExpression)expression, (ReadVerbs.ReadVersion)this.version);
+            switch (expression.kind()) {
+               case SIMPLE: {
+                  size += (long)ByteBufferUtil.serializedSizeWithShortLength(((SimpleExpression)expression).value);
+                  break;
+               }
+               case MAP_EQUALITY: {
+                  MapEqualityExpression mexpr = (MapEqualityExpression)expression;
+                  size += (long)(ByteBufferUtil.serializedSizeWithShortLength(mexpr.key) + ByteBufferUtil.serializedSizeWithShortLength(mexpr.value));
+                  break;
+               }
+               case CUSTOM: {
+                  size += IndexMetadata.serializer.serializedSize(((CustomExpression)expression).targetIndex) + (long)ByteBufferUtil.serializedSizeWithShortLength(expression.value);
+                  break;
+               }
+               case USER: {
+                  size += UserExpression.serializedSize((UserExpression)expression, (ReadVerbs.ReadVersion)this.version);
+               }
             }
-
             return size;
          }
       }

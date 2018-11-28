@@ -90,14 +90,10 @@ public class BiMultiValMap<K, V> implements Map<K, V> {
    }
 
    public Collection<K> removeValue(V value) {
-      Collection<K> keys = this.reverseMap.removeAll(value);
-      Iterator var3 = keys.iterator();
-
-      while(var3.hasNext()) {
-         K key = var3.next();
+      Collection keys = this.reverseMap.removeAll(value);
+      for (Object key : keys) {
          this.forwardMap.remove(key);
       }
-
       return keys;
    }
 

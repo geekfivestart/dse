@@ -89,12 +89,9 @@ public class DseConfigYamlLoader {
          originalConfig = (Config)parser.loadAs(input2, Config.class);
       } catch (ConfigurationException var10) {
          throw new ExceptionInInitializerError(var10);
-      } catch (MarkedYAMLException var11) {
-         Object t;
-         for(t = var11; ((RuntimeException)t).getCause() != null && ((RuntimeException)t).getCause() instanceof RuntimeException; t = (RuntimeException)((RuntimeException)t).getCause()) {
-            ;
-         }
-
+      } catch (MarkedYAMLException e3) {
+         RuntimeException t;
+         for (t = (RuntimeException)e3; t.getCause() != null && t.getCause() instanceof RuntimeException; t = (RuntimeException)t.getCause()) {}
          throw t;
       } finally {
          IOUtils.closeQuietly(input);

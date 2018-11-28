@@ -14,7 +14,7 @@ import org.apache.cassandra.utils.versioning.VersionDependent;
 import org.apache.cassandra.utils.versioning.Versioned;
 
 public class StreamSummary implements Serializable {
-   public static final Versioned<StreamMessage.StreamVersion, Serializer<StreamSummary>> serializers = StreamMessage.StreamVersion.versioned(StreamSummary.StreamSummarySerializer::<init>);
+   public static final Versioned<StreamMessage.StreamVersion, Serializer<StreamSummary>> serializers = StreamMessage.StreamVersion.versioned(StreamSummary.StreamSummarySerializer::new);
    public final TableId tableId;
    public final int files;
    public final long totalSize;

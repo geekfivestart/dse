@@ -22,7 +22,7 @@ import org.apache.cassandra.utils.versioning.VersionDependent;
 import org.apache.cassandra.utils.versioning.Versioned;
 
 public class FileMessageHeader {
-   public static Versioned<StreamMessage.StreamVersion, FileMessageHeader.FileMessageHeaderSerializer> serializers = StreamMessage.StreamVersion.versioned(FileMessageHeader.FileMessageHeaderSerializer::<init>);
+   public static Versioned<StreamMessage.StreamVersion, FileMessageHeader.FileMessageHeaderSerializer> serializers = StreamMessage.StreamVersion.versioned(FileMessageHeader.FileMessageHeaderSerializer::new);
    public final TableId tableId;
    public final int sequenceNumber;
    public final Version version;

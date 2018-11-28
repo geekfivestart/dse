@@ -241,34 +241,22 @@ public class CompositeType extends AbstractCompositeType {
       return build(false, buffers);
    }
 
-   public static ByteBuffer build(boolean isStatic, ByteBuffer... buffers) {
-      int totalLength = isStatic?2:0;
-      ByteBuffer[] var3 = buffers;
-      int var4 = buffers.length;
-
-      int var5;
-      for(var5 = 0; var5 < var4; ++var5) {
-         ByteBuffer bb = var3[var5];
+   public static /* varargs */ ByteBuffer build(boolean isStatic, ByteBuffer ... buffers) {
+      int totalLength = isStatic ? 2 : 0;
+      for (ByteBuffer bb : buffers) {
          totalLength += 2 + bb.remaining() + 1;
       }
-
       ByteBuffer out = ByteBuffer.allocate(totalLength);
-      if(isStatic) {
-         out.putShort(-1);
+      if (isStatic) {
+         out.putShort((short)-1);
       }
-
-      ByteBuffer[] var10 = buffers;
-      var5 = buffers.length;
-
-      for(int var11 = 0; var11 < var5; ++var11) {
-         ByteBuffer bb = var10[var11];
+      for (ByteBuffer bb : buffers) {
          ByteBufferUtil.writeShortLength(out, bb.remaining());
          int toCopy = bb.remaining();
          ByteBufferUtil.arrayCopy(bb, bb.position(), out, out.position(), toCopy);
          out.position(out.position() + toCopy);
-         out.put(0);
+         out.put((byte)0);
       }
-
       out.flip();
       return out;
    }

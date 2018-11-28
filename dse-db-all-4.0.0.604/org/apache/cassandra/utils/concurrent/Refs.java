@@ -63,43 +63,38 @@ public final class Refs<T extends RefCounted<T>> extends AbstractCollection<T> i
    public void relaseAllExcept(Collection<T> keep) {
       Collection<T> release = new ArrayList(this.references.keySet());
       release.retainAll(keep);
-      this.release((Collection)release);
+      this.release(release);
    }
 
    public void release(Collection<T> release) {
-      List<Ref<T>> refs = new ArrayList();
+      final List<Ref<T>> refs = new ArrayList<Ref<T>>();
       List<T> notPresent = null;
-      Iterator var4 = release.iterator();
-
-      while(var4.hasNext()) {
-         T obj = (RefCounted)var4.next();
-         Ref<T> ref = (Ref)this.references.remove(obj);
-         if(ref == null) {
-            if(notPresent == null) {
-               notPresent = new ArrayList();
+      for (final T obj : release) {
+         final Ref<T> ref = this.references.remove(obj);
+         if (ref == null) {
+            if (notPresent == null) {
+               notPresent = new ArrayList<T>();
             }
-
             notPresent.add(obj);
-         } else {
+         }
+         else {
             refs.add(ref);
          }
       }
-
       IllegalStateException notPresentFail = null;
-      if(notPresent != null) {
+      if (notPresent != null) {
          notPresentFail = new IllegalStateException("Could not release references to " + notPresent + " as references to these objects were not held");
          notPresentFail.fillInStackTrace();
       }
-
       try {
-         release((Iterable)refs);
-      } catch (Throwable var7) {
-         if(notPresentFail != null) {
-            var7.addSuppressed(notPresentFail);
+         release(refs);
+      }
+      catch (Throwable t) {
+         if (notPresentFail != null) {
+            t.addSuppressed(notPresentFail);
          }
       }
-
-      if(notPresentFail != null) {
+      if (notPresentFail != null) {
          throw notPresentFail;
       }
    }
@@ -145,21 +140,16 @@ public final class Refs<T extends RefCounted<T>> extends AbstractCollection<T> i
    }
 
    public static <T extends RefCounted<T>> Refs<T> tryRef(Iterable<T> reference) {
-      HashMap<T, Ref<T>> refs = new HashMap();
-      Iterator var2 = reference.iterator();
-
-      while(var2.hasNext()) {
-         T rc = (RefCounted)var2.next();
-         Ref<T> ref = rc.tryRef();
-         if(ref == null) {
-            release((Iterable)refs.values());
+      final HashMap<T, Ref<T>> refs = new HashMap<T, Ref<T>>();
+      for (final T rc : reference) {
+         final Ref<T> ref = rc.tryRef();
+         if (ref == null) {
+            release(refs.values());
             return null;
          }
-
          refs.put(rc, ref);
       }
-
-      return new Refs(refs);
+      return new Refs<T>(refs);
    }
 
    public static <T extends RefCounted<T>> Refs<T> ref(Iterable<T> reference) {

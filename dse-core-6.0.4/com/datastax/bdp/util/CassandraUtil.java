@@ -129,7 +129,7 @@ public class CassandraUtil {
          while(variables.hasNext()) {
             List<ByteBuffer> bindings = (List)variables.next();
             CassandraUtil.EventHandler<ResultMessage> handler = (CassandraUtil.EventHandler)handlers.next();
-            handler.preExecute((Object)null);
+            handler.preExecute(null);
             ResultMessage result = (ResultMessage)TPCUtils.blockingGet(prepared.statement.executeInternal(queryState, QueryOptions.forInternalCalls(bindings)));
             handler.postExecute(result);
          }

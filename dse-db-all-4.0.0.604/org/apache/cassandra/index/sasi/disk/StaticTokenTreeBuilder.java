@@ -123,11 +123,11 @@ public class StaticTokenTreeBuilder extends AbstractTokenTreeBuilder {
       private final int count;
       private final boolean isLast;
 
-      public StaticLeaf(Iterator<Token> var1, AbstractTokenTreeBuilder.Leaf tokens) {
+      public StaticLeaf(Iterator<Token> tokens, AbstractTokenTreeBuilder.Leaf leaf) {
          this(tokens, leaf.smallestToken(), leaf.largestToken(), (long)leaf.tokenCount(), leaf.isLastLeaf());
       }
 
-      public StaticLeaf(Iterator<Token> var1, Long tokens, Long min, long max, boolean count) {
+      public StaticLeaf(Iterator<Token> tokens, Long min, Long max, long count, boolean isLastLeaf) {
          super(min, max);
          this.count = (int)count;
          this.tokens = tokens;

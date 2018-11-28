@@ -150,66 +150,59 @@ public class RateSimulatorCmd extends NodeTool.NodeToolCmd {
          this.checkUnset(this.sizeGrowthFactor, cmd, "-sg/--size-growth-factor");
          this.checkUnset(this.deadlineSafetyFactor, cmd, "-ds/--deadline-safety-factor");
          this.checkUnset(this.rateSafetyFactor, cmd, "-rs/--rate-safety-factor");
-         switch(null.$SwitchMap$org$apache$cassandra$tools$nodetool$nodesync$RateSimulatorCmd$SubCommand[cmd.ordinal()]) {
-         case 1:
-            return RateSimulator.Parameters.THEORETICAL_MINIMUM;
-         case 2:
-            return RateSimulator.Parameters.MINIMUM_RECOMMENDED;
-         case 3:
-            return RateSimulator.Parameters.RECOMMENDED;
-         default:
-            throw new AssertionError();
+         switch (cmd) {
+            case THEORETICAL_MINIMUM: {
+               return RateSimulator.Parameters.THEORETICAL_MINIMUM;
+            }
+            case RECOMMENDED_MINIMUM: {
+               return RateSimulator.Parameters.MINIMUM_RECOMMENDED;
+            }
+            case RECOMMENDED: {
+               return RateSimulator.Parameters.RECOMMENDED;
+            }
          }
+         throw new AssertionError();
       }
    }
 
    private RateSimulator.Info withOverrides(RateSimulator.Info info) {
-      if(this.deadlineOverrides != null && !this.deadlineOverrides.isEmpty()) {
-         Set<String> knownTables = (Set)Streams.of(info.tables()).map(RateSimulator.TableInfo::tableName).collect(Collectors.toSet());
-         long catchAllOverride = -1L;
-         Map<String, Long> overrides = new HashMap();
-         Iterator var6 = SPLIT_ON_COMMA.split(this.deadlineOverrides).iterator();
-
-         while(var6.hasNext()) {
-            String s = (String)var6.next();
-            List<String> l = SPLIT_ON_COLON.splitToList(s);
-            if(l.size() != 2) {
-               throw new IllegalArgumentException(String.format("Invalid deadline override '%s' in '%s'", new Object[]{s, this.deadlineOverrides}));
-            }
-
-            String tableName = (String)l.get(0);
-            long deadlineValue = this.parseDeadlineValue((String)l.get(1), (String)l.get(0));
-            if(tableName.equals("*")) {
-               if(catchAllOverride > 0L) {
-                  throw new IllegalArgumentException(String.format("Duplicate entry for '*' found in '%s'", new Object[]{this.deadlineOverrides}));
-               }
-
-               catchAllOverride = deadlineValue;
-            } else {
-               if(!TABLE_NAME_PATTERN.matcher(tableName).matches()) {
-                  throw new IllegalArgumentException(String.format("Invalid table name '%s' in '%s'", new Object[]{tableName, this.deadlineOverrides}));
-               }
-
-               if(!knownTables.contains(tableName)) {
-                  throw new IllegalArgumentException(String.format("Table %s doesn't appear to be a NodeSync-enabled table", new Object[]{tableName}));
-               }
-
-               overrides.put(tableName, Long.valueOf(deadlineValue));
-            }
-         }
-
-         return info.transform((t) -> {
-            Long v = (Long)overrides.get(t.tableName());
-            if(v != null && !t.isNodeSyncEnabled) {
-               throw new IllegalArgumentException(String.format("Deadline override for %s, but it is not included in the rate simulation (doesn't have nodesyn enabled server side, and is not part of -i/--includes)", new Object[]{t.tableName()}));
-            } else {
-               long tableOverride = v == null?catchAllOverride:v.longValue();
-               return tableOverride < 0L?t:t.withNewDeadline(TimeValue.of(tableOverride, TimeUnit.SECONDS));
-            }
-         });
-      } else {
+      if (this.deadlineOverrides == null || this.deadlineOverrides.isEmpty()) {
          return info;
       }
+      Set knownTables = Streams.of(info.tables()).map(RateSimulator.TableInfo::tableName).collect(Collectors.toSet());
+      long catchAllOverride = -1L;
+      HashMap<String, Long> overrides = new HashMap<String, Long>();
+      for (String s : SPLIT_ON_COMMA.split((CharSequence)this.deadlineOverrides)) {
+         List l = SPLIT_ON_COLON.splitToList((CharSequence)s);
+         if (l.size() != 2) {
+            throw new IllegalArgumentException(String.format("Invalid deadline override '%s' in '%s'", s, this.deadlineOverrides));
+         }
+         String tableName = (String)l.get(0);
+         long deadlineValue = this.parseDeadlineValue((String)l.get(1), (String)l.get(0));
+         if (tableName.equals("*")) {
+            if (catchAllOverride > 0L) {
+               throw new IllegalArgumentException(String.format("Duplicate entry for '*' found in '%s'", this.deadlineOverrides));
+            }
+            catchAllOverride = deadlineValue;
+            continue;
+         }
+         if (!TABLE_NAME_PATTERN.matcher(tableName).matches()) {
+            throw new IllegalArgumentException(String.format("Invalid table name '%s' in '%s'", tableName, this.deadlineOverrides));
+         }
+         if (!knownTables.contains(tableName)) {
+            throw new IllegalArgumentException(String.format("Table %s doesn't appear to be a NodeSync-enabled table", tableName));
+         }
+         overrides.put(tableName, deadlineValue);
+      }
+      long override = catchAllOverride;
+      return info.transform(t -> {
+         Long v = (Long)overrides.get(t.tableName());
+         if (v != null && !t.isNodeSyncEnabled) {
+            throw new IllegalArgumentException(String.format("Deadline override for %s, but it is not included in the rate simulation (doesn't have nodesyn enabled server side, and is not part of -i/--includes)", t.tableName()));
+         }
+         long tableOverride = v == null ? override : v;
+         return tableOverride < 0L ? t : t.withNewDeadline(TimeValue.of(tableOverride, TimeUnit.SECONDS));
+      });
    }
 
    private long parseDeadlineValue(String v, String table) {

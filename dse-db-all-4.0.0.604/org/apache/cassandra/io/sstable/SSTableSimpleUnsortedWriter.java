@@ -4,9 +4,8 @@ import com.google.common.base.Throwables;
 import io.netty.util.concurrent.FastThreadLocalThread;
 import java.io.File;
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.TreeMap;
-import java.util.Map.Entry;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
@@ -28,7 +27,7 @@ class SSTableSimpleUnsortedWriter extends AbstractSSTableSimpleWriter {
    private long currentSize;
    private final SerializationHeader header;
    private final BlockingQueue<SSTableSimpleUnsortedWriter.Buffer> writeQueue = new SynchronousQueue();
-   private final SSTableSimpleUnsortedWriter.DiskWriter diskWriter = new SSTableSimpleUnsortedWriter.DiskWriter(null);
+   private final SSTableSimpleUnsortedWriter.DiskWriter diskWriter = new SSTableSimpleUnsortedWriter.DiskWriter();
 
    SSTableSimpleUnsortedWriter(File directory, TableMetadataRef metadata, RegularAndStaticColumns columns, long bufferSizeInMB) {
       super(directory, metadata, columns);
@@ -130,48 +129,29 @@ class SSTableSimpleUnsortedWriter extends AbstractSSTableSimpleWriter {
       }
 
       public void run() {
-         while(true) {
+         while (true) {
             try {
-               SSTableSimpleUnsortedWriter.Buffer b = (SSTableSimpleUnsortedWriter.Buffer)SSTableSimpleUnsortedWriter.this.writeQueue.take();
-               if(b == SSTableSimpleUnsortedWriter.SENTINEL) {
-                  return;
-               }
-
-               SSTableTxnWriter writer = SSTableSimpleUnsortedWriter.this.createWriter();
-               Throwable var3 = null;
-
-               try {
-                  Iterator var4 = b.entrySet().iterator();
-
-                  while(var4.hasNext()) {
-                     Entry<DecoratedKey, PartitionUpdate> entry = (Entry)var4.next();
-                     writer.append(((PartitionUpdate)entry.getValue()).unfilteredIterator());
+               while (true) {
+                  final Buffer b = SSTableSimpleUnsortedWriter.this.writeQueue.take();
+                  if (b == SSTableSimpleUnsortedWriter.SENTINEL) {
+                     break;
                   }
-
-                  writer.finish(false);
-               } catch (Throwable var14) {
-                  var3 = var14;
-                  throw var14;
-               } finally {
-                  if(writer != null) {
-                     if(var3 != null) {
-                        try {
-                           writer.close();
-                        } catch (Throwable var13) {
-                           var3.addSuppressed(var13);
-                        }
-                     } else {
-                        writer.close();
+                  try (final SSTableTxnWriter writer = SSTableSimpleUnsortedWriter.this.createWriter()) {
+                     for (final Map.Entry<DecoratedKey, PartitionUpdate> entry : b.entrySet()) {
+                        writer.append(entry.getValue().unfilteredIterator());
                      }
+                     writer.finish(false);
                   }
-
-               }
-            } catch (Throwable var16) {
-               JVMStabilityInspector.inspectThrowable(var16);
-               if(this.exception == null) {
-                  this.exception = var16;
                }
             }
+            catch (Throwable e) {
+               JVMStabilityInspector.inspectThrowable(e);
+               if (this.exception == null) {
+                  this.exception = e;
+               }
+               continue;
+            }
+            break;
          }
       }
    }

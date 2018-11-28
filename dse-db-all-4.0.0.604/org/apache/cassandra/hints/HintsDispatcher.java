@@ -100,18 +100,20 @@ final class HintsDispatcher implements AutoCloseable {
       }
    }
 
-   private void updateMetrics(HintsDispatcher.Callback.Outcome outcome) {
-      switch(null.$SwitchMap$org$apache$cassandra$hints$HintsDispatcher$Callback$Outcome[outcome.ordinal()]) {
-      case 1:
-         HintsServiceMetrics.hintsSucceeded.mark();
-         break;
-      case 2:
-         HintsServiceMetrics.hintsFailed.mark();
-         break;
-      case 3:
-         HintsServiceMetrics.hintsTimedOut.mark();
+   private void updateMetrics(Callback.Outcome outcome) {
+      switch (outcome) {
+         case SUCCESS: {
+            HintsServiceMetrics.hintsSucceeded.mark();
+            break;
+         }
+         case FAILURE: {
+            HintsServiceMetrics.hintsFailed.mark();
+            break;
+         }
+         case TIMEOUT: {
+            HintsServiceMetrics.hintsTimedOut.mark();
+         }
       }
-
    }
 
    private <T> HintsDispatcher.Action sendHints(Iterator<T> hints, Collection<HintsDispatcher.Callback> callbacks, Function<T, HintsDispatcher.Callback> sendFunction) {
@@ -127,7 +129,7 @@ final class HintsDispatcher implements AutoCloseable {
    }
 
    private HintsDispatcher.Callback sendHint(Hint hint) {
-      HintsDispatcher.Callback callback = new HintsDispatcher.Callback(hint.creationTime, null);
+      HintsDispatcher.Callback callback = new HintsDispatcher.Callback(hint.creationTime);
       HintMessage message = HintMessage.create(this.hostId, hint);
       MessagingService.instance().send((Request)Verbs.HINTS.HINT.newRequest(this.address, message), callback);
       return callback;
@@ -135,7 +137,7 @@ final class HintsDispatcher implements AutoCloseable {
 
    private HintsDispatcher.Callback sendEncodedHint(ByteBuffer hint) {
       HintMessage message = HintMessage.createEncoded(this.hostId, hint, this.version);
-      HintsDispatcher.Callback callback = new HintsDispatcher.Callback(message.getHintCreationTime(), null);
+      HintsDispatcher.Callback callback = new HintsDispatcher.Callback(message.getHintCreationTime());
       MessagingService.instance().send((Request)Verbs.HINTS.HINT.newRequest(this.address, message), callback);
       return callback;
    }
@@ -153,7 +155,7 @@ final class HintsDispatcher implements AutoCloseable {
       }
 
       HintsDispatcher.Callback.Outcome await() {
-         long timeout = TimeUnit.MILLISECONDS.toNanos(Verbs.HINTS.HINT.timeoutSupplier().get((Object)null)) - (System.nanoTime() - this.start);
+         long timeout = TimeUnit.MILLISECONDS.toNanos(Verbs.HINTS.HINT.timeoutSupplier().get(null)) - (System.nanoTime() - this.start);
 
          boolean timedOut;
          try {

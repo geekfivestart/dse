@@ -21,17 +21,18 @@ import org.slf4j.LoggerFactory;
 @Singleton
 public class LeaseProtocol implements InternodeProtocol {
    private static final Logger LOGGER = LoggerFactory.getLogger(LeaseProtocol.class);
-   public static final MessageType CLIENT_PING;
-   public static final MessageType CLIENT_PING_RESULT;
-   public static final MessageType CREATE_LEASE;
-   public static final MessageType DISABLE_LEASE;
-   public static final MessageType DELETE_LEASE;
-   public static final MessageType LEASE_DURATION;
-   public static final MessageType BOOLEAN_RESPONSE;
-   public static final MessageType INTEGER_RESPONSE;
+
+   public static final MessageType CLIENT_PING = MessageType.of(MessageType.Domain.LEASE, (byte)1);
+   public static final MessageType CLIENT_PING_RESULT = MessageType.of(MessageType.Domain.LEASE, (byte)2);
+   public static final MessageType CREATE_LEASE = MessageType.of(MessageType.Domain.LEASE, (byte)3);
+   public static final MessageType DISABLE_LEASE = MessageType.of(MessageType.Domain.LEASE, (byte)4);
+   public static final MessageType DELETE_LEASE = MessageType.of(MessageType.Domain.LEASE, (byte)5);
+   public static final MessageType LEASE_DURATION = MessageType.of(MessageType.Domain.LEASE, (byte)6);
+   public static final MessageType BOOLEAN_RESPONSE = MessageType.of(MessageType.Domain.LEASE, (byte)7);
+   public static final MessageType INTEGER_RESPONSE = MessageType.of(MessageType.Domain.LEASE, (byte)8);
    private final Provider<LeasePlugin> leasePlugin;
 
-   @Inject
+  @Inject
    public LeaseProtocol(Provider<LeasePlugin> leasePlugin) {
       this.leasePlugin = leasePlugin;
    }
@@ -44,19 +45,24 @@ public class LeaseProtocol implements InternodeProtocol {
       registry.addSerializer(DELETE_LEASE, new LeaseProtocol.DeleteLeaseSerializer(), new byte[]{1});
       registry.addSerializer(LEASE_DURATION, new LeaseProtocol.LeaseDurationSerializer(), new byte[]{1});
       registry.addSerializer(BOOLEAN_RESPONSE, new LeaseProtocol.BooleanResponseSerializer(), new byte[]{1});
-      registry.addProcessor(CLIENT_PING, CLIENT_PING_RESULT, (msg) -> {
+      registry.addProcessor(CLIENT_PING, CLIENT_PING_RESULT, (msg1) -> {
+         ClientPingMessage msg=(ClientPingMessage) msg1;
          return ((LeasePlugin)this.leasePlugin.get()).getResources().getManager().clientPing(msg.name, msg.dc, msg.client, msg.takeIfOpen);
       });
-      registry.addProcessor(CREATE_LEASE, BOOLEAN_RESPONSE, (msg) -> {
+      registry.addProcessor(CREATE_LEASE, BOOLEAN_RESPONSE, (msg1) -> {
+         CreateLeaseMessage msg=(CreateLeaseMessage) msg1;
          return Boolean.valueOf(((LeasePlugin)this.leasePlugin.get()).getResources().getManager().createLease(msg.name, msg.dc, msg.duration_ms));
       });
-      registry.addProcessor(DISABLE_LEASE, BOOLEAN_RESPONSE, (msg) -> {
+      registry.addProcessor(DISABLE_LEASE, BOOLEAN_RESPONSE, (msg1) -> {
+         DisableLeaseMessage msg=(DisableLeaseMessage) msg1;
          return Boolean.valueOf(((LeasePlugin)this.leasePlugin.get()).getResources().getManager().disableLease(msg.name, msg.dc));
       });
-      registry.addProcessor(DELETE_LEASE, BOOLEAN_RESPONSE, (msg) -> {
+      registry.addProcessor(DELETE_LEASE, BOOLEAN_RESPONSE, (msg1) -> {
+         DeleteLeaseMessage msg=(DeleteLeaseMessage) msg1;
          return Boolean.valueOf(((LeasePlugin)this.leasePlugin.get()).getResources().getManager().deleteLease(msg.name, msg.dc));
       });
-      registry.addProcessor(LEASE_DURATION, INTEGER_RESPONSE, (msg) -> {
+      registry.addProcessor(LEASE_DURATION, INTEGER_RESPONSE, (msg1) -> {
+         ClientPingMessage msg=(ClientPingMessage) msg1;
          return ((LeasePlugin)this.leasePlugin.get()).getResources().getManager().getLeaseDuration(msg.name, msg.dc);
       });
       LOGGER.info("Registered LeaseProtocol");
@@ -82,17 +88,6 @@ public class LeaseProtocol implements InternodeProtocol {
          in.read(octets);
          return InetAddress.getByAddress(octets);
       }
-   }
-
-   static {
-      CLIENT_PING = MessageType.of(MessageType.Domain.LEASE, 1);
-      CLIENT_PING_RESULT = MessageType.of(MessageType.Domain.LEASE, 2);
-      CREATE_LEASE = MessageType.of(MessageType.Domain.LEASE, 3);
-      DISABLE_LEASE = MessageType.of(MessageType.Domain.LEASE, 4);
-      DELETE_LEASE = MessageType.of(MessageType.Domain.LEASE, 5);
-      LEASE_DURATION = MessageType.of(MessageType.Domain.LEASE, 6);
-      BOOLEAN_RESPONSE = MessageType.of(MessageType.Domain.LEASE, 7);
-      INTEGER_RESPONSE = MessageType.of(MessageType.Domain.LEASE, 8);
    }
 
    public static class IntegerResponseSerializer implements MessageBodySerializer<Integer> {

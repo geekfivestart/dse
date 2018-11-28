@@ -43,7 +43,7 @@ public class RpcUtil {
          return null;
       } else {
          Object result = rs.one().getObject("result");
-         return result;
+         return (T)result;
       }
    }
 

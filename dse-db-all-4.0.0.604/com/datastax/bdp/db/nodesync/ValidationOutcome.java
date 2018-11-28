@@ -40,23 +40,23 @@ public enum ValidationOutcome {
    }
 
    public boolean wasSuccessful() {
-      switch(null.$SwitchMap$com$datastax$bdp$db$nodesync$ValidationOutcome[this.ordinal()]) {
-      case 1:
-      case 2:
-         return true;
-      default:
-         return false;
+      switch (this) {
+         case FULL_IN_SYNC:
+         case FULL_REPAIRED: {
+            return true;
+         }
       }
+      return false;
    }
 
    public boolean wasPartial() {
-      switch(null.$SwitchMap$com$datastax$bdp$db$nodesync$ValidationOutcome[this.ordinal()]) {
-      case 3:
-      case 4:
-         return true;
-      default:
-         return false;
+      switch (this) {
+         case PARTIAL_IN_SYNC:
+         case PARTIAL_REPAIRED: {
+            return true;
+         }
       }
+      return false;
    }
 
    ValidationOutcome composeWith(ValidationOutcome other) {

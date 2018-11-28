@@ -47,7 +47,7 @@ public class Timer extends com.codahale.metrics.Timer implements Metered, Sampli
             this.update(this.clock.getTick() - startTime);
          }
 
-         return var4;
+         return (T)var4;
       }
    }
 

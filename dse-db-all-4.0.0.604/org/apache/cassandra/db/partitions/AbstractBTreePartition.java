@@ -148,7 +148,7 @@ public abstract class AbstractBTreePartition implements Partition, Iterable<Row>
          DeletionTime partitionDeletion = current.deletionInfo.getPartitionDeletion();
          return UnfilteredRowIterators.noRowsIterator(this.metadata(), this.partitionKey(), staticRow, partitionDeletion, reversed);
       } else {
-         return (UnfilteredRowIterator)(slices.size() == 1?this.sliceIterator(selection, slices.get(0), reversed, current, staticRow):new AbstractBTreePartition.SlicesIterator(selection, slices, reversed, current, staticRow, null));
+         return (UnfilteredRowIterator)(slices.size() == 1?this.sliceIterator(selection, slices.get(0), reversed, current, staticRow):new AbstractBTreePartition.SlicesIterator(selection, slices, reversed, current, staticRow));
       }
    }
 
@@ -339,7 +339,7 @@ public abstract class AbstractBTreePartition implements Partition, Iterable<Row>
       private Iterator<Unfiltered> currentSlice;
 
       private SlicesIterator(ColumnFilter selection, Slices slices, boolean isReversed, AbstractBTreePartition.Holder current, Row staticRow) {
-         super(current, staticRow, selection, isReversed, null);
+         super(current, staticRow, selection, isReversed);
          this.slices = slices;
       }
 

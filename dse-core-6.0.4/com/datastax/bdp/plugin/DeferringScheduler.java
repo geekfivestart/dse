@@ -58,7 +58,7 @@ public class DeferringScheduler extends ScheduledThreadPoolExecutor {
    public class DeferringTask<V> implements RunnableScheduledFuture<V> {
       private final RunnableScheduledFuture<V> task;
 
-      public DeferringTask(RunnableScheduledFuture<V> this$0) {
+      public DeferringTask(RunnableScheduledFuture<V> task) {
          this.task = task;
       }
 

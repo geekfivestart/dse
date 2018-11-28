@@ -134,7 +134,7 @@ public final class CreateFunctionStatement extends SchemaAlteringStatement {
    }
 
    public Maybe<Event.SchemaChange> announceMigration(QueryState queryState, boolean isLocalOnly) throws RequestValidationException {
-      Function old = (Function)Schema.instance.findFunction(this.functionName, this.argTypes).orElse((Object)null);
+      Function old = (Function)Schema.instance.findFunction(this.functionName, this.argTypes).orElse(null);
       boolean replaced = old != null;
       if(replaced) {
          if(this.ifNotExists) {

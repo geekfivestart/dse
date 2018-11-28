@@ -52,7 +52,7 @@ public abstract class VerbHandlers {
    public interface MonitoredRequestResponse<P extends Monitorable, Q> extends VerbHandlers.RequestResponse<P, Q> {
       default CompletableFuture<Response<Q>> handleMayThrow(Request<P, Q> request) {
          Monitor monitor = Monitor.createAndStart((Monitorable)request.payload(), request.operationStartMillis(), request.timeoutMillis(), request.isLocal());
-         return this.handle(request.from(), (Monitorable)request.payload(), monitor).thenApply((v) -> {
+         return this.handle(request.from(), (P)request.payload(), monitor).thenApply((v) -> {
             monitor.complete();
             return request.respond(v);
          });
@@ -104,12 +104,9 @@ public abstract class VerbHandlers {
          }
       }
 
-      default CompletableFuture<Response<Q>> handleMayThrow(Request<P, Q> request) {
-         CompletableFuture var10000 = this.handle(request.from(), request.payload());
-         request.getClass();
-         return var10000.thenApply(request::respond);
+      default public CompletableFuture<Response<Q>> handleMayThrow(Request<P, Q> request) {
+         return this.handle(request.from(), request.payload()).thenApply(request::respond);
       }
-
       CompletableFuture<Q> handle(InetAddress var1, P var2);
    }
 

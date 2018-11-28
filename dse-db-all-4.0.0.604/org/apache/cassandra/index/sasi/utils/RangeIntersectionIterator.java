@@ -27,7 +27,7 @@ public class RangeIntersectionIterator {
       private final RangeIterator<K, D> smallestIterator;
 
       private LookupIntersectionIterator(RangeIterator.Builder.Statistics<K, D> statistics, PriorityQueue<RangeIterator<K, D>> ranges) {
-         super(statistics, ranges, null);
+         super(statistics, ranges);
          this.smallestIterator = statistics.minRange;
          if(this.smallestIterator.getCurrent().compareTo(this.getMinimum()) < 0) {
             this.smallestIterator.skipTo(this.getMinimum());
@@ -37,8 +37,8 @@ public class RangeIntersectionIterator {
 
       protected D computeNext() {
          while(this.smallestIterator.hasNext()) {
-            D candidate = (CombinedValue)this.smallestIterator.next();
-            K token = (Comparable)candidate.get();
+            D candidate = (D)this.smallestIterator.next();
+            K token = (K)candidate.get();
             boolean intersectsAll = true;
             Iterator var4 = this.ranges.iterator();
 
@@ -50,12 +50,12 @@ public class RangeIntersectionIterator {
                   }
 
                   if(!isOverlapping(this.smallestIterator, range)) {
-                     return (CombinedValue)this.endOfData();
+                     return (D)this.endOfData();
                   }
 
                   D point = range.skipTo(token);
                   if(point == null) {
-                     return (CombinedValue)this.endOfData();
+                     return (D)this.endOfData();
                   }
 
                   if(((Comparable)point.get()).equals(token)) {
@@ -74,7 +74,7 @@ public class RangeIntersectionIterator {
             }
          }
 
-         return (CombinedValue)this.endOfData();
+         return (D)this.endOfData();
       }
 
       protected void performSkipTo(K nextToken) {
@@ -85,7 +85,7 @@ public class RangeIntersectionIterator {
    @VisibleForTesting
    protected static class BounceIntersectionIterator<K extends Comparable<K>, D extends CombinedValue<K>> extends RangeIntersectionIterator.AbstractIntersectionIterator<K, D> {
       private BounceIntersectionIterator(RangeIterator.Builder.Statistics<K, D> statistics, PriorityQueue<RangeIterator<K, D>> ranges) {
-         super(statistics, ranges, null);
+         super(statistics, ranges);
       }
 
       protected D computeNext() {
@@ -95,7 +95,7 @@ public class RangeIntersectionIterator {
          boolean intersectsAll;
          do {
             if(this.ranges.isEmpty()) {
-               return (CombinedValue)this.endOfData();
+               return (D)this.endOfData();
             }
 
             RangeIterator<K, D> head = (RangeIterator)this.ranges.poll();
@@ -106,7 +106,7 @@ public class RangeIntersectionIterator {
             candidate = head.hasNext()?(CombinedValue)head.next():null;
             if(candidate == null || ((Comparable)candidate.get()).compareTo(this.getMaximum()) > 0) {
                this.ranges.add(head);
-               return (CombinedValue)this.endOfData();
+               return (D)this.endOfData();
             }
 
             if(processed == null) {
@@ -124,7 +124,7 @@ public class RangeIntersectionIterator {
                   break;
                }
 
-               D point = range.skipTo((Comparable)candidate.get());
+               D point = range.skipTo((K)candidate.get());
                if(point == null) {
                   exhausted = true;
                   intersectsAll = false;
@@ -145,11 +145,11 @@ public class RangeIntersectionIterator {
             this.ranges.addAll(processed);
             processed.clear();
             if(exhausted) {
-               return (CombinedValue)this.endOfData();
+               return (D)this.endOfData();
             }
          } while(!intersectsAll);
 
-         return candidate;
+         return (D)candidate;
       }
 
       protected void performSkipTo(K nextToken) {
@@ -199,22 +199,24 @@ public class RangeIntersectionIterator {
       }
 
       protected RangeIterator<K, D> buildIterator() {
-         if(this.statistics.isDisjoint()) {
+         if (this.statistics.isDisjoint()) {
             return new RangeIterator.Builder.EmptyRangeIterator();
-         } else if(this.rangeCount() == 1) {
+         }
+         if (this.rangeCount() == 1) {
             return (RangeIterator)this.ranges.poll();
-         } else {
-            switch(null.$SwitchMap$org$apache$cassandra$index$sasi$utils$RangeIntersectionIterator$Strategy[this.strategy.ordinal()]) {
-            case 1:
-               return new RangeIntersectionIterator.LookupIntersectionIterator(this.statistics, this.ranges, null);
-            case 2:
-               return new RangeIntersectionIterator.BounceIntersectionIterator(this.statistics, this.ranges, null);
-            case 3:
-               return (RangeIterator)(this.statistics.sizeRatio() <= 0.01D?new RangeIntersectionIterator.LookupIntersectionIterator(this.statistics, this.ranges, null):new RangeIntersectionIterator.BounceIntersectionIterator(this.statistics, this.ranges, null));
-            default:
-               throw new IllegalStateException("Unknown strategy: " + this.strategy);
+         }
+         switch (this.strategy) {
+            case LOOKUP: {
+               return new LookupIntersectionIterator(this.statistics, this.ranges);
+            }
+            case BOUNCE: {
+               return new BounceIntersectionIterator(this.statistics, this.ranges);
+            }
+            case ADAPTIVE: {
+               return this.statistics.sizeRatio() <= 0.01 ? new LookupIntersectionIterator(this.statistics, this.ranges) : new BounceIntersectionIterator(this.statistics, this.ranges);
             }
          }
+         throw new IllegalStateException("Unknown strategy: " + (Object)((Object)this.strategy));
       }
    }
 

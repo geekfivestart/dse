@@ -581,13 +581,13 @@ public class StorageProxy implements StorageProxyMBean {
       long size = IMutation.dataSize(mutations);
       writeMetrics.mutationSize.update(size);
       ((ClientWriteRequestMetrics)writeMetricsMap.get(consistencyLevel)).mutationSize.update(size);
-      return augmented != null?mutateAtomically(augmented, consistencyLevel, updatesView, queryStartNanoTime).toSingleDefault(new ResultMessage.Void()):(!mutateAtomically && !updatesView?mutate(mutations, consistencyLevel, queryStartNanoTime):mutateAtomically(mutations, consistencyLevel, updatesView, queryStartNanoTime).toSingleDefault(new ResultMessage.Void()));
+      return augmented != null?mutateAtomically(augmented, consistencyLevel, updatesView, queryStartNanoTime).toSingleDefault(new ResultMessage.Void()):(!mutateAtomically && !updatesView?mutate(mutations, consistencyLevel, queryStartNanoTime):mutateAtomically((Collection<Mutation>) mutations, consistencyLevel, updatesView, queryStartNanoTime).toSingleDefault(new ResultMessage.Void()));
    }
 
    private static Completable mutateAtomically(Collection<Mutation> mutations, ConsistencyLevel consistencyLevel, boolean requireQuorumForRemove, long queryStartNanoTime) throws UnavailableException, OverloadedException, WriteTimeoutException {
       Tracing.trace("Determining replicas for atomic batch");
       long startTime = System.nanoTime();
-      ArrayList mutationsAndEndpoints = new ArrayList(mutations.size());
+      ArrayList<MutationAndEndpoints> mutationsAndEndpoints = new ArrayList(mutations.size());
 
       try {
          Iterator var8 = mutations.iterator();
@@ -612,7 +612,7 @@ public class StorageProxy implements StorageProxyMBean {
       AsyncLatch cleanupLatch = new AsyncLatch((long)mutations.size(), () -> {
          asyncRemoveFromBatchlog(batchlogEndpoints.live(), batchUUID);
       });
-      List<WriteHandler> handlers = ImmutableList.copyOf(Lists.transform(mutationsAndEndpoints, (mae) -> {
+      List<WriteHandler> handlers = ImmutableList.<WriteHandler>copyOf(Lists.transform(mutationsAndEndpoints, (mae) -> {
          Keyspace keyspace = mae.endpoints.keyspace();
          long var10002 = (long)batchConsistencyLevel.blockFor(keyspace);
          cleanupLatch.getClass();
@@ -1071,106 +1071,76 @@ public class StorageProxy implements StorageProxyMBean {
 
    public static Map<String, List<String>> describeSchemaVersions() {
       String myVersion = Schema.instance.getVersion().toString();
-      final Map<InetAddress, UUID> versions = new ConcurrentHashMap();
+      final ConcurrentHashMap versions = new ConcurrentHashMap();
       Set<InetAddress> liveHosts = Gossiper.instance.getLiveMembers();
       final CountDownLatch latch = new CountDownLatch(liveHosts.size());
-      MessageCallback<UUID> cb = new MessageCallback<UUID>() {
+      MessageCallback<UUID> cb = new MessageCallback<UUID>(){
+
+         @Override
          public void onResponse(Response<UUID> message) {
             versions.put(message.from(), message.payload());
             latch.countDown();
          }
 
+         @Override
          public void onFailure(FailureResponse<UUID> message) {
          }
       };
-      Iterator var5 = liveHosts.iterator();
-
-      while(var5.hasNext()) {
-         InetAddress endpoint = (InetAddress)var5.next();
+      for (InetAddress endpoint : liveHosts) {
          MessagingService.instance().send(Verbs.SCHEMA.VERSION.newRequest(endpoint, EmptyPayload.instance), cb);
       }
-
       try {
          latch.await(DatabaseDescriptor.getRpcTimeout(), TimeUnit.MILLISECONDS);
-      } catch (InterruptedException var12) {
-         throw new AssertionError("This latch shouldn't have been interrupted.");
       }
-
-      Map<String, List<String>> results = new HashMap();
+      catch (InterruptedException ex) {
+         throw new AssertionError((Object)"This latch shouldn't have been interrupted.");
+      }
+      HashMap<String, List<String>> results = new HashMap<String, List<String>>();
       Iterable<InetAddress> allHosts = Iterables.concat(Gossiper.instance.getLiveMembers(), Gossiper.instance.getUnreachableMembers());
-
-      Iterator var7;
-      InetAddress host;
-      String host;
-      Object hosts;
-      for(var7 = allHosts.iterator(); var7.hasNext(); ((List)hosts).add(host.getHostAddress())) {
-         host = (InetAddress)var7.next();
+      for (InetAddress host : allHosts) {
          UUID version = (UUID)versions.get(host);
-         host = version == null?"UNREACHABLE":version.toString();
-         hosts = (List)results.get(host);
-         if(hosts == null) {
-            hosts = new ArrayList();
-            results.put(host, hosts);
+         String stringVersion = version == null ? UNREACHABLE : version.toString();
+         ArrayList<String> hosts = (ArrayList<String>)results.get(stringVersion);
+         if (hosts == null) {
+            hosts = new ArrayList<String>();
+            results.put(stringVersion, hosts);
+         }
+         hosts.add(host.getHostAddress());
+      }
+      if (results.get(UNREACHABLE) != null) {
+         logger.debug("Hosts not in agreement. Didn't get a response from everybody: {}", (Object)StringUtils.join((Iterable)((Iterable)results.get(UNREACHABLE)), (String)","));
+      }
+      for (Map.Entry<String,List<String>> entry : results.entrySet()) {
+         if (((String)entry.getKey()).equals(UNREACHABLE) || ((String)entry.getKey()).equals(myVersion)) continue;
+         for (String host : entry.getValue()) {
+            logger.debug("{} disagrees ({})", (Object)host, entry.getKey());
          }
       }
-
-      if(results.get("UNREACHABLE") != null) {
-         logger.debug("Hosts not in agreement. Didn't get a response from everybody: {}", StringUtils.join((Iterable)results.get("UNREACHABLE"), ","));
+      if (results.size() == 1) {
+         logger.debug("Schemas are in agreement.");
       }
-
-      var7 = results.entrySet().iterator();
-
-      while(true) {
-         Entry entry;
-         do {
-            do {
-               if(!var7.hasNext()) {
-                  if(results.size() == 1) {
-                     logger.debug("Schemas are in agreement.");
-                  }
-
-                  return results;
-               }
-
-               entry = (Entry)var7.next();
-            } while(((String)entry.getKey()).equals("UNREACHABLE"));
-         } while(((String)entry.getKey()).equals(myVersion));
-
-         Iterator var16 = ((List)entry.getValue()).iterator();
-
-         while(var16.hasNext()) {
-            host = (String)var16.next();
-            logger.debug("{} disagrees ({})", host, entry.getKey());
-         }
-      }
+      return results;
    }
 
+
    static <T extends RingPosition<T>> List<AbstractBounds<T>> getRestrictedRanges(AbstractBounds<T> queryRange) {
-      if(queryRange instanceof Bounds && queryRange.left.equals(queryRange.right) && !queryRange.left.isMinimum()) {
+      Token upperBoundToken;
+      RingPosition upperBound;
+      if (queryRange instanceof Bounds && queryRange.left.equals(queryRange.right) && !queryRange.left.isMinimum()) {
          return Collections.singletonList(queryRange);
-      } else {
-         TokenMetadata tokenMetadata = StorageService.instance.getTokenMetadata();
-         List<AbstractBounds<T>> ranges = new ArrayList();
-         Iterator<Token> ringIter = TokenMetadata.ringIterator(tokenMetadata.sortedTokens(), queryRange.left.getToken(), true);
-         AbstractBounds remainder = queryRange;
-
-         while(ringIter.hasNext()) {
-            Token upperBoundToken = (Token)ringIter.next();
-            T upperBound = upperBoundToken.upperBound(queryRange.left.getClass());
-            if(!remainder.left.equals(upperBound) && !remainder.contains(upperBound)) {
-               break;
-            }
-
-            Pair<AbstractBounds<T>, AbstractBounds<T>> splits = remainder.split(upperBound);
-            if(splits != null) {
-               ranges.add(splits.left);
-               remainder = (AbstractBounds)splits.right;
-            }
-         }
-
-         ranges.add(remainder);
-         return ranges;
       }
+      TokenMetadata tokenMetadata = StorageService.instance.getTokenMetadata();
+      ArrayList<AbstractBounds<T>> ranges = new ArrayList<AbstractBounds<T>>();
+      Iterator<Token> ringIter = TokenMetadata.ringIterator(tokenMetadata.sortedTokens(), queryRange.left.getToken(), true);
+      AbstractBounds remainder = queryRange;
+      while (ringIter.hasNext() && (remainder.left.equals(upperBound = (upperBoundToken = ringIter.next()).upperBound(queryRange.left.getClass())) || remainder.contains(upperBound))) {
+         Pair<AbstractBounds<T>, AbstractBounds<T>> splits = remainder.split(upperBound);
+         if (splits == null) continue;
+         ranges.add((AbstractBounds<T>)splits.left);
+         remainder = (AbstractBounds)splits.right;
+      }
+      ranges.add(remainder);
+      return ranges;
    }
 
    public boolean getHintedHandoffEnabled() {
@@ -1323,7 +1293,7 @@ public class StorageProxy implements StorageProxyMBean {
       }
 
       if(targets.isEmpty()) {
-         return Futures.immediateFuture((Object)null);
+         return Futures.immediateFuture(null);
       } else {
          return submitHint(targets, Completable.defer(() -> {
             logger.trace("Adding hints for {}", targets);
@@ -1518,7 +1488,7 @@ public class StorageProxy implements StorageProxyMBean {
          this.command = command;
          this.concurrencyFactor = concurrencyFactor;
          this.startTime = System.nanoTime();
-         this.ranges = new StorageProxy.RangeMerger(ranges, ctx, null);
+         this.ranges = new StorageProxy.RangeMerger(ranges, ctx);
          this.totalRangeCount = ranges.rangeCount();
          this.ctx = ctx;
       }

@@ -1557,7 +1557,7 @@ public class DatabaseDescriptor {
    }
 
    public static Set<InetAddress> getSeeds() {
-      return ImmutableSet.builder().addAll(seedProvider.getSeeds()).build();
+      return ImmutableSet.<InetAddress>builder().addAll(seedProvider.getSeeds()).build();
    }
 
    public static SeedProvider getSeedProvider() {

@@ -16,7 +16,7 @@ final class UnfilteredRows extends BaseRows<Unfiltered, UnfilteredRowIterator> i
    }
 
    public UnfilteredRows(UnfilteredRowIterator input, RegularAndStaticColumns columns) {
-      super((BaseRowIterator)input);
+      super(input);
       this.regularAndStaticColumns = columns;
       this.partitionLevelDeletion = input.partitionLevelDeletion();
    }

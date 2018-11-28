@@ -20,7 +20,7 @@ public class PullRequest {
 
          public PullRequest deserialize(DataInputPlus in) throws IOException {
             int schemaCompatibilityVersion = v.compareTo(SchemaVerbs.SchemaVersion.DSE_603) >= 0?in.readInt():-1;
-            return new PullRequest(schemaCompatibilityVersion, null);
+            return new PullRequest(schemaCompatibilityVersion);
          }
 
          public long serializedSize(PullRequest pullRequest) {

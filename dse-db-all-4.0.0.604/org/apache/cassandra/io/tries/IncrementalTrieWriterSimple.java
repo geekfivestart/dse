@@ -32,7 +32,7 @@ public class IncrementalTrieWriterSimple<Value> extends IncrementalTrieWriterBas
          this.stack.getClass();
 
          IncrementalTrieWriterSimple.Node node;
-         for(Iterator var6 = (var10000::descendingIterator).iterator(); var6.hasNext(); nodePos += this.write(node, buf, nodePos)) {
+         for(Iterator var6 = (var10000.descendingIterator()); var6.hasNext(); nodePos += this.write(node, buf, nodePos)) {
             node = (IncrementalTrieWriterSimple.Node)var6.next();
             node.filePos = nodePos;
          }

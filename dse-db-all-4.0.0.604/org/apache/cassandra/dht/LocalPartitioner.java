@@ -95,7 +95,7 @@ public class LocalPartitioner implements IPartitioner {
       private int hashCode;
 
       private LocalToken() {
-         super((Comparable)null);
+         super(null);
          this.hashCode = -1;
       }
 

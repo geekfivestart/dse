@@ -225,9 +225,7 @@ public class CompressedSequentialWriter extends SequentialWriter {
 
       protected void doPrepare() {
          CompressedSequentialWriter.this.syncInternal();
-         Optional var10000 = CompressedSequentialWriter.this.digestFile;
-         ChecksumWriter var10001 = CompressedSequentialWriter.this.crcMetadata;
-         var10000.ifPresent(var10001::writeFullChecksum);
+         CompressedSequentialWriter.this.digestFile.ifPresent(CompressedSequentialWriter.this.crcMetadata::writeFullChecksum);
          CompressedSequentialWriter.this.sstableMetadataCollector.addCompressionRatio(CompressedSequentialWriter.this.chunkOffset, CompressedSequentialWriter.this.lastFlushOffset);
          CompressedSequentialWriter.this.metadataWriter.finalizeLength(CompressedSequentialWriter.this.current(), CompressedSequentialWriter.this.chunkCount).prepareToCommit();
       }

@@ -102,10 +102,10 @@ final class HintsDescriptor {
                cipher = encryptionContext.getDecryptor();
             } else {
                cipher = encryptionContext.getEncryptor();
-               ImmutableMap<String, Object> encParams = ImmutableMap.builder().putAll(encryptionContext.toHeaderParameters()).put("encIV", Hex.bytesToHex(cipher.getIV())).build();
+               ImmutableMap<String, Object> encParams = ImmutableMap.<String,Object>builder().putAll(encryptionContext.toHeaderParameters()).put("encIV", Hex.bytesToHex(cipher.getIV())).build();
                Map<String, Object> map = new HashMap(params);
                map.put("encryption", encParams);
-               params = ImmutableMap.builder().putAll(map).build();
+               params = ImmutableMap.<String,Object>builder().putAll(map).build();
             }
 
             return new HintsDescriptor.EncryptionData(cipher, encryptionContext.getCompressor(), params);

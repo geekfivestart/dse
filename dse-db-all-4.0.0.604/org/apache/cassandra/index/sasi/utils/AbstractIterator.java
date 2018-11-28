@@ -20,15 +20,16 @@ public abstract class AbstractIterator<T> implements PeekingIterator<T> {
    }
 
    public final boolean hasNext() {
-      Preconditions.checkState(this.state != AbstractIterator.State.FAILED);
-      switch(null.$SwitchMap$org$apache$cassandra$index$sasi$utils$AbstractIterator$State[this.state.ordinal()]) {
-      case 1:
-         return false;
-      case 2:
-         return true;
-      default:
-         return this.tryToComputeNext();
+      Preconditions.checkState((boolean)(this.state != State.FAILED));
+      switch (this.state) {
+         case DONE: {
+            return false;
+         }
+         case READY: {
+            return true;
+         }
       }
+      return this.tryToComputeNext();
    }
 
    protected boolean tryToComputeNext() {

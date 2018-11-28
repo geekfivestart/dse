@@ -115,7 +115,7 @@ public class SerializingCache<K, V> implements ICache<K, V> {
             mem.unreference();
          }
 
-         return var3;
+         return (V)var3;
       }
    }
 

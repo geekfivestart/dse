@@ -169,7 +169,7 @@ public class LeaseMonitorCore {
 
    Set<LeaseMonitorCore.LeaseRow> readLeases() throws Exception {
       UntypedResultSet res = QueryProcessorUtil.execute(String.format("SELECT * FROM %s", new Object[]{QueryProcessorUtil.getFullTableName(this.keyspace, this.table)}), ConsistencyLevel.QUORUM, new Object[0]);
-      return (Set)StreamSupport.stream(res.spliterator(), false).filter(LeaseMonitorCore::isLeaseRowComplete).map(LeaseMonitorCore.LeaseRow::<init>).collect(Collectors.toSet());
+      return (Set)StreamSupport.stream(res.spliterator(), false).filter(LeaseMonitorCore::isLeaseRowComplete).map(LeaseMonitorCore.LeaseRow::new).collect(Collectors.toSet());
    }
 
    Set<LeaseMonitorCore.LeaseId> readLocalLeases(String dc) throws Exception {

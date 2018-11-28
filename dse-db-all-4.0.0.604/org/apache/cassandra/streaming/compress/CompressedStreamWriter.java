@@ -1,6 +1,7 @@
 package org.apache.cassandra.streaming.compress;
 
 import java.io.IOException;
+import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -31,99 +32,54 @@ public class CompressedStreamWriter extends StreamWriter {
 
    public void write(DataOutputStreamPlus out) throws IOException {
       long totalSize = this.totalSize();
-      logger.debug("[Stream #{}] Start streaming file {} to {}, repairedAt = {}, totalSize = {}", new Object[]{this.session.planId(), this.sstable.getFilename(), this.session.peer, Long.valueOf(this.sstable.getSSTableMetadata().repairedAt), Long.valueOf(totalSize)});
-      AsynchronousChannelProxy fc = this.sstable.getDataChannel().sharedCopy();
-      Throwable var5 = null;
-
-      try {
+      logger.debug("[Stream #{}] Start streaming file {} to {}, repairedAt = {}, totalSize = {}", new Object[]{this.session.planId(), this.sstable.getFilename(), this.session.peer, this.sstable.getSSTableMetadata().repairedAt, totalSize});
+      try (AsynchronousChannelProxy fc = this.sstable.getDataChannel().sharedCopy();){
          long progress = 0L;
          List<Pair<Long, Long>> sections = this.getTransferSections(this.compressionInfo.chunks);
          int sectionIdx = 0;
-         Iterator var10 = sections.iterator();
-
-         label89:
-         while(true) {
-            if(var10.hasNext()) {
-               Pair<Long, Long> section = (Pair)var10.next();
-               long length = ((Long)section.right).longValue() - ((Long)section.left).longValue();
-               logger.trace("[Stream #{}] Writing section {} with length {} to stream.", new Object[]{this.session.planId(), Integer.valueOf(sectionIdx++), Long.valueOf(length)});
-               long bytesTransferred = 0L;
-
-               while(true) {
-                  if(bytesTransferred >= length) {
-                     continue label89;
-                  }
-
-                  int toTransfer = (int)Math.min(10485760L, length - bytesTransferred);
-                  this.limiter.acquire(toTransfer);
-                  long lastWrite = ((Long)out.applyToChannel((wbc) -> {
-                     return Long.valueOf(fc.transferTo(((Long)section.left).longValue() + bytesTransferred, (long)toTransfer, wbc));
-                  })).longValue();
-                  bytesTransferred += lastWrite;
-                  progress += lastWrite;
-                  this.session.progress(this.sstable.descriptor.filenameFor(Component.DATA), ProgressInfo.Direction.OUT, progress, totalSize);
-               }
-            }
-
-            logger.debug("[Stream #{}] Finished streaming file {} to {}, bytesTransferred = {}, totalSize = {}", new Object[]{this.session.planId(), this.sstable.getFilename(), this.session.peer, FBUtilities.prettyPrintMemory(progress), FBUtilities.prettyPrintMemory(totalSize)});
-            return;
-         }
-      } catch (Throwable var28) {
-         var5 = var28;
-         throw var28;
-      } finally {
-         if(fc != null) {
-            if(var5 != null) {
-               try {
-                  fc.close();
-               } catch (Throwable var27) {
-                  var5.addSuppressed(var27);
-               }
-            } else {
-               fc.close();
+         for (Pair<Long, Long> section : sections) {
+            long lastWrite;
+            long length = (Long)section.right - (Long)section.left;
+            Object[] arrobject = new Object[]{this.session.planId(), sectionIdx++, length};
+            logger.trace("[Stream #{}] Writing section {} with length {} to stream.", arrobject);
+            for (long bytesTransferred = 0L; bytesTransferred < length; bytesTransferred += lastWrite) {
+               long bytesTransferredFinal = bytesTransferred;
+               int toTransfer = (int)Math.min(0xA00000L, length - bytesTransferred);
+               this.limiter.acquire(toTransfer);
+               lastWrite = out.applyToChannel(wbc -> fc.transferTo((Long)section.left + bytesTransferredFinal, toTransfer, (WritableByteChannel)wbc));
+               this.session.progress(this.sstable.descriptor.filenameFor(Component.DATA), ProgressInfo.Direction.OUT, progress += lastWrite, totalSize);
             }
          }
-
+         logger.debug("[Stream #{}] Finished streaming file {} to {}, bytesTransferred = {}, totalSize = {}", new Object[]{this.session.planId(), this.sstable.getFilename(), this.session.peer, FBUtilities.prettyPrintMemory(progress), FBUtilities.prettyPrintMemory(totalSize)});
       }
    }
 
-   protected long totalSize() {
-      long size = 0L;
-      CompressionMetadata.Chunk[] var3 = this.compressionInfo.chunks;
-      int var4 = var3.length;
+    protected long totalSize() {
+        long size = 0L;
+        for (CompressionMetadata.Chunk chunk : this.compressionInfo.chunks) {
+            size += (long)(chunk.length + 4);
+        }
+        return size;
+    }
 
-      for(int var5 = 0; var5 < var4; ++var5) {
-         CompressionMetadata.Chunk chunk = var3[var5];
-         size += (long)(chunk.length + 4);
-      }
-
-      return size;
-   }
-
-   private List<Pair<Long, Long>> getTransferSections(CompressionMetadata.Chunk[] chunks) {
-      List<Pair<Long, Long>> transferSections = new ArrayList();
-      Pair<Long, Long> lastSection = null;
-      CompressionMetadata.Chunk[] var4 = chunks;
-      int var5 = chunks.length;
-
-      for(int var6 = 0; var6 < var5; ++var6) {
-         CompressionMetadata.Chunk chunk = var4[var6];
-         if(lastSection != null) {
-            if(chunk.offset == ((Long)lastSection.right).longValue()) {
-               lastSection = Pair.create(lastSection.left, Long.valueOf(chunk.offset + (long)chunk.length + 4L));
-            } else {
-               transferSections.add(lastSection);
-               lastSection = Pair.create(Long.valueOf(chunk.offset), Long.valueOf(chunk.offset + (long)chunk.length + 4L));
+    private List<Pair<Long, Long>> getTransferSections(CompressionMetadata.Chunk[] chunks) {
+        ArrayList<Pair<Long, Long>> transferSections = new ArrayList<Pair<Long, Long>>();
+        Pair<Long, Long> lastSection = null;
+        for (CompressionMetadata.Chunk chunk : chunks) {
+            if (lastSection != null) {
+                if (chunk.offset == (Long)lastSection.right) {
+                    lastSection = Pair.create(lastSection.left, chunk.offset + (long)chunk.length + 4L);
+                    continue;
+                }
+                transferSections.add(lastSection);
+                lastSection = Pair.create(chunk.offset, chunk.offset + (long)chunk.length + 4L);
+                continue;
             }
-         } else {
-            lastSection = Pair.create(Long.valueOf(chunk.offset), Long.valueOf(chunk.offset + (long)chunk.length + 4L));
-         }
-      }
-
-      if(lastSection != null) {
-         transferSections.add(lastSection);
-      }
-
-      return transferSections;
-   }
+            lastSection = Pair.create(chunk.offset, chunk.offset + (long)chunk.length + 4L);
+        }
+        if (lastSection != null) {
+            transferSections.add(lastSection);
+        }
+        return transferSections;
+    }
 }

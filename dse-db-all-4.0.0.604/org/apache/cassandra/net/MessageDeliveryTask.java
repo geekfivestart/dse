@@ -74,7 +74,7 @@ abstract class MessageDeliveryTask<T, M extends Message<T>> implements Runnable 
          if(((Request)this.message).verb().isOneWay()) {
             ((OneWayRequest)this.message).execute();
          } else {
-            ((Request)this.message).execute(MessagingService.instance()::reply, this::onAborted);
+            (this.message).execute(MessagingService.instance()::reply, this::onAborted);
          }
 
       }

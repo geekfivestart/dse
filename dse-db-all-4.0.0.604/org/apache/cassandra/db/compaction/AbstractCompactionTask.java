@@ -23,20 +23,11 @@ public abstract class AbstractCompactionTask extends WrappedRunnable {
       this.transaction = transaction;
       this.isUserDefined = false;
       this.compactionType = OperationType.COMPACTION;
-      Set<SSTableReader> compacting = transaction.tracker.getCompacting();
-      Iterator var4 = transaction.originals().iterator();
-
-      SSTableReader sstable;
-      do {
-         if(!var4.hasNext()) {
-            this.validateSSTables(transaction.originals());
-            return;
-         }
-
-         sstable = (SSTableReader)var4.next();
-      } while($assertionsDisabled || compacting.contains(sstable));
-
-      throw new AssertionError(sstable.getFilename() + " is not correctly marked compacting");
+      final Set<SSTableReader> compacting = transaction.tracker.getCompacting();
+      for (final SSTableReader sstable : transaction.originals()) {
+         assert compacting.contains(sstable) : sstable.getFilename() + " is not correctly marked compacting";
+      }
+      this.validateSSTables(transaction.originals());
    }
 
    private void validateSSTables(Set<SSTableReader> sstables) {

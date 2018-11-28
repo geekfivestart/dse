@@ -83,7 +83,7 @@ public class Domains<E extends PartitionedEnum> {
                   throw new IllegalArgumentException(String.format("Domain %s was already registered for type %s", new Object[]{domain, this.type.getName()}));
                } else {
                   Map<String, Domains.Domain> domainsUpdate = new HashMap(this.domains);
-                  D[] enumConstants = (Enum[])enumType.getEnumConstants();
+                  Enum[] enumConstants = (Enum[])enumType.getEnumConstants();
                   Domains.Domain d = new Domains.Domain(domainsUpdate.size(), this.bitOffset, enumType);
                   this.bitOffset += enumConstants.length;
                   domainsUpdate.put(domain, d);
@@ -105,7 +105,7 @@ public class Domains<E extends PartitionedEnum> {
       if(d == null) {
          throw new IllegalArgumentException(String.format("Unknown domain %s", new Object[]{domain}));
       } else {
-         return (PartitionedEnum)Enum.valueOf(d.enumType, name);
+         return (E)((PartitionedEnum)Enum.valueOf(d.enumType, name));
       }
    }
 
@@ -122,7 +122,7 @@ public class Domains<E extends PartitionedEnum> {
    public ImmutableSet<E> asSet() {
       Builder<E> builder = ImmutableSet.builder();
       this.domains.values().forEach((d) -> {
-         builder.add((PartitionedEnum[])((PartitionedEnum[])d.enumType.getEnumConstants()));
+         builder.add((E[])((PartitionedEnum[])d.enumType.getEnumConstants()));
       });
       return builder.build();
    }
@@ -144,13 +144,13 @@ public class Domains<E extends PartitionedEnum> {
          if(domains == null) {
             throw new IllegalArgumentException("Unknown PartitionedEnumType " + type.getName());
          } else {
-            return domains;
+            return (Domains)domains;
          }
       }
 
       private <E extends PartitionedEnum, D extends Enum & PartitionedEnum> void registerDomain(Class<E> type, String domainName, Class<D> domain) {
          Domains<E> newRegistry = new Domains(type);
-         Domains<?> existingRegistry = (Domains)this.KNOWN_TYPES.putIfAbsent(type, newRegistry);
+         Domains<?> existingRegistry = this.KNOWN_TYPES.putIfAbsent(type, newRegistry);
          Domains<?> registry = existingRegistry != null?existingRegistry:newRegistry;
          registry.register(domainName, domain);
       }

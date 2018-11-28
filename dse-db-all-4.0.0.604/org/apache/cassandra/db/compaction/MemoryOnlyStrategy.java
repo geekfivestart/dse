@@ -49,7 +49,7 @@ public class MemoryOnlyStrategy extends AbstractCompactionStrategy {
       if(Iterables.isEmpty(this.cfs.getSSTables(SSTableSet.LIVE))) {
          return Collections.emptyList();
       } else {
-         MemoryOnlyStrategy.CompactionProgress progress = new MemoryOnlyStrategy.CompactionProgress(this.cfs.metadata(), null);
+         MemoryOnlyStrategy.CompactionProgress progress = new MemoryOnlyStrategy.CompactionProgress(this.cfs.metadata());
          if(progress.numActiveCompactions >= this.options.maxActiveCompactions) {
             return Collections.emptyList();
          } else {

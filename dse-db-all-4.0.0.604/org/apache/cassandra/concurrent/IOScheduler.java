@@ -70,7 +70,7 @@ public class IOScheduler extends StagedScheduler {
       while(true) {
          if(this.pool.get() == null) {
             IOScheduler.WorkersPool next = new IOScheduler.WorkersPool(this.workerSupplier, this.keepAliveMillis);
-            if(!this.pool.compareAndSet((Object)null, next)) {
+            if(!this.pool.compareAndSet(null, next)) {
                next.shutdown();
                continue;
             }
@@ -83,7 +83,7 @@ public class IOScheduler extends StagedScheduler {
    public void shutdown() {
       if(this.shutdown.compareAndSet(false, true)) {
          for(IOScheduler.WorkersPool current = (IOScheduler.WorkersPool)this.pool.get(); current != null; current = (IOScheduler.WorkersPool)this.pool.get()) {
-            if(this.pool.compareAndSet(current, (Object)null)) {
+            if(this.pool.compareAndSet(current, null)) {
                current.shutdown();
                break;
             }

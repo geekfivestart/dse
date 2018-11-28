@@ -58,12 +58,12 @@ public class MessageType {
    }
 
    public static enum Domain {
-      SYSTEM(0),
-      SEARCH(1),
-      LEASE(2),
-      GRAPH(3),
-      GENERIC_QUERY_ROUTER(4),
-      ADVREP(5);
+      SYSTEM((byte)0),
+      SEARCH((byte)1),
+      LEASE((byte)2),
+      GRAPH((byte)3),
+      GENERIC_QUERY_ROUTER((byte)4),
+      ADVREP((byte)5);
 
       public final byte id;
 

@@ -18,7 +18,7 @@ import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.flow.Flow;
 
 public interface ReadQuery extends Monitorable {
-   static default ReadQuery empty(final TableMetadata metadata) {
+   public static ReadQuery empty(final TableMetadata metadata) {
       return new ReadQuery() {
          public TableMetadata metadata() {
             return metadata;

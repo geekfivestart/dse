@@ -99,7 +99,7 @@ public class CompositesSearcher extends CassandraIndexSearcher {
       class TransformedPartition extends FlowableUnfilteredPartition.Filter {
          private int entriesIdx;
 
-         public TransformedPartition(FlowableUnfilteredPartition this$0) {
+         public TransformedPartition(FlowableUnfilteredPartition source) {
             super(source.content(), source.staticRow(), source.header(), (Predicate)null);
          }
 

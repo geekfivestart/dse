@@ -6,7 +6,7 @@ public class Interval<C, D> {
    public final C min;
    public final C max;
    public final D data;
-   private static final AsymmetricOrdering<Interval<Comparable, Object>, Comparable> minOrdering = new AsymmetricOrdering<Interval<Comparable, Object>, Comparable>() {
+   private static final AsymmetricOrdering<Interval<Comparable,Object>, Comparable> minOrdering = new AsymmetricOrdering<Interval<Comparable, Object>, Comparable>() {
       public int compareAsymmetric(Interval<Comparable, Object> left, Comparable right) {
          return ((Comparable)left.min).compareTo(right);
       }
@@ -33,7 +33,7 @@ public class Interval<C, D> {
    }
 
    public static <C, D> Interval<C, D> create(C min, C max) {
-      return create(min, max, (Object)null);
+      return create(min, max, null);
    }
 
    public static <C, D> Interval<C, D> create(C min, C max, D data) {
@@ -58,11 +58,11 @@ public class Interval<C, D> {
    }
 
    public static <C extends Comparable<? super C>, V> AsymmetricOrdering<Interval<C, V>, C> minOrdering() {
-      return minOrdering;
+      return (AsymmetricOrdering)minOrdering;
    }
 
    public static <C extends Comparable<? super C>, V> AsymmetricOrdering<Interval<C, V>, C> maxOrdering() {
-      return maxOrdering;
+      return (AsymmetricOrdering)maxOrdering;
    }
 
    static {

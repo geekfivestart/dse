@@ -51,7 +51,7 @@ public abstract class Token implements RingPosition<Token>, Serializable {
    }
 
    public <R extends RingPosition<R>> R upperBound(Class<R> klass) {
-      return (RingPosition)(klass.equals(this.getClass())?this:this.maxKeyBound());
+      return (R)(klass.equals(this.getClass())?this:this.maxKeyBound());
    }
 
    public static class KeyBound extends PartitionPosition {

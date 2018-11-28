@@ -25,7 +25,7 @@ public class ExecutableLock {
    public <T> CompletableFuture<T> execute(Supplier<CompletableFuture<T>> action, Executor executor) {
       CompletableFuture<T> initiator = new CompletableFuture();
       this.tryExecute(initiator, executor);
-      return initiator.thenCompose((f) -> {
+      return initiator.<T>thenCompose((f) -> {
          return (CompletableFuture)action.get();
       }).whenComplete((result, error) -> {
          this.unlockAndTryNext();
@@ -34,31 +34,29 @@ public class ExecutableLock {
 
    public <T> T executeBlocking(Callable<T> action) throws Exception {
       this.lock.acquireUninterruptibly();
-
-      Object var2;
       try {
-         var2 = action.call();
-      } finally {
+         T t = action.call();
+         return t;
+      }
+      finally {
          this.unlockAndTryNext();
       }
-
-      return var2;
    }
 
    private <T> void tryExecute(CompletableFuture<T> future, Executor executor) {
-      this.queue.add(new ExecutableLock.AsyncAction(future, executor));
-      if(this.lock.tryAcquire()) {
+      this.queue.add(new AsyncAction<T>(future, executor));
+      if (this.lock.tryAcquire()) {
          try {
-            if(!future.isDone()) {
-               future.complete((Object)null);
+            if (!future.isDone()) {
+               future.complete(null);
             } else {
                this.unlockAndTryNext();
             }
-         } catch (Exception var4) {
-            future.completeExceptionally(var4);
+         }
+         catch (Exception ex) {
+            future.completeExceptionally(ex);
          }
       }
-
    }
 
    private void unlockAndTryNext() {
@@ -80,7 +78,7 @@ public class ExecutableLock {
       private final CompletableFuture<T> future;
       private final Executor executor;
 
-      AsyncAction(CompletableFuture<T> var1, Executor future) {
+      AsyncAction(CompletableFuture<T> future, Executor executor) {
          this.future = future;
          this.executor = executor;
       }

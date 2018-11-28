@@ -285,25 +285,22 @@ public class FBUtilities {
       return waitOnFutures(futures, -1L);
    }
 
-   public static <T> List<T> waitOnFutures(Iterable<? extends Future<? extends T>> futures, long ms) {
-      List<T> results = new ArrayList();
+   public static <T> List<T> waitOnFutures(final Iterable<? extends Future<? extends T>> futures, final long ms) {
+      final List<T> results = new ArrayList<T>();
       Throwable fail = null;
-      Iterator var5 = futures.iterator();
-
-      while(var5.hasNext()) {
-         Future f = (Future)var5.next();
-
+      for (final Future<? extends T> f : futures) {
          try {
-            if(ms <= 0L) {
-               results.add(f.get());
-            } else {
-               results.add(f.get(ms, TimeUnit.MILLISECONDS));
+            if (ms <= 0L) {
+               results.add((T)f.get());
             }
-         } catch (Throwable var8) {
-            fail = Throwables.merge(fail, var8);
+            else {
+               results.add((T)f.get(ms, TimeUnit.MILLISECONDS));
+            }
+         }
+         catch (Throwable t) {
+            fail = Throwables.merge(fail, t);
          }
       }
-
       Throwables.maybeFail(fail);
       return results;
    }
@@ -399,21 +396,23 @@ public class FBUtilities {
       return (IRoleManager)construct(className, "role manager");
    }
 
-   public static <T> Class<T> classForName(String classname, String readable) throws ConfigurationException {
+   public static <T> Class<T> classForName(final String classname, final String readable) throws ConfigurationException {
       try {
-         return Class.forName(classname);
-      } catch (NoClassDefFoundError | ClassNotFoundException var3) {
-         throw new ConfigurationException(String.format("Unable to find %s class '%s'", new Object[]{readable, classname}), var3);
+         return (Class<T>)Class.forName(classname);
+      }
+      catch (ClassNotFoundException | NoClassDefFoundError ex) {
+         final Throwable e = ex;
+         throw new ConfigurationException(String.format("Unable to find %s class '%s'", readable, classname), e);
       }
    }
 
-   public static <T> T instanceOrConstruct(String classname, String readable) throws ConfigurationException {
-      Class cls = classForName(classname, readable);
-
+   public static <T> T instanceOrConstruct(final String classname, final String readable) throws ConfigurationException {
+      final Class<T> cls = classForName(classname, readable);
       try {
-         Field instance = cls.getField("instance");
-         return cls.cast(instance.get((Object)null));
-      } catch (SecurityException | IllegalArgumentException | IllegalAccessException | NoSuchFieldException var4) {
+         final Field instance = cls.getField("instance");
+         return cls.cast(instance.get(null));
+      }
+      catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException ex2) {
          return construct(cls, classname, readable);
       }
    }
@@ -861,7 +860,7 @@ public class FBUtilities {
       private FBUtilities.CpuInfo.PhysicalProcessor getProcessor(int physicalId) {
          return (FBUtilities.CpuInfo.PhysicalProcessor)this.processors.stream().filter((p) -> {
             return p.physicalId == physicalId;
-         }).findFirst().orElse((Object)null);
+         }).findFirst().orElse(null);
       }
 
       public String fetchCpuScalingGovernor(int cpuId) {

@@ -75,25 +75,17 @@ public class TrieIndexSSTableWriter extends SSTableWriter {
    private DecoratedKey lastWrittenKey;
    private DataPosition dataMark;
    private long lastEarlyOpenLength = 0L;
-   private final Optional<ChunkCache> chunkCache;
+   private final Optional<ChunkCache> chunkCache = Optional.ofNullable(ChunkCache.instance);
    private static final SequentialWriterOption WRITER_OPTION;
+
 
    public TrieIndexSSTableWriter(Descriptor descriptor, long keyCount, long repairedAt, UUID pendingRepair, TableMetadataRef metadata, MetadataCollector metadataCollector, SerializationHeader header, Collection<SSTableFlushObserver> observers, LifecycleTransaction txn) {
       super(descriptor, keyCount, repairedAt, pendingRepair, metadata, metadataCollector, header, observers);
-      this.chunkCache = Optional.ofNullable(ChunkCache.instance);
       txn.trackNew(this);
-      if(this.compression) {
-         this.dataFile = new CompressedSequentialWriter(new File(this.getFilename()), descriptor.filenameFor(Component.COMPRESSION_INFO), new File(descriptor.filenameFor(Component.DIGEST)), WRITER_OPTION, this.metadata().params.compression, metadataCollector);
-      } else {
-         this.dataFile = new ChecksummedSequentialWriter(new File(this.getFilename()), new File(descriptor.filenameFor(Component.CRC)), new File(descriptor.filenameFor(Component.DIGEST)), WRITER_OPTION);
-      }
-
-      this.dbuilder = (new FileHandle.Builder(descriptor.filenameFor(Component.DATA))).compressed(this.compression).mmapped(metadata.get().diskAccessMode == Config.AccessMode.mmap);
-      Optional var10000 = this.chunkCache;
-      FileHandle.Builder var10001 = this.dbuilder;
-      this.dbuilder.getClass();
-      var10000.ifPresent(var10001::withChunkCache);
-      this.iwriter = new TrieIndexSSTableWriter.IndexWriter(keyCount);
+      this.dataFile = this.compression ? new CompressedSequentialWriter(new File(this.getFilename()), descriptor.filenameFor(Component.COMPRESSION_INFO), new File(descriptor.filenameFor(Component.DIGEST)), WRITER_OPTION, this.metadata().params.compression, metadataCollector) : new ChecksummedSequentialWriter(new File(this.getFilename()), new File(descriptor.filenameFor(Component.CRC)), new File(descriptor.filenameFor(Component.DIGEST)), WRITER_OPTION);
+      this.dbuilder = new FileHandle.Builder(descriptor.filenameFor(Component.DATA)).compressed(this.compression).mmapped(metadata.get().diskAccessMode == Config.AccessMode.mmap);
+      this.chunkCache.ifPresent(this.dbuilder::withChunkCache);
+      this.iwriter = new IndexWriter(keyCount);
       this.partitionWriter = new PartitionWriter(this.header, this.metadata().comparator, this.dataFile, this.iwriter.rowIndexFile, descriptor.version, this.observers);
    }
 

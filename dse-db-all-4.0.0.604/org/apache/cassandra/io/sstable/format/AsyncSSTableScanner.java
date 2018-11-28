@@ -68,7 +68,7 @@ public class AsyncSSTableScanner extends FlowSource<FlowableUnfilteredPartition>
    }
 
    private Flow<FlowableUnfilteredPartition> flow() {
-      return this.ranges.size() == 1?this.sstable.coveredKeysFlow(this.dfile, (AbstractBounds)this.ranges.get(0)).flatMap(this::partitions):Flow.fromIterable(this.ranges).flatMap((range) -> {
+      return this.ranges.size() == 1?this.sstable.coveredKeysFlow(this.dfile, this.ranges.get(0)).flatMap(this::partitions):Flow.fromIterable(this.ranges).flatMap((range) -> {
          return this.sstable.coveredKeysFlow(this.dfile, range);
       }).flatMap(this::partitions);
    }

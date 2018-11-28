@@ -50,7 +50,7 @@ public abstract class UDFunction extends AbstractFunction implements ScalarFunct
    protected final UDFContext udfContext;
    private static final String[] whitelistedPatterns = new String[]{"com/datastax/driver/core/", "com/google/common/reflect/TypeToken", "java/io/IOException.class", "java/io/Serializable.class", "java/lang/", "java/math/", "java/net/InetAddress.class", "java/net/Inet4Address.class", "java/net/Inet6Address.class", "java/net/UnknownHostException.class", "java/net/NetworkInterface.class", "java/net/SocketException.class", "java/nio/Buffer.class", "java/nio/ByteBuffer.class", "java/text/", "java/time/", "java/util/", "org/apache/cassandra/cql3/functions/Arguments.class", "org/apache/cassandra/cql3/functions/UDFDataType.class", "org/apache/cassandra/cql3/functions/JavaUDF.class", "org/apache/cassandra/cql3/functions/UDFContext.class", "org/apache/cassandra/exceptions/", "org/apache/cassandra/transport/ProtocolVersion.class"};
    private static final String[] blacklistedPatterns = new String[]{"com/datastax/driver/core/Cluster.class", "com/datastax/driver/core/Metrics.class", "com/datastax/driver/core/NettyOptions.class", "com/datastax/driver/core/Session.class", "com/datastax/driver/core/Statement.class", "com/datastax/driver/core/TimestampGenerator.class", "java/lang/Compiler.class", "java/lang/InheritableThreadLocal.class", "java/lang/Package.class", "java/lang/Process.class", "java/lang/ProcessBuilder.class", "java/lang/ProcessEnvironment.class", "java/lang/ProcessImpl.class", "java/lang/Runnable.class", "java/lang/Runtime.class", "java/lang/Shutdown.class", "java/lang/Thread.class", "java/lang/ThreadGroup.class", "java/lang/ThreadLocal.class", "java/lang/instrument/", "java/lang/invoke/", "java/lang/management/", "java/lang/ref/", "java/lang/reflect/", "java/util/ServiceLoader.class", "java/util/Timer.class", "java/util/concurrent/", "java/util/function/", "java/util/jar/", "java/util/logging/", "java/util/prefs/", "java/util/spi/", "java/util/stream/", "java/util/zip/"};
-   static final ClassLoader udfClassLoader = new UDFunction.UDFClassLoader(null);
+   static final ClassLoader udfClassLoader = new UDFunction.UDFClassLoader();
 
    static boolean secureResource(String resource) {
       while(resource.startsWith("/")) {
@@ -245,49 +245,55 @@ public abstract class UDFunction extends AbstractFunction implements ScalarFunct
       });
    }
 
-   private <T> T async(UDFunction.ThreadIdAndCpuTime threadIdAndCpuTime, Callable<T> callable) {
-      Future future = this.executor().submit(callable);
-
+   private <T> T async(ThreadIdAndCpuTime threadIdAndCpuTime, Callable<T> callable) {
+      Future<T> future = this.executor().submit(callable);
       try {
-         if(DatabaseDescriptor.getUserDefinedFunctionWarnTimeout() > 0L) {
+         if (DatabaseDescriptor.getUserDefinedFunctionWarnTimeout() > 0L) {
             try {
                return future.get(DatabaseDescriptor.getUserDefinedFunctionWarnTimeout(), TimeUnit.MILLISECONDS);
-            } catch (TimeoutException var11) {
-               String warn = String.format("User defined function %s ran longer than %dms", new Object[]{this, Long.valueOf(DatabaseDescriptor.getUserDefinedFunctionWarnTimeout())});
+            }
+            catch (TimeoutException e) {
+               String warn = String.format("User defined function %s ran longer than %dms", this, DatabaseDescriptor.getUserDefinedFunctionWarnTimeout());
                logger.warn(warn);
                ClientWarn.instance.warn(warn);
             }
          }
-
          return future.get(DatabaseDescriptor.getUserDefinedFunctionFailTimeout() - DatabaseDescriptor.getUserDefinedFunctionWarnTimeout(), TimeUnit.MILLISECONDS);
-      } catch (InterruptedException var12) {
+      }
+      catch (InterruptedException e) {
          Thread.currentThread().interrupt();
-         throw new RuntimeException(var12);
-      } catch (ExecutionException var13) {
-         Throwable c = var13.getCause();
-         if(c instanceof RuntimeException) {
+         throw new RuntimeException(e);
+      }
+      catch (ExecutionException e) {
+         Throwable c = e.getCause();
+         if (c instanceof RuntimeException) {
             throw (RuntimeException)c;
-         } else {
-            throw new RuntimeException(c);
          }
-      } catch (TimeoutException var14) {
+         throw new RuntimeException(c);
+      }
+      catch (TimeoutException e) {
          try {
             threadIdAndCpuTime.get(1L, TimeUnit.SECONDS);
             long cpuTimeMillis = threadMXBean.getThreadCpuTime(threadIdAndCpuTime.threadId) - threadIdAndCpuTime.cpuTime;
-            cpuTimeMillis /= 1000000L;
-            return future.get(Math.max(DatabaseDescriptor.getUserDefinedFunctionFailTimeout() - cpuTimeMillis, 0L), TimeUnit.MILLISECONDS);
-         } catch (InterruptedException var8) {
+            return future.get(Math.max(DatabaseDescriptor.getUserDefinedFunctionFailTimeout() - (cpuTimeMillis /= 1000000L), 0L), TimeUnit.MILLISECONDS);
+         }
+         catch (InterruptedException e1) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException(var14);
-         } catch (ExecutionException var9) {
-            Throwable c = var14.getCause();
-            if(c instanceof RuntimeException) {
+            throw new RuntimeException(e);
+         }
+         catch (ExecutionException e1) {
+            Throwable c = e.getCause();
+            if (c instanceof RuntimeException) {
                throw (RuntimeException)c;
-            } else {
-               throw new RuntimeException(c);
             }
-         } catch (TimeoutException var10) {
-            TimeoutException cause = new TimeoutException(String.format("User defined function %s ran longer than %dms%s", new Object[]{this, Long.valueOf(DatabaseDescriptor.getUserDefinedFunctionFailTimeout()), DatabaseDescriptor.getUserFunctionTimeoutPolicy() == Config.UserFunctionTimeoutPolicy.ignore?"":" - will stop Cassandra VM"}));
+            throw new RuntimeException(c);
+         }
+         catch (TimeoutException e1) {
+            Object[] arrobject = new Object[3];
+            arrobject[0] = this;
+            arrobject[1] = DatabaseDescriptor.getUserDefinedFunctionFailTimeout();
+            arrobject[2] = DatabaseDescriptor.getUserFunctionTimeoutPolicy() == Config.UserFunctionTimeoutPolicy.ignore ? "" : " - will stop Cassandra VM";
+            TimeoutException cause = new TimeoutException(String.format("User defined function %s ran longer than %dms%s", arrobject));
             FunctionExecutionException fe = FunctionExecutionException.create(this, cause);
             JVMStabilityInspector.userFunctionTimeout(cause);
             throw fe;

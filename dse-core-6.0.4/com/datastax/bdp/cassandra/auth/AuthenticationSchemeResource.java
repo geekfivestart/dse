@@ -37,30 +37,30 @@ public class AuthenticationSchemeResource implements IResource {
    }
 
    public String getName() {
-      switch(null.$SwitchMap$com$datastax$bdp$cassandra$auth$AuthenticationSchemeResource$Level[this.level.ordinal()]) {
-      case 1:
-         return "authentication_schemes";
-      case 2:
-         return String.format("%s/%s", new Object[]{"authentication_schemes", this.scheme});
-      default:
-         throw new AssertionError();
+      switch (this.level) {
+         case ROOT: {
+            return ROOT_NAME;
+         }
+         case SCHEME: {
+            return String.format("%s/%s", new Object[]{ROOT_NAME, this.scheme});
+         }
       }
+      throw new AssertionError();
    }
 
    public IResource getParent() {
-      if(this.level == AuthenticationSchemeResource.Level.SCHEME) {
-         return root();
-      } else {
-         throw new IllegalStateException("Root-level resource can't have a parent");
+      if (this.level == Level.SCHEME) {
+         return AuthenticationSchemeResource.root();
       }
+      throw new IllegalStateException("Root-level resource can't have a parent");
    }
 
    public boolean hasParent() {
-      return this.level != AuthenticationSchemeResource.Level.ROOT;
+      return this.level != Level.ROOT;
    }
 
    public boolean exists() {
-      return this.level == AuthenticationSchemeResource.Level.ROOT || this.scheme != null;
+      return this.level == Level.ROOT || this.scheme != null;
    }
 
    public Set<Permission> applicablePermissions() {
@@ -68,14 +68,15 @@ public class AuthenticationSchemeResource implements IResource {
    }
 
    public String toString() {
-      switch(null.$SwitchMap$com$datastax$bdp$cassandra$auth$AuthenticationSchemeResource$Level[this.level.ordinal()]) {
-      case 1:
-         return "<all schemes>";
-      case 2:
-         return String.format("<scheme %s>", new Object[]{this.scheme});
-      default:
-         throw new AssertionError();
+      switch (this.level) {
+         case ROOT: {
+            return "<all schemes>";
+         }
+         case SCHEME: {
+            return String.format("<scheme %s>", new Object[]{this.scheme});
+         }
       }
+      throw new AssertionError();
    }
 
    public boolean equals(Object o) {

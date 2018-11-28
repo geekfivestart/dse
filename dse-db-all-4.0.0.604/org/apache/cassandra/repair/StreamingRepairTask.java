@@ -73,10 +73,10 @@ public class StreamingRepairTask implements Runnable, StreamEventHandler {
 
    public void onSuccess(StreamState state) {
       logger.info("{} streaming task succeed, returning response to {}", this.previewKind.logPrefix(this.desc.sessionId), this.request.initiator);
-      MessagingService.instance().send(Verbs.REPAIR.SYNC_COMPLETE.newRequest(this.request.initiator, (Object)(new SyncComplete(this.desc, this.request.src, this.request.dst, true, state.createSummaries()))));
+      MessagingService.instance().send(Verbs.REPAIR.SYNC_COMPLETE.newRequest(this.request.initiator, (new SyncComplete(this.desc, this.request.src, this.request.dst, true, state.createSummaries()))));
    }
 
    public void onFailure(Throwable t) {
-      MessagingService.instance().send(Verbs.REPAIR.SYNC_COMPLETE.newRequest(this.request.initiator, (Object)(new SyncComplete(this.desc, this.request.src, this.request.dst, false, Collections.emptyList()))));
+      MessagingService.instance().send(Verbs.REPAIR.SYNC_COMPLETE.newRequest(this.request.initiator, (new SyncComplete(this.desc, this.request.src, this.request.dst, false, Collections.emptyList()))));
    }
 }

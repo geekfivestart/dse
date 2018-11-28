@@ -8,12 +8,7 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
 import java.nio.ByteBuffer;
-import java.security.AccessControlContext;
-import java.security.AccessController;
-import java.security.CodeSource;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
-import java.security.ProtectionDomain;
+import java.security.*;
 import java.security.cert.Certificate;
 import java.util.Arrays;
 import java.util.Collections;
@@ -50,9 +45,7 @@ final class ScriptBasedUDFunction extends UDFunction {
       super(name, argNames, argTypes, returnType, calledOnNullInput, language, body, deterministic, monotonic, monotonicOn);
       if("JavaScript".equalsIgnoreCase(language) && scriptEngine != null) {
          try {
-            this.script = (CompiledScript)AccessController.doPrivileged(() -> {
-               return scriptEngine.compile(body);
-            }, accessControlContext);
+            this.script = AccessController.doPrivileged((PrivilegedExceptionAction<CompiledScript>)(() -> scriptEngine.compile(body)), accessControlContext);
          } catch (PrivilegedActionException var13) {
             Throwable e = var13.getCause();
             logger.info("Failed to compile function '{}' for language {}: ", new Object[]{name, language, e});

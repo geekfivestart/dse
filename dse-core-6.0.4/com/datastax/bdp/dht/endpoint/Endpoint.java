@@ -43,7 +43,7 @@ public class Endpoint {
       if(this.loadRate == null) {
          List<String> keys = ImmutableList.of("scope", "metricType", "endpoint", "name");
          List<String> values = ImmutableList.of("core", "EndpointMetrics", this.address.toString(), "LoadRate");
-         String mBeanName = JMX.buildMBeanName(JMX.Type.METRICS, MapBuilder.immutable().withKeys(keys.toArray(new String[keys.size()])).withValues(values.toArray(new String[values.size()])).build());
+         String mBeanName = JMX.buildMBeanName(JMX.Type.METRICS, MapBuilder.<String,String>immutable().withKeys(keys.toArray(new String[keys.size()])).withValues(values.toArray(new String[values.size()])).build());
          MetricName name = new MetricName("com.datastax.bdp", "core", "EndpointMetrics", this.address.toString(), mBeanName);
          if(metrics.getMetrics().containsKey(name.getMetricName())) {
             metrics.remove(name);

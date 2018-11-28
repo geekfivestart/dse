@@ -17,7 +17,7 @@ public class GeometryCodec<T extends OgcGeometry> extends TypeCodec<T> {
    private final OgcGeometry.Serializer<T> serializer;
 
    public GeometryCodec(AbstractGeometricType type) {
-      super(DataType.custom(type.getClass().getName()), type.getGeoType().getGeoClass());
+      super((DataType) DataType.custom((String)type.getClass().getName()), (Class<T>)type.getGeoType().getGeoClass());
       this.serializer = type.getGeoType().getSerializer();
    }
 

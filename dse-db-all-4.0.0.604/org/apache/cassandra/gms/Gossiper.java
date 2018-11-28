@@ -637,7 +637,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean {
             this.firstSynSendAt = System.nanoTime();
          }
 
-         MessagingService.instance().send(Verbs.GOSSIP.SYN.newRequest(to, (Object)message));
+         MessagingService.instance().send(Verbs.GOSSIP.SYN.newRequest(to, message));
          return this.seeds.contains(to);
       }
    }
@@ -1205,7 +1205,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean {
          logger.trace("gossip started with generation {}", Integer.valueOf(localState.getHeartBeatState().getGeneration()));
       }
 
-      this.scheduledGossipTask = executor.scheduleWithFixedDelay(new Gossiper.GossipTask(null), 1000L, 1000L, TimeUnit.MILLISECONDS);
+      this.scheduledGossipTask = executor.scheduleWithFixedDelay(new Gossiper.GossipTask(), 1000L, 1000L, TimeUnit.MILLISECONDS);
    }
 
    @VisibleForTesting
@@ -1516,126 +1516,114 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean {
       DatabaseDescriptor.setSeedGossipProbability(probability);
    }
 
-   public static void waitToSettle(String waitingFor) {
-      if(!FBUtilities.getBroadcastAddress().equals(InetAddress.getLoopbackAddress())) {
-         int forceAfter = Integer.getInteger("cassandra.skip_wait_for_gossip_to_settle", -1).intValue();
-         if(forceAfter != 0) {
-            int GOSSIP_SETTLE_MIN_WAIT_MS = true;
-            long GOSSIP_SETTLE_POLL_INTERVAL_NS = FailureDetector.getMaxLocalPause();
-            int GOSSIP_SETTLE_POLL_SUCCESSES_REQUIRED = Integer.getInteger("cassandra.rounds_to_wait_for_gossip_to_settle", 3).intValue();
-            int MAX_BACKLOG_CHECKS = true;
-            int MAX_UNSTABLE_FLIPS = Integer.getInteger("cassandra.max_gossip_settle_state_flips", GOSSIP_SETTLE_POLL_SUCCESSES_REQUIRED - 1).intValue();
-            Map<InetAddress, Integer> unstableTracking = new HashMap();
-            Set<InetAddress> unstableEndpoints = new HashSet();
-            Set<InetAddress> stableEndpoints = new HashSet();
-            logger.info("Waiting for gossip to settle before {}...", waitingFor);
-            Uninterruptibles.sleepUninterruptibly(5000L, TimeUnit.MILLISECONDS);
-            int totalPolls = 0;
-            int numOkay = 0;
-            int backlogChecks = 0;
-            long epSize = (long)instance.getLiveMembers().size();
-            JMXEnabledThreadPoolExecutor gossipStage = (JMXEnabledThreadPoolExecutor)StageManager.getStage(Stage.GOSSIP);
-            long startingCompletedTasks = 0L;
-
-            while(numOkay < GOSSIP_SETTLE_POLL_SUCCESSES_REQUIRED) {
-               if(numOkay == 0) {
-                  startingCompletedTasks = ((Long)((JMXEnabledThreadPoolExecutor)StageManager.getStage(Stage.GOSSIP)).metrics.completedTasks.getValue()).longValue();
-               }
-
-               Uninterruptibles.sleepUninterruptibly(GOSSIP_SETTLE_POLL_INTERVAL_NS, TimeUnit.NANOSECONDS);
-               Set<InetAddress> noLongerStable = Sets.intersection(stableEndpoints, instance.getUnreachableMembers());
-               Iterator var20 = noLongerStable.iterator();
-
-               while(var20.hasNext()) {
-                  InetAddress downEp = (InetAddress)var20.next();
-                  int count = ((Integer)unstableTracking.getOrDefault(downEp, Integer.valueOf(0))).intValue();
-                  ++count;
-                  unstableTracking.put(downEp, Integer.valueOf(count));
-                  if(count >= MAX_UNSTABLE_FLIPS) {
-                     unstableEndpoints.add(downEp);
-                  }
-               }
-
-               stableEndpoints.addAll(instance.getLiveMembers());
-               stableEndpoints.removeAll(unstableEndpoints);
-               int currentSize = stableEndpoints.size();
-               ++totalPolls;
-               if((long)currentSize == epSize) {
-                  logger.debug("Gossip looks settled. Live endpoints: {}", Integer.valueOf(currentSize));
-                  ++numOkay;
-               } else {
-                  logger.info("Gossip not settled after {} polls.", Integer.valueOf(totalPolls));
-                  numOkay = 0;
-               }
-
-               epSize = (long)currentSize;
-               if(forceAfter > 0 && totalPolls > forceAfter) {
-                  logger.warn("Gossip not settled but startup forced by cassandra.skip_wait_for_gossip_to_settle. Gossip total polls: {}", Integer.valueOf(totalPolls));
-                  break;
-               }
-
-               if(numOkay == GOSSIP_SETTLE_POLL_SUCCESSES_REQUIRED) {
-                  long pendingTasks = 0L;
-                  long activeTasks = 0L;
-                  boolean backlogClear = false;
-
-                  for(int i = 0; i < 50; ++i) {
-                     Uninterruptibles.sleepUninterruptibly(100L, TimeUnit.MILLISECONDS);
-                     pendingTasks = ((Long)gossipStage.metrics.pendingTasks.getValue()).longValue();
-                     activeTasks = (long)((Integer)gossipStage.metrics.activeTasks.getValue()).intValue();
-                     if(pendingTasks == 0L && activeTasks == 0L) {
-                        logger.info("No gossip backlog");
-                        backlogClear = true;
-                        break;
-                     }
-
-                     logger.debug("Gossip backlog not clear. Pending {}, active {}", Long.valueOf(pendingTasks), Long.valueOf(activeTasks));
-                  }
-
-                  long completedTasks = ((Long)gossipStage.metrics.completedTasks.getValue()).longValue();
-                  if(backlogClear || backlogChecks >= 10 && completedTasks > startingCompletedTasks + 2L) {
-                     noLongerStable = Sets.intersection(stableEndpoints, instance.getUnreachableMembers());
-                     unstableEndpoints.addAll(noLongerStable);
-                     stableEndpoints.addAll(instance.getLiveMembers());
-                     stableEndpoints.removeAll(unstableEndpoints);
-                     currentSize = stableEndpoints.size();
-                     if(backlogChecks == 10) {
-                        logger.warn("Skipping backlog check after {} checks, completed tasks {}", Integer.valueOf(10), Long.valueOf(completedTasks));
-                     }
-
-                     if((long)currentSize != epSize) {
-                        logger.info("After waiting for gossip backlog to clear, endpoint size no longer stable. Previously {}, now {}", Long.valueOf(epSize), Integer.valueOf(currentSize));
-                        epSize = (long)currentSize;
-                        numOkay = 0;
-                     }
-                  } else {
-                     logger.info("Gossip backlog did not stabilize. Pending {}, active {}, completed {}", new Object[]{Long.valueOf(pendingTasks), Long.valueOf(activeTasks), Long.valueOf(completedTasks)});
-                  }
-
-                  ++backlogChecks;
-               }
-            }
-
-            for(int i = 0; i <= forceAfter || i == 0; ++i) {
-               logger.debug("Waiting for echo replies");
-               Uninterruptibles.sleepUninterruptibly(GOSSIP_SETTLE_POLL_INTERVAL_NS, TimeUnit.NANOSECONDS);
-               if(instance.pendingEcho.get() <= 0) {
-                  logger.info("No pending echos; proceeding.  Echos failed {}, Echos succeeded {}", Integer.valueOf(instance.failedEchos.get()), Integer.valueOf(instance.successEchos.get()));
-                  break;
-               }
-
-               if(i == forceAfter || forceAfter < 0) {
-                  logger.warn("Pending echos did not reach 0 after {} tries, forcing. {} outstanding echos", Integer.valueOf(forceAfter), Integer.valueOf(instance.pendingEcho.get()));
-               }
-            }
-
-            if(totalPolls > GOSSIP_SETTLE_POLL_SUCCESSES_REQUIRED) {
-               logger.info("Gossip settled after {} extra polls; proceeding", Integer.valueOf(totalPolls - GOSSIP_SETTLE_POLL_SUCCESSES_REQUIRED));
-            } else {
-               logger.info("Gossip settled; proceeding");
-            }
-
+   public static void waitToSettle(final String waitingFor) {
+      if (FBUtilities.getBroadcastAddress().equals(InetAddress.getLoopbackAddress())) {
+         return;
+      }
+      final int forceAfter = Integer.getInteger("cassandra.skip_wait_for_gossip_to_settle", -1);
+      if (forceAfter == 0) {
+         return;
+      }
+      final int GOSSIP_SETTLE_MIN_WAIT_MS = 5000;
+      final long GOSSIP_SETTLE_POLL_INTERVAL_NS = FailureDetector.getMaxLocalPause();
+      final int GOSSIP_SETTLE_POLL_SUCCESSES_REQUIRED = Integer.getInteger("cassandra.rounds_to_wait_for_gossip_to_settle", 3);
+      final int MAX_BACKLOG_CHECKS = 10;
+      final int MAX_UNSTABLE_FLIPS = Integer.getInteger("cassandra.max_gossip_settle_state_flips", GOSSIP_SETTLE_POLL_SUCCESSES_REQUIRED - 1);
+      final Map<InetAddress, Integer> unstableTracking = new HashMap<InetAddress, Integer>();
+      final Set<InetAddress> unstableEndpoints = new HashSet<InetAddress>();
+      final Set<InetAddress> stableEndpoints = new HashSet<InetAddress>();
+      Gossiper.logger.info("Waiting for gossip to settle before {}...", (Object)waitingFor);
+      Uninterruptibles.sleepUninterruptibly(5000L, TimeUnit.MILLISECONDS);
+      int totalPolls = 0;
+      int numOkay = 0;
+      int backlogChecks = 0;
+      long epSize = Gossiper.instance.getLiveMembers().size();
+      final JMXEnabledThreadPoolExecutor gossipStage = (JMXEnabledThreadPoolExecutor)StageManager.getStage(Stage.GOSSIP);
+      long startingCompletedTasks = 0L;
+      while (numOkay < GOSSIP_SETTLE_POLL_SUCCESSES_REQUIRED) {
+         if (numOkay == 0) {
+            startingCompletedTasks = (long)((JMXEnabledThreadPoolExecutor)StageManager.getStage(Stage.GOSSIP)).metrics.completedTasks.getValue();
          }
+         Uninterruptibles.sleepUninterruptibly(GOSSIP_SETTLE_POLL_INTERVAL_NS, TimeUnit.NANOSECONDS);
+         Set<InetAddress> noLongerStable = (Set<InetAddress>)Sets.intersection((Set)stableEndpoints, (Set)Gossiper.instance.getUnreachableMembers());
+         for (final InetAddress downEp : noLongerStable) {
+            int count = unstableTracking.getOrDefault(downEp, 0);
+            unstableTracking.put(downEp, ++count);
+            if (count >= MAX_UNSTABLE_FLIPS) {
+               unstableEndpoints.add(downEp);
+            }
+         }
+         stableEndpoints.addAll(Gossiper.instance.getLiveMembers());
+         stableEndpoints.removeAll(unstableEndpoints);
+         int currentSize = stableEndpoints.size();
+         ++totalPolls;
+         if (currentSize == epSize) {
+            Gossiper.logger.debug("Gossip looks settled. Live endpoints: {}", (Object)currentSize);
+            ++numOkay;
+         }
+         else {
+            Gossiper.logger.info("Gossip not settled after {} polls.", (Object)totalPolls);
+            numOkay = 0;
+         }
+         epSize = currentSize;
+         if (forceAfter > 0 && totalPolls > forceAfter) {
+            Gossiper.logger.warn("Gossip not settled but startup forced by cassandra.skip_wait_for_gossip_to_settle. Gossip total polls: {}", (Object)totalPolls);
+            break;
+         }
+         if (numOkay != GOSSIP_SETTLE_POLL_SUCCESSES_REQUIRED) {
+            continue;
+         }
+         long pendingTasks = 0L;
+         long activeTasks = 0L;
+         boolean backlogClear = false;
+         for (int i = 0; i < 50; ++i) {
+            Uninterruptibles.sleepUninterruptibly(100L, TimeUnit.MILLISECONDS);
+            pendingTasks = (long)gossipStage.metrics.pendingTasks.getValue();
+            activeTasks = (int)gossipStage.metrics.activeTasks.getValue();
+            if (pendingTasks == 0L && activeTasks == 0L) {
+               Gossiper.logger.info("No gossip backlog");
+               backlogClear = true;
+               break;
+            }
+            Gossiper.logger.debug("Gossip backlog not clear. Pending {}, active {}", (Object)pendingTasks, (Object)activeTasks);
+         }
+         final long completedTasks = (long)gossipStage.metrics.completedTasks.getValue();
+         if (backlogClear || (backlogChecks >= 10 && completedTasks > startingCompletedTasks + 2L)) {
+            noLongerStable = (Set<InetAddress>)Sets.intersection((Set)stableEndpoints, (Set)Gossiper.instance.getUnreachableMembers());
+            unstableEndpoints.addAll(noLongerStable);
+            stableEndpoints.addAll(Gossiper.instance.getLiveMembers());
+            stableEndpoints.removeAll(unstableEndpoints);
+            currentSize = stableEndpoints.size();
+            if (backlogChecks == 10) {
+               Gossiper.logger.warn("Skipping backlog check after {} checks, completed tasks {}", (Object)10, (Object)completedTasks);
+            }
+            if (currentSize != epSize) {
+               Gossiper.logger.info("After waiting for gossip backlog to clear, endpoint size no longer stable. Previously {}, now {}", (Object)epSize, (Object)currentSize);
+               epSize = currentSize;
+               numOkay = 0;
+            }
+         }
+         else {
+            Gossiper.logger.info("Gossip backlog did not stabilize. Pending {}, active {}, completed {}", new Object[] { pendingTasks, activeTasks, completedTasks });
+         }
+         ++backlogChecks;
+      }
+      for (int j = 0; j <= forceAfter || j == 0; ++j) {
+         Gossiper.logger.debug("Waiting for echo replies");
+         Uninterruptibles.sleepUninterruptibly(GOSSIP_SETTLE_POLL_INTERVAL_NS, TimeUnit.NANOSECONDS);
+         if (Gossiper.instance.pendingEcho.get() <= 0) {
+            Gossiper.logger.info("No pending echos; proceeding.  Echos failed {}, Echos succeeded {}", (Object)Gossiper.instance.failedEchos.get(), (Object)Gossiper.instance.successEchos.get());
+            break;
+         }
+         if (j == forceAfter || forceAfter < 0) {
+            Gossiper.logger.warn("Pending echos did not reach 0 after {} tries, forcing. {} outstanding echos", (Object)forceAfter, (Object)Gossiper.instance.pendingEcho.get());
+         }
+      }
+      if (totalPolls > GOSSIP_SETTLE_POLL_SUCCESSES_REQUIRED) {
+         Gossiper.logger.info("Gossip settled after {} extra polls; proceeding", (Object)(totalPolls - GOSSIP_SETTLE_POLL_SUCCESSES_REQUIRED));
+      }
+      else {
+         Gossiper.logger.info("Gossip settled; proceeding");
       }
    }
 

@@ -402,7 +402,7 @@ class PendingRepairManager {
       final UUID sessionID;
       final long repairedAt;
 
-      public RepairFinishedTask(ColumnFamilyStore this$0, Collection<SSTableReader> cfs, UUID sstables, long sessionID) {
+      public RepairFinishedTask(ColumnFamilyStore cfs, Collection<SSTableReader> sstables, UUID sessionID, long repairedAt) {
          this.cfs = cfs;
          this.sstables = sstables;
          this.sessionID = sessionID;

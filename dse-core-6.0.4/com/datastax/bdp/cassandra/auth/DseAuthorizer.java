@@ -3,6 +3,8 @@ package com.datastax.bdp.cassandra.auth;
 import com.datastax.bdp.config.DseConfig;
 import io.reactivex.Single;
 import io.reactivex.functions.Function;
+
+import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.util.AbstractMap;
@@ -66,54 +68,48 @@ public class DseAuthorizer extends CassandraAuthorizer {
       ClientState clientState = loginState.getClientState();
       AuthenticatedUser user = clientState.getUser();
       String proxiedUserName = ByteBufferUtil.string((ByteBuffer)customPayload.get("ProxyExecute"));
-      if(!loginState.hasPermission(RoleResource.role(proxiedUserName), ProxyPermission.EXECUTE)) {
-         throw new UnauthorizedException(String.format("Either '%s' does not have permission to execute queries as '%s' or that role does not exist. Run 'GRANT PROXY.EXECUTE ON ROLE '%s' TO '%s' as an administrator if you wish to allow this.", new Object[]{user.getName(), proxiedUserName, proxiedUserName, user.getName()}));
-      } else {
-         AuthenticatedUser authenticatedUser = DseAuthenticator.proxy(user, proxiedUserName);
-         if(statement instanceof UseStatement) {
-            throw new InvalidRequestException("USE statements cannot be executed as another user.  To use DSE proxy execution most efficiently, prepare your statements once beforehand (as your normal login user) and then proxy execute them multiple times.  If you really need USE, you can execute it as your normal login user and the selected keyspace will be used for proxy executed queries.");
-         } else {
-            ClientState proxyClientState = ClientState.forExternalCalls(clientState.getRemoteAddress(), clientState.connection);
-            if(clientState.getRawKeyspace() != null) {
-               proxyClientState.setKeyspace(clientState.getKeyspace());
-            }
-
-            return proxyClientState.login(authenticatedUser).flatMap((ignore) -> {
-               return DatabaseDescriptor.getAuthManager().getUserRolesAndPermissions(authenticatedUser);
-            }).map((u) -> {
-               if(u.isSuper()) {
-                  throw new UnauthorizedException("Cannot proxy as a super user.");
-               } else {
-                  return new QueryState(proxyClientState, loginState.getStreamId(), u);
-               }
-            });
-         }
+      if (!loginState.hasPermission((IResource)RoleResource.role((String)proxiedUserName), (Permission)ProxyPermission.EXECUTE)) {
+         throw new UnauthorizedException(String.format("Either '%s' does not have permission to execute queries as '%s' or that role does not exist. Run 'GRANT PROXY.EXECUTE ON ROLE '%s' TO '%s' as an administrator if you wish to allow this.", user.getName(), proxiedUserName, proxiedUserName, user.getName()));
       }
+      AuthenticatedUser authenticatedUser = DseAuthenticator.proxy(user, proxiedUserName);
+      if (statement instanceof UseStatement) {
+         throw new InvalidRequestException("USE statements cannot be executed as another user.  To use DSE proxy execution most efficiently, prepare your statements once beforehand (as your normal login user) and then proxy execute them multiple times.  If you really need USE, you can execute it as your normal login user and the selected keyspace will be used for proxy executed queries.");
+      }
+      ClientState proxyClientState = ClientState.forExternalCalls((SocketAddress)clientState.getRemoteAddress(), clientState.connection);
+      if (clientState.getRawKeyspace() != null) {
+         proxyClientState.setKeyspace(clientState.getKeyspace());
+      }
+      return proxyClientState.login(authenticatedUser).flatMap(ignore -> DatabaseDescriptor.getAuthManager().getUserRolesAndPermissions(authenticatedUser)).map(u -> {
+         if (u.isSuper()) {
+            throw new UnauthorizedException("Cannot proxy as a super user.");
+         }
+         return new QueryState(proxyClientState, loginState.getStreamId(), u);
+      });
    }
 
    public Map<IResource, PermissionSets> allPermissionSets(RoleResource role) {
-      if(!this.enabled) {
-         return new DseAuthorizer.PermissionsMap(DseAuthorizer::applicablePermissionsTransform, null);
-      } else {
-         switch(null.$SwitchMap$org$apache$cassandra$auth$IAuthorizer$TransitionalMode[this.transitionalMode.ordinal()]) {
-         case 1:
-            return super.allPermissionSets(role);
-         case 2:
-            return this.allTransitionalPermissionSets(role);
-         case 3:
-            if(role.equals(AuthenticatedUser.ANONYMOUS_USER.getPrimaryRole())) {
+       if (!this.enabled) {
+           return new PermissionsMap(DseAuthorizer::applicablePermissionsTransform);
+       }
+       switch (this.transitionalMode) {
+           case DISABLED: {
+               return super.allPermissionSets(role);
+           }
+           case NORMAL: {
                return this.allTransitionalPermissionSets(role);
-            }
-
-            return super.allPermissionSets(role);
-         default:
-            throw new AssertionError("Unknown transitionalMode " + this.transitionalMode);
-         }
-      }
+           }
+           case STRICT: {
+               if (role.equals((Object)AuthenticatedUser.ANONYMOUS_USER.getPrimaryRole())) {
+                   return this.allTransitionalPermissionSets(role);
+               }
+               return super.allPermissionSets(role);
+           }
+       }
+       throw new AssertionError((Object)("Unknown transitionalMode " + (Object)this.transitionalMode));
    }
 
    private DseAuthorizer.PermissionsMap allTransitionalPermissionSets(RoleResource role) {
-      return new DseAuthorizer.PermissionsMap(((Boolean)DatabaseDescriptor.getAuthManager().hasSuperUserStatus(role).blockingGet()).booleanValue()?DseAuthorizer::allPermissionsTransform:DseAuthorizer::transitionalPermissionsTransform, null);
+      return new DseAuthorizer.PermissionsMap(((Boolean)DatabaseDescriptor.getAuthManager().hasSuperUserStatus(role).blockingGet()).booleanValue()?DseAuthorizer::allPermissionsTransform:DseAuthorizer::transitionalPermissionsTransform);
    }
 
    private static PermissionSets allPermissionsTransform(IResource resource) {
@@ -140,49 +136,36 @@ public class DseAuthorizer extends CassandraAuthorizer {
    }
 
    public Set<RoleResource> revokeAllOn(IResource droppedResource) {
-      if(!this.enabled) {
-         return Collections.emptySet();
-      } else {
-         Set<RoleResource> roleResources = new HashSet(super.revokeAllOn(droppedResource));
-         DseResourceFactory dseResourceFactory = new DseResourceFactory();
-         dseResourceFactory.getExtensions(droppedResource).forEach((resource) -> {
-            roleResources.addAll(super.revokeAllOn(resource));
-         });
-         if(droppedResource instanceof DataResource) {
-            DataResource dataResource = (DataResource)droppedResource;
-            QueryOptions options = QueryOptions.forInternalCalls(ConsistencyLevel.LOCAL_ONE, Collections.emptyList());
-            Rows rows = (Rows)TPCUtils.blockingGet(this.activeResourcesStatement.execute(QueryState.forInternalCalls(), options, System.nanoTime()));
-            UntypedResultSet result = UntypedResultSet.create(rows.result);
-            Iterator var8 = result.iterator();
-
-            while(var8.hasNext()) {
-               Row row = (Row)var8.next();
-               String resource = row.getString("resource");
-               if(resource.startsWith("rows") && resource.endsWith(dataResource.getName())) {
-                  IResource dseRowResource = dseResourceFactory.fromName(resource);
-                  this.revoke(AuthenticatedUser.SYSTEM_USER, dseRowResource.applicablePermissions(), dseRowResource, RoleResource.role(row.getString("role")), new GrantMode[]{GrantMode.GRANT, GrantMode.GRANTABLE, GrantMode.RESTRICT});
+       if (this.enabled) {
+           HashSet<RoleResource> roleResources = new HashSet<RoleResource>(super.revokeAllOn(droppedResource));
+           DseResourceFactory dseResourceFactory = new DseResourceFactory();
+           dseResourceFactory.getExtensions(droppedResource).forEach(resource -> roleResources.addAll(super.revokeAllOn(resource)));
+           if (droppedResource instanceof DataResource) {
+               DataResource dataResource = (DataResource)droppedResource;
+               QueryOptions options = QueryOptions.forInternalCalls((ConsistencyLevel)ConsistencyLevel.LOCAL_ONE, Collections.emptyList());
+               Rows rows = (Rows)TPCUtils.blockingGet((Single)this.activeResourcesStatement.execute(QueryState.forInternalCalls(), options, System.nanoTime()));
+               UntypedResultSet result = UntypedResultSet.create(rows.result);
+               for (UntypedResultSet.Row row : result) {
+                   String resource2 = row.getString("resource");
+                   if (!resource2.startsWith("rows") || !resource2.endsWith(dataResource.getName())) continue;
+                   IResource dseRowResource = dseResourceFactory.fromName(resource2);
+                   this.revoke(AuthenticatedUser.SYSTEM_USER, dseRowResource.applicablePermissions(), dseRowResource, RoleResource.role((String)row.getString("role")), new GrantMode[]{GrantMode.GRANT, GrantMode.GRANTABLE, GrantMode.RESTRICT});
                }
-            }
-         }
-
-         return roleResources;
-      }
+           }
+           return roleResources;
+       }
+       return Collections.emptySet();
    }
 
    Set<String> findRowTargetsForUser(QueryState state, DataResource dataResource, Permission permission) {
-      UserRolesAndPermissions userRolesAndPermissions = state.getUserRolesAndPermissions();
-      return (Set)userRolesAndPermissions.filterPermissions((s) -> {
-         return s;
-      }, HashSet::<init>, (s, role, resource, permissionSets) -> {
-         if(resource instanceof DseRowResource) {
-            DseRowResource dseRowResource = (DseRowResource)resource;
-            if(dseRowResource.getParent().equals(dataResource) && permissionSets.hasEffectivePermission(permission)) {
+       UserRolesAndPermissions userRolesAndPermissions = state.getUserRolesAndPermissions();
+       return (Set)userRolesAndPermissions.filterPermissions(s -> s, HashSet::new, (s, role, resource, permissionSets) -> {
+           DseRowResource dseRowResource;
+           if (resource instanceof DseRowResource && (dseRowResource = (DseRowResource)resource).getParent().equals((Object)dataResource) && permissionSets.hasEffectivePermission(permission)) {
                s.add(dseRowResource.getRowTarget());
-            }
-         }
-
-         return s;
-      });
+           }
+           return s;
+       });
    }
 
    public boolean isRowLevelEnabled() {
@@ -214,7 +197,7 @@ public class DseAuthorizer extends CassandraAuthorizer {
    private final class PermissionsMap extends AbstractMap<IResource, PermissionSets> {
       private final java.util.function.Function<IResource, PermissionSets> function;
 
-      private PermissionsMap(java.util.function.Function<IResource, PermissionSets> var1) {
+      private PermissionsMap(java.util.function.Function<IResource, PermissionSets> function) {
          this.function = function;
       }
 

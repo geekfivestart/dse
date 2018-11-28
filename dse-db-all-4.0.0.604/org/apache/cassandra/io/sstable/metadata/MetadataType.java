@@ -6,7 +6,7 @@ public enum MetadataType {
    VALIDATION(ValidationMetadata.serializer),
    COMPACTION(CompactionMetadata.serializer),
    STATS(StatsMetadata.serializer),
-   HEADER(SerializationHeader.serializer);
+   HEADER((IMetadataComponentSerializer)(SerializationHeader.serializer));
 
    public final IMetadataComponentSerializer<MetadataComponent> serializer;
 

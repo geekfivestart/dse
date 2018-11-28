@@ -236,7 +236,7 @@ public final class SystemKeyspace {
    public static CompletableFuture<Void> persistLocalMetadata() {
       String req = "INSERT INTO system.%s (key,cluster_name,release_version,cql_version,native_protocol_version,data_center,rack,partitioner,rpc_address,broadcast_address,listen_address,native_transport_address,native_transport_port,native_transport_port_ssl,storage_port,storage_port_ssl,jmx_port) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
       IEndpointSnitch snitch = DatabaseDescriptor.getEndpointSnitch();
-      return TPCUtils.toFutureVoid(QueryProcessor.executeOnceInternal(String.format(req, new Object[]{"local"}), new Object[]{"local", DatabaseDescriptor.getClusterName(), FBUtilities.getReleaseVersionString(), QueryProcessor.CQL_VERSION.toString(), String.valueOf(ProtocolVersion.CURRENT.asInt()), snitch.getDatacenter(FBUtilities.getBroadcastAddress()), snitch.getRack(FBUtilities.getBroadcastAddress()), DatabaseDescriptor.getPartitioner().getClass().getName(), DatabaseDescriptor.getNativeTransportAddress(), FBUtilities.getBroadcastAddress(), FBUtilities.getLocalAddress(), DatabaseDescriptor.getNativeTransportAddress(), Integer.valueOf(DatabaseDescriptor.getNativeTransportPort()), Integer.valueOf(DatabaseDescriptor.getNativeTransportPortSSL()), Integer.valueOf(DatabaseDescriptor.getStoragePort()), Integer.valueOf(DatabaseDescriptor.getSSLStoragePort()), DatabaseDescriptor.getJMXPort().orElse((Object)null)}));
+      return TPCUtils.toFutureVoid(QueryProcessor.executeOnceInternal(String.format(req, new Object[]{"local"}), new Object[]{"local", DatabaseDescriptor.getClusterName(), FBUtilities.getReleaseVersionString(), QueryProcessor.CQL_VERSION.toString(), String.valueOf(ProtocolVersion.CURRENT.asInt()), snitch.getDatacenter(FBUtilities.getBroadcastAddress()), snitch.getRack(FBUtilities.getBroadcastAddress()), DatabaseDescriptor.getPartitioner().getClass().getName(), DatabaseDescriptor.getNativeTransportAddress(), FBUtilities.getBroadcastAddress(), FBUtilities.getLocalAddress(), DatabaseDescriptor.getNativeTransportAddress(), Integer.valueOf(DatabaseDescriptor.getNativeTransportPort()), Integer.valueOf(DatabaseDescriptor.getNativeTransportPortSSL()), Integer.valueOf(DatabaseDescriptor.getStoragePort()), Integer.valueOf(DatabaseDescriptor.getSSLStoragePort()), DatabaseDescriptor.getJMXPort().orElse(null)}));
    }
 
    public static CompletableFuture<Void> updateCompactionHistory(String ksname, String cfname, long compactedAt, long bytesIn, long bytesOut, Map<Integer, Long> rowsMerged) {
@@ -649,7 +649,7 @@ public final class SystemKeyspace {
    private static CompletableFuture<Void> forceFlush(String cfname) {
       return !DatabaseDescriptor.isUnsafeSystem()?Keyspace.open("system").getColumnFamilyStore(cfname).forceFlush().thenApply((pos) -> {
          return null;
-      }):CompletableFuture.completedFuture((Object)null);
+      }):CompletableFuture.completedFuture(null);
    }
 
    public static CompletableFuture<SetMultimap<InetAddress, Token>> loadTokens() {

@@ -30,7 +30,7 @@ final class TupleSelector extends Selector {
             elements.add(serializer.deserialize(in, metadata));
          }
 
-         return new TupleSelector(type, elements, null);
+         return new TupleSelector(type, elements);
       }
    };
    private final AbstractType<?> type;
@@ -43,7 +43,7 @@ final class TupleSelector extends Selector {
          }
 
          public Selector newInstance(QueryOptions options) {
-            return new TupleSelector(type, factories.newInstances(options), null);
+            return new TupleSelector(type, factories.newInstances(options));
          }
       };
    }

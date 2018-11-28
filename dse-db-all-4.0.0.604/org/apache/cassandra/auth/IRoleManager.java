@@ -12,7 +12,7 @@ import org.apache.cassandra.exceptions.RequestValidationException;
 
 public interface IRoleManager {
    default <T extends IRoleManager> T implementation() {
-      return this;
+      return (T)this;
    }
 
    default <T extends IRoleManager> boolean isImplementationOf(Class<T> implClass) {

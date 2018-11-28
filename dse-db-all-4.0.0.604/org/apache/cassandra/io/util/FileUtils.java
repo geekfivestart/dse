@@ -583,20 +583,14 @@ public final class FileUtils {
 
          List<String> hCaps = (List)hypervisorCaps.get();
          if(hCaps != null) {
-            Set<String> caps = (Set)((List)hypervisorCaps.get()).stream().flatMap((s) -> {
-               return Arrays.stream(s.split(" "));
-            }).map((s) -> {
-               return s.split("-")[0];
-            }).collect(Collectors.toSet());
-            if(caps.contains("xen") && caps.contains("hvm")) {
+            Set caps = hypervisorCaps.get().stream().flatMap(s -> Arrays.stream(s.split(" "))).map(s -> s.split("-")[0]).collect(Collectors.toSet());
+            if (caps.contains("xen") && caps.contains("hvm")) {
                return "Xen HVM";
             }
-
-            if(caps.contains("xen")) {
+            if (caps.contains("xen")) {
                return "Xen";
             }
-
-            if(!caps.isEmpty()) {
+            if (!caps.isEmpty()) {
                return "unknwon (hypervisor capabilities)";
             }
          }
@@ -783,7 +777,7 @@ public final class FileUtils {
    private static String cpuidLine(String[] cpuidLines, String leaf, String ecx) {
       return (String)Arrays.stream(cpuidLines).map(String::trim).filter((s) -> {
          return s.startsWith(leaf + ' ' + ecx + ':');
-      }).findFirst().orElse((Object)null);
+      }).findFirst().orElse(null);
    }
 
    static int[] cpuIdParse(String cpuidLine) {
@@ -957,7 +951,7 @@ public final class FileUtils {
       static Map<Path, FileUtils.MountPoint> getDiskPartitions(Reader source) throws IOException {
          assert FBUtilities.isLinux;
 
-         Map<Path, FileUtils.MountPoint> dirToDisk = new TreeMap((a, b) -> {
+         Map<Path, FileUtils.MountPoint> dirToDisk = new TreeMap<Path,MountPoint>((a, b) -> {
             int cmp = -Integer.compare(a.getNameCount(), b.getNameCount());
             return cmp != 0?cmp:a.toString().compareTo(b.toString());
          });

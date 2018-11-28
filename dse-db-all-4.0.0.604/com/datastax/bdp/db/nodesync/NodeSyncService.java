@@ -302,7 +302,7 @@ public class NodeSyncService implements NodeSyncServiceMBean {
    }
 
    public UUID currentTracingSession() {
-      return (UUID)this.currentTracingSessionIfEnabled().orElse((Object)null);
+      return (UUID)this.currentTracingSessionIfEnabled().orElse(null);
    }
 
    Optional<UUID> currentTracingSessionIfEnabled() {
@@ -325,19 +325,19 @@ public class NodeSyncService implements NodeSyncServiceMBean {
 
    public static final class CancelledValidationException extends NodeSyncService.NodeSyncServiceException {
       CancelledValidationException(UserValidationID id) {
-         super(RequestFailureReason.CANCELLED_NODESYNC_USER_VALIDATION, "User validation #" + id + " is already completed", null);
+         super(RequestFailureReason.CANCELLED_NODESYNC_USER_VALIDATION, "User validation #" + id + " is already completed");
       }
    }
 
    public static final class NotFoundValidationException extends NodeSyncService.NodeSyncServiceException {
       NotFoundValidationException(UserValidationID id) {
-         super(RequestFailureReason.UNKNOWN_NODESYNC_USER_VALIDATION, "Cannot find user validation #" + id, null);
+         super(RequestFailureReason.UNKNOWN_NODESYNC_USER_VALIDATION, "Cannot find user validation #" + id);
       }
    }
 
    public static final class NodeSyncNotRunningException extends NodeSyncService.NodeSyncServiceException {
       NodeSyncNotRunningException(String message) {
-         super(RequestFailureReason.NODESYNC_NOT_RUNNING, message, null);
+         super(RequestFailureReason.NODESYNC_NOT_RUNNING, message);
       }
    }
 

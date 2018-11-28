@@ -28,7 +28,7 @@ public class UnfilteredPartitionSerializer extends VersionDependent<EncodingVers
    private static final int HAS_PARTITION_DELETION = 4;
    private static final int HAS_STATIC_ROW = 8;
    private static final int HAS_ROW_ESTIMATE = 16;
-   public static final Versioned<EncodingVersion, UnfilteredPartitionSerializer> serializers = EncodingVersion.versioned(UnfilteredPartitionSerializer::<init>);
+   public static final Versioned<EncodingVersion, UnfilteredPartitionSerializer> serializers = EncodingVersion.versioned(UnfilteredPartitionSerializer::new);
    private final UnfilteredSerializer unfilteredSerializer;
 
    private UnfilteredPartitionSerializer(EncodingVersion version) {
@@ -160,7 +160,7 @@ public class UnfilteredPartitionSerializer extends VersionDependent<EncodingVers
       boolean isReversed = (flags & 2) != 0;
       if((flags & 1) != 0) {
          SerializationHeader sh = new SerializationHeader(false, metadata, RegularAndStaticColumns.NONE, EncodingStats.NO_STATS);
-         return new UnfilteredPartitionSerializer.Header(sh, key, isReversed, true, (DeletionTime)null, (Row)null, 0, null);
+         return new UnfilteredPartitionSerializer.Header(sh, key, isReversed, true, (DeletionTime)null, (Row)null, 0);
       } else {
          boolean hasPartitionDeletion = (flags & 4) != 0;
          boolean hasStatic = (flags & 8) != 0;
@@ -173,7 +173,7 @@ public class UnfilteredPartitionSerializer extends VersionDependent<EncodingVers
          }
 
          int rowEstimate = hasRowEstimate?(int)in.readUnsignedVInt():-1;
-         return new UnfilteredPartitionSerializer.Header(header, key, isReversed, false, partitionDeletion, staticRow, rowEstimate, null);
+         return new UnfilteredPartitionSerializer.Header(header, key, isReversed, false, partitionDeletion, staticRow, rowEstimate);
       }
    }
 
@@ -199,7 +199,7 @@ public class UnfilteredPartitionSerializer extends VersionDependent<EncodingVers
    }
 
    private FlowableUnfilteredPartition deserializeToFlow(DataInputPlus in, TableMetadata metadata, SerializationHelper.Flag flag, UnfilteredPartitionSerializer.Header header) {
-      return (FlowableUnfilteredPartition)(header.isEmpty?FlowablePartitions.empty(metadata, header.key, header.isReversed):new UnfilteredPartitionSerializer.DeserializePartitionFlow(new PartitionHeader(metadata, header.key, header.partitionDeletion, header.sHeader.columns(), header.isReversed, header.sHeader.stats()), header.staticRow, in, metadata, flag, header, null));
+      return (FlowableUnfilteredPartition)(header.isEmpty?FlowablePartitions.empty(metadata, header.key, header.isReversed):new UnfilteredPartitionSerializer.DeserializePartitionFlow(new PartitionHeader(metadata, header.key, header.partitionDeletion, header.sHeader.columns(), header.isReversed, header.sHeader.stats()), header.staticRow, in, metadata, flag, header));
    }
 
    public FlowableUnfilteredPartition deserializeToFlow(DataInputPlus in, TableMetadata metadata, ColumnFilter selection, SerializationHelper.Flag flag) throws IOException {

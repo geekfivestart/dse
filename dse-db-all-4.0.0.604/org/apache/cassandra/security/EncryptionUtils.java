@@ -61,7 +61,7 @@ public class EncryptionUtils {
 
    public static ByteBuffer encrypt(ByteBuffer inputBuffer, ByteBuffer outputBuffer, boolean allowBufferResize, Cipher cipher) throws IOException {
       Objects.requireNonNull(outputBuffer, "output buffer may not be null");
-      return encryptAndWrite(inputBuffer, new EncryptionUtils.ChannelAdapter(outputBuffer, null), allowBufferResize, cipher);
+      return encryptAndWrite(inputBuffer, new EncryptionUtils.ChannelAdapter(outputBuffer), allowBufferResize, cipher);
    }
 
    public static ByteBuffer decrypt(ReadableByteChannel channel, ByteBuffer outputBuffer, boolean allowBufferResize, Cipher cipher) throws IOException {
@@ -96,7 +96,7 @@ public class EncryptionUtils {
    }
 
    public static ByteBuffer decrypt(FileDataInput fileDataInput, ByteBuffer outputBuffer, boolean allowBufferResize, Cipher cipher) throws IOException {
-      return decrypt((ReadableByteChannel)(new EncryptionUtils.DataInputReadChannel(fileDataInput, null)), outputBuffer, allowBufferResize, cipher);
+      return decrypt((ReadableByteChannel)(new EncryptionUtils.DataInputReadChannel(fileDataInput)), outputBuffer, allowBufferResize, cipher);
    }
 
    public static ByteBuffer uncompress(ByteBuffer inputBuffer, ByteBuffer outputBuffer, boolean allowBufferResize, ICompressor compressor) throws IOException {

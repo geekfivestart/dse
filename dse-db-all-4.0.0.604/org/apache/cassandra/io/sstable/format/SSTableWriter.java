@@ -205,43 +205,30 @@ public abstract class SSTableWriter extends SSTable implements Transactional {
       return (StatsMetadata)this.finalizeMetadata().get(MetadataType.STATS);
    }
 
-   public static void rename(Descriptor tmpdesc, Descriptor newdesc, Set<Component> components) {
-      List<Pair<File, File>> renames = new ArrayList();
-      Iterator var4 = Sets.difference(components, ImmutableSet.of(Component.DATA)).iterator();
-
-      while(var4.hasNext()) {
-         Component component = (Component)var4.next();
-         renames.add(Pair.create(new File(tmpdesc.filenameFor(component)), new File(newdesc.filenameFor(component))));
+   public static void rename(final Descriptor tmpdesc, final Descriptor newdesc, final Set<Component> components) {
+      final List<Pair<File, File>> renames = new ArrayList<Pair<File, File>>();
+      for (final Object component : Sets.<Component>difference((Set)components, (Set)ImmutableSet.of((Object)Component.DATA))) {
+         renames.add(Pair.create(new File(tmpdesc.filenameFor((Component)component)), new File(newdesc.filenameFor((Component)component))));
       }
-
       renames.add(Pair.create(new File(tmpdesc.filenameFor(Component.DATA)), new File(newdesc.filenameFor(Component.DATA))));
       List<File> nonExisting = null;
-      Iterator var8 = renames.iterator();
-
-      Pair rename;
-      while(var8.hasNext()) {
-         rename = (Pair)var8.next();
-         if(!((File)rename.left).exists()) {
-            if(nonExisting == null) {
-               nonExisting = new ArrayList();
+      for (final Pair<File, File> rename : renames) {
+         if (!rename.left.exists()) {
+            if (nonExisting == null) {
+               nonExisting = new ArrayList<File>();
             }
-
             nonExisting.add(rename.left);
          }
       }
-
-      if(nonExisting != null) {
-         throw new AssertionError("One or more of the required components for the rename does not exist: " + nonExisting);
-      } else {
-         var8 = renames.iterator();
-
-         while(var8.hasNext()) {
-            rename = (Pair)var8.next();
-            FileUtils.renameWithConfirm((File)rename.left, (File)rename.right);
-         }
-
+      if (nonExisting != null) {
+         throw new AssertionError((Object)("One or more of the required components for the rename does not exist: " + nonExisting));
+      }
+      for (final Pair<File, File> rename : renames) {
+         FileUtils.renameWithConfirm(rename.left, rename.right);
       }
    }
+
+
 
    public abstract static class Factory {
       public Factory() {

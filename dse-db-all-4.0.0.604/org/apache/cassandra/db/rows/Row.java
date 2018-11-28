@@ -324,11 +324,11 @@ public interface Row extends Unfiltered, Collection<ColumnData> {
    }
 
    public interface Builder {
-      static default Row.Builder sorted() {
+      public static Row.Builder sorted() {
          return ArrayBackedRow.sortedBuilder();
       }
 
-      static default Row.Builder unsorted(int nowInSec) {
+      public static Row.Builder unsorted(int nowInSec) {
          return ArrayBackedRow.unsortedBuilder(nowInSec);
       }
 

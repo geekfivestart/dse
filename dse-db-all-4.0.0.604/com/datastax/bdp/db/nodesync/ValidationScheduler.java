@@ -140,28 +140,22 @@ class ValidationScheduler extends SchemaChangeListener implements IEndpointLifec
    }
 
    CompletableFuture<List<TableMetadata>> addAllContinuous(Stream<TableMetadata> tables) {
-      List<CompletableFuture<TableState>> stateLoaders = (List)tables.map((t) -> {
-         return CompletableFuture.supplyAsync(() -> {
-            return this.state.getOrLoad(t);
-         }, this.eventExecutor);
-      }).collect(Collectors.toList());
-      return stateLoaders.isEmpty()?CompletableFuture.completedFuture(Collections.emptyList()):CompletableFutures.allAsList(stateLoaders).thenApply((states) -> {
+      List<CompletableFuture<TableState>> stateLoaders = tables.map(t -> CompletableFuture.supplyAsync(() -> this.state.getOrLoad(t), this.eventExecutor)).collect(Collectors.toList());
+      if (stateLoaders.isEmpty()) {
+         return CompletableFuture.completedFuture(Collections.emptyList());
+      }
+      return CompletableFutures.allAsList(stateLoaders).thenApply(states -> {
          this.lock.lock();
-
          try {
-            List<TableMetadata> added = new ArrayList(states.size());
-            Iterator var3 = states.iterator();
-
-            while(var3.hasNext()) {
-               TableState state = (TableState)var3.next();
-               if(this.addContinuousInternal(state) == null) {
-                  added.add(state.table());
-               }
+            ArrayList<TableMetadata> added = new ArrayList<TableMetadata>(states.size());
+            for (TableState state : states) {
+               if (this.addContinuousInternal(state) != null) continue;
+               added.add(state.table());
             }
-
-            ArrayList var8 = added;
-            return var8;
-         } finally {
+            ArrayList<TableMetadata> arrayList = added;
+            return arrayList;
+         }
+         finally {
             this.lock.unlock();
          }
       });

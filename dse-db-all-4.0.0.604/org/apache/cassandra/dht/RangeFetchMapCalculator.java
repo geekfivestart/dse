@@ -169,45 +169,29 @@ public class RangeFetchMapCalculator {
       return count;
    }
 
-   private Multimap<InetAddress, Range<Token>> getRangeFetchMapFromGraphResult(MutableCapacityGraph<RangeFetchMapCalculator.Vertex, Integer> graph, MaximumFlowAlgorithmResult<Integer, CapacityEdge<RangeFetchMapCalculator.Vertex, Integer>> result) {
-      Multimap<InetAddress, Range<Token>> rangeFetchMapMap = HashMultimap.create();
-      if(result == null) {
+   private Multimap<InetAddress, Range<Token>> getRangeFetchMapFromGraphResult(MutableCapacityGraph<Vertex, Integer> graph, MaximumFlowAlgorithmResult<Integer, CapacityEdge<Vertex, Integer>> result) {
+      HashMultimap rangeFetchMapMap = HashMultimap.create();
+      if (result == null) {
          return rangeFetchMapMap;
-      } else {
-         org.psjava.ds.math.Function<CapacityEdge<RangeFetchMapCalculator.Vertex, Integer>, Integer> flowFunction = result.calcFlowFunction();
-         Iterator var5 = graph.getVertices().iterator();
-
-         boolean sourceFound;
-         do {
-            RangeFetchMapCalculator.Vertex vertex;
-            do {
-               if(!var5.hasNext()) {
-                  return rangeFetchMapMap;
-               }
-
-               vertex = (RangeFetchMapCalculator.Vertex)var5.next();
-            } while(!vertex.isRangeVertex());
-
-            sourceFound = false;
-            Iterator var8 = graph.getEdges(vertex).iterator();
-
-            while(var8.hasNext()) {
-               CapacityEdge<RangeFetchMapCalculator.Vertex, Integer> e = (CapacityEdge)var8.next();
-               if(((Integer)flowFunction.get(e)).intValue() > 0) {
-                  assert !sourceFound;
-
-                  sourceFound = true;
-                  if(((RangeFetchMapCalculator.Vertex)e.to()).isEndpointVertex()) {
-                     rangeFetchMapMap.put(((RangeFetchMapCalculator.EndpointVertex)e.to()).getEndpoint(), ((RangeFetchMapCalculator.RangeVertex)vertex).getRange());
-                  } else if(((RangeFetchMapCalculator.Vertex)e.from()).isEndpointVertex()) {
-                     rangeFetchMapMap.put(((RangeFetchMapCalculator.EndpointVertex)e.from()).getEndpoint(), ((RangeFetchMapCalculator.RangeVertex)vertex).getRange());
-                  }
-               }
-            }
-         } while($assertionsDisabled || sourceFound);
-
-         throw new AssertionError();
       }
+      org.psjava.ds.math.Function flowFunction = result.calcFlowFunction();
+      for (Vertex vertex : graph.getVertices()) {
+         if (!vertex.isRangeVertex()) continue;
+         boolean sourceFound = false;
+         for (CapacityEdge e : graph.getEdges(vertex)) {
+            if ((Integer)flowFunction.get((Object)e) <= 0) continue;
+            assert (!sourceFound);
+            sourceFound = true;
+            if (((Vertex)e.to()).isEndpointVertex()) {
+               rangeFetchMapMap.put((Object)((EndpointVertex)e.to()).getEndpoint(), ((RangeVertex)vertex).getRange());
+               continue;
+            }
+            if (!((Vertex)e.from()).isEndpointVertex()) continue;
+            rangeFetchMapMap.put((Object)((EndpointVertex)e.from()).getEndpoint(), ((RangeVertex)vertex).getRange());
+         }
+         assert (sourceFound);
+      }
+      return rangeFetchMapMap;
    }
 
    private void incrementCapacity(MutableCapacityGraph<RangeFetchMapCalculator.Vertex, Integer> graph, int incrementalCapacity) {
@@ -316,7 +300,7 @@ public class RangeFetchMapCalculator {
       private final boolean source;
 
       private OuterVertex(boolean source) {
-         super(null);
+         super();
          this.source = source;
       }
 
@@ -352,7 +336,7 @@ public class RangeFetchMapCalculator {
       private final Range<Token> range;
 
       public RangeVertex(Range<Token> range) {
-         super(null);
+         super();
 
          assert range != null;
 
@@ -387,7 +371,7 @@ public class RangeFetchMapCalculator {
       private final InetAddress endpoint;
 
       public EndpointVertex(InetAddress endpoint) {
-         super(null);
+         super();
 
          assert endpoint != null;
 

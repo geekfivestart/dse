@@ -95,49 +95,52 @@ public final class IntegerType extends NumberType<BigInteger> {
    }
 
    public ByteSource asByteComparableSource(final ByteBuffer buf) {
-      final int p = buf.position();
-      final int limit = buf.limit();
-      if(p == limit) {
+      int limit;
+      int p = buf.position();
+      if (p == (limit = buf.limit())) {
          return null;
-      } else {
-         final byte signbyte = buf.get(p);
-         if(signbyte == 0 || signbyte == -1) {
-            while(p + 1 < limit) {
-               ++p;
-               if(buf.get(p) != signbyte) {
-                  break;
-               }
-            }
+      }
+      final byte signbyte = buf.get(p);
+      if (signbyte == 0 || signbyte == -1) {
+         while (p + 1 < limit && buf.get(++p) == signbyte) {
+         }
+      }
+      final int startpos = p;
+      return new ByteSource.WithToString(){
+         int pos;
+         int sizeToReport;
+         boolean sizeReported;
+         {
+            this.pos = startpos;
+            this.sizeToReport = limit - startpos;
+            this.sizeReported = false;
          }
 
-         return new ByteSource.WithToString() {
-            int pos = p;
-            int sizeToReport = limit - p;
-            boolean sizeReported = false;
+         @Override
+         public void reset() {
+            this.pos = startpos;
+            this.sizeToReport = limit - startpos;
+            this.sizeReported = false;
+         }
 
-            public void reset() {
-               this.pos = p;
-               this.sizeToReport = limit - p;
-               this.sizeReported = false;
-            }
-
-            public int next() {
-               if(!this.sizeReported) {
-                  int v = this.sizeToReport;
-                  if(v >= 128) {
-                     v = 128;
-                  } else {
-                     this.sizeReported = true;
-                  }
-
-                  this.sizeToReport -= v;
-                  return signbyte >= 0?128 + (v - 1):127 - (v - 1);
+         @Override
+         public int next() {
+            if (!this.sizeReported) {
+               int v = this.sizeToReport;
+               if (v >= 128) {
+                  v = 128;
                } else {
-                  return this.pos == limit?-1:buf.get(this.pos++) & 255;
+                  this.sizeReported = true;
                }
+               this.sizeToReport -= v;
+               return signbyte >= 0 ? 128 + (v - 1) : 127 - (v - 1);
             }
-         };
-      }
+            if (this.pos == limit) {
+               return -1;
+            }
+            return buf.get(this.pos++) & 255;
+         }
+      };
    }
 
    public ByteBuffer fromString(String source) throws MarshalException {

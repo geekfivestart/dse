@@ -586,19 +586,13 @@ public class TableState {
          return this.newRef(this.nextIdx);
       }
 
-      private ImmutableList<TableState.Ref> intersectingSegments(List<Range<Token>> localSubRanges) {
+      private ImmutableList<Ref> intersectingSegments(List<Range<Token>> localSubRanges) {
          this.checkAllLocalRanges(localSubRanges);
-         Builder<TableState.Ref> builder = ImmutableList.builder();
-
-         for(int i = 0; i < this.size; ++i) {
-            Stream var10000 = localSubRanges.stream();
-            Range var10001 = this.segments.get(i).range;
-            var10001.getClass();
-            if(var10000.anyMatch(var10001::intersects)) {
-               builder.add(this.newRef(i));
-            }
+         ImmutableList.Builder builder = ImmutableList.builder();
+         for (int i = 0; i < this.size; ++i) {
+            if (!localSubRanges.stream().anyMatch(this.segments.get((int)i).range::intersects)) continue;
+            builder.add((Object)this.newRef(i));
          }
-
          return builder.build();
       }
 

@@ -48,7 +48,7 @@ public final class PerformanceEventDispatcher<T extends CqlWritable> {
    }
 
    public void shutdown() {
-      ExecutorService pool = (ExecutorService)this.poolHolder.getAndSet((Object)null);
+      ExecutorService pool = (ExecutorService)this.poolHolder.getAndSet(null);
       if(pool != null) {
          logger.info("Shutting down " + this.name + " worker pool...");
          pool.shutdown();

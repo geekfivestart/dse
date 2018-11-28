@@ -51,70 +51,79 @@ public class RpcResource implements IResource {
    }
 
    public String getName() {
-      switch(null.$SwitchMap$com$datastax$bdp$cassandra$auth$RpcResource$Level[this.level.ordinal()]) {
-      case 1:
-         return "rpc";
-      case 2:
-         return String.format("%s/%s", new Object[]{"rpc", this.object});
-      case 3:
-         return String.format("%s/%s/%s", new Object[]{"rpc", this.object, this.method});
-      default:
-         throw new AssertionError();
+      switch (this.level) {
+         case ROOT: {
+            return ROOT_NAME;
+         }
+         case OBJECT: {
+            return String.format("%s/%s", ROOT_NAME, this.object);
+         }
+         case METHOD: {
+            return String.format("%s/%s/%s", ROOT_NAME, this.object, this.method);
+         }
       }
+      throw new AssertionError();
    }
 
    public IResource getParent() {
-      switch(null.$SwitchMap$com$datastax$bdp$cassandra$auth$RpcResource$Level[this.level.ordinal()]) {
-      case 2:
-         return root();
-      case 3:
-         return object(this.object);
-      default:
-         throw new IllegalStateException("Root-level resource can't have a parent");
+      switch (this.level) {
+         case OBJECT: {
+            return RpcResource.root();
+         }
+         case METHOD: {
+            return RpcResource.object(this.object);
+         }
       }
+      throw new IllegalStateException("Root-level resource can't have a parent");
    }
 
    public boolean hasParent() {
-      return this.level != RpcResource.Level.ROOT;
+      return this.level != Level.ROOT;
    }
 
    public boolean exists() {
-      switch(null.$SwitchMap$com$datastax$bdp$cassandra$auth$RpcResource$Level[this.level.ordinal()]) {
-      case 1:
-         return true;
-      case 2:
-         return RpcRegistry.objectExists(this.object);
-      case 3:
-         return RpcRegistry.methodExists(this.object, this.method);
-      default:
-         throw new AssertionError();
+      switch (this.level) {
+         case ROOT: {
+            return true;
+         }
+         case OBJECT: {
+            return RpcRegistry.objectExists(this.object);
+         }
+         case METHOD: {
+            return RpcRegistry.methodExists(this.object, this.method);
+         }
       }
+      throw new AssertionError();
    }
 
    public Set<Permission> applicablePermissions() {
-      switch(null.$SwitchMap$com$datastax$bdp$cassandra$auth$RpcResource$Level[this.level.ordinal()]) {
-      case 1:
-         return Sets.union(DEFAULT_PERMISSIONS, RpcRegistry.getAllPermissions());
-      case 2:
-         return Sets.union(DEFAULT_PERMISSIONS, RpcRegistry.getObjectPermissions(this.object));
-      case 3:
-         return Sets.union(DEFAULT_PERMISSIONS, RpcRegistry.getMethodPermissions(this.object, this.method));
-      default:
-         throw new AssertionError();
+      switch (this.level) {
+         case ROOT: {
+            return Sets.union(DEFAULT_PERMISSIONS, RpcRegistry.getAllPermissions());
+         }
+         case OBJECT: {
+            return Sets.union(DEFAULT_PERMISSIONS, RpcRegistry.getObjectPermissions(this.object));
+         }
+         case METHOD: {
+            return Sets.union(DEFAULT_PERMISSIONS, RpcRegistry.getMethodPermissions(this.object, this.method));
+         }
       }
+      throw new AssertionError();
    }
 
    public String toString() {
-      switch(null.$SwitchMap$com$datastax$bdp$cassandra$auth$RpcResource$Level[this.level.ordinal()]) {
-      case 1:
-         return "<all rpc>";
-      case 2:
-         return String.format("<rpc object %s>", new Object[]{this.object});
-      case 3:
-         return String.format("<rpc method %s.%s>", new Object[]{this.object, this.method});
-      default:
-         throw new AssertionError();
+      switch (this.level) {
+         case ROOT: {
+            return "<all rpc>";
+         }
+         case OBJECT: {
+            return String.format("<rpc object %s>", this.object);
+         }
+         case METHOD: {
+            return String.format("<rpc method %s.%s>", this.object, this.method);
+         }
       }
+      throw new AssertionError();
    }
 
    public boolean equals(Object o) {

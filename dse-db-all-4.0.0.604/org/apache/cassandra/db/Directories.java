@@ -81,80 +81,60 @@ public class Directories {
       this(metadata, (Directories.DataDirectory[])paths.toArray(new Directories.DataDirectory[0]));
    }
 
-   public Directories(final TableMetadata metadata, Directories.DataDirectory[] paths) {
+
+   public Directories(final TableMetadata metadata, DataDirectory[] paths) {
       this.metadata = metadata;
       this.paths = paths;
       String tableId = metadata.id.toHexString();
-      int idx = metadata.name.indexOf(".");
-      String cfName = idx >= 0?metadata.name.substring(0, idx):metadata.name;
-      String indexNameWithDot = idx >= 0?metadata.name.substring(idx):null;
+      int idx = metadata.name.indexOf(SECONDARY_INDEX_NAME_SEPARATOR);
+      String cfName = idx >= 0 ? metadata.name.substring(0, idx) : metadata.name;
+      String indexNameWithDot = idx >= 0 ? metadata.name.substring(idx) : null;
       this.dataPaths = new File[paths.length];
-      String oldSSTableRelativePath = join(new String[]{metadata.keyspace, cfName});
-
-      for(int i = 0; i < paths.length; ++i) {
+      String oldSSTableRelativePath = Directories.join(metadata.keyspace, cfName);
+      for (int i = 0; i < paths.length; ++i) {
          this.dataPaths[i] = new File(paths[i].location, oldSSTableRelativePath);
       }
-
       boolean olderDirectoryExists = Iterables.any(Arrays.asList(this.dataPaths), File::exists);
-      int i;
-      if(!olderDirectoryExists) {
-         String newSSTableRelativePath = join(new String[]{metadata.keyspace, cfName + '-' + tableId});
-
-         for(i = 0; i < paths.length; ++i) {
+      if (!olderDirectoryExists) {
+         String newSSTableRelativePath = Directories.join(metadata.keyspace, cfName + '-' + tableId);
+         for (int i = 0; i < paths.length; ++i) {
             this.dataPaths[i] = new File(paths[i].location, newSSTableRelativePath);
          }
       }
-
-      if(indexNameWithDot != null) {
-         for(int i = 0; i < paths.length; ++i) {
+      if (indexNameWithDot != null) {
+         for (int i = 0; i < paths.length; ++i) {
             this.dataPaths[i] = new File(this.dataPaths[i], indexNameWithDot);
          }
       }
-
-      File[] var22 = this.dataPaths;
-      i = var22.length;
-
-      int var11;
-      File dataPath;
-      for(var11 = 0; var11 < i; ++var11) {
-         dataPath = var22[var11];
-
+      for (File dir : this.dataPaths) {
          try {
-            FileUtils.createDirectory(dataPath);
-         } catch (FSError var19) {
-            logger.error("Failed to create {} directory", dataPath);
-            FileUtils.handleFSError(var19);
+            FileUtils.createDirectory(dir);
+         }
+         catch (FSError e) {
+            logger.error("Failed to create {} directory", (Object)dir);
+            FileUtils.handleFSError(e);
          }
       }
+      if (indexNameWithDot != null) {
+         for (File dataPath : this.dataPaths) {
+            File[] indexFiles;
+            for (File indexFile : indexFiles = dataPath.getParentFile().listFiles(new FileFilter(){
 
-      if(indexNameWithDot != null) {
-         var22 = this.dataPaths;
-         i = var22.length;
-
-         for(var11 = 0; var11 < i; ++var11) {
-            dataPath = var22[var11];
-            File[] indexFiles = dataPath.getParentFile().listFiles(new FileFilter() {
+               @Override
                public boolean accept(File file) {
-                  if(file.isDirectory()) {
+                  if (file.isDirectory()) {
                      return false;
-                  } else {
-                     Descriptor desc = SSTable.tryDescriptorFromFilename(file);
-                     return desc != null && desc.ksname.equals(metadata.keyspace) && desc.cfname.equals(metadata.name);
                   }
+                  Descriptor desc = SSTable.tryDescriptorFromFilename(file);
+                  return desc != null && desc.ksname.equals(metadata.keyspace) && desc.cfname.equals(metadata.name);
                }
-            });
-            File[] var14 = indexFiles;
-            int var15 = indexFiles.length;
-
-            for(int var16 = 0; var16 < var15; ++var16) {
-               File indexFile = var14[var16];
+            })) {
                File destFile = new File(dataPath, indexFile.getName());
-               logger.trace("Moving index file {} to {}", indexFile, destFile);
+               logger.trace("Moving index file {} to {}", (Object)indexFile, (Object)destFile);
                FileUtils.renameWithConfirm(indexFile, destFile);
             }
          }
       }
-
    }
 
    public File getLocationForDisk(Directories.DataDirectory dataDirectory) {
@@ -383,7 +363,7 @@ public class Directories {
    }
 
    public Directories.SSTableLister sstableLister(Directories.OnTxnErr onTxnErr) {
-      return new Directories.SSTableLister(onTxnErr, null);
+      return new Directories.SSTableLister(onTxnErr);
    }
 
    public Map<String, Pair<Long, Long>> getSnapshotDetails() {
@@ -665,7 +645,7 @@ public class Directories {
    private class SSTableSizeSummer extends DirectorySizeCalculator {
       private final HashSet<File> toSkip;
 
-      SSTableSizeSummer(File var1, List<File> path) {
+      SSTableSizeSummer(File path, List<File> files) {
          super(path);
          this.toSkip = new HashSet(files);
       }
@@ -780,35 +760,35 @@ public class Directories {
 
       private BiPredicate<File, Directories.FileType> getFilter() {
          return (file, type) -> {
-            switch(null.$SwitchMap$org$apache$cassandra$db$Directories$FileType[type.ordinal()]) {
-            case 1:
-               return false;
-            case 2:
-               if(this.skipTemporary) {
+            switch (type) {
+               case TXN_LOG: {
                   return false;
                }
-            case 3:
-               Pair<Descriptor, Component> pair = SSTable.tryComponentFromFilename(file);
-               if(pair == null) {
-                  return false;
-               } else {
-                  if(((Descriptor)pair.left).ksname.equals(Directories.this.metadata.keyspace) && ((Descriptor)pair.left).cfname.equals(Directories.this.metadata.name)) {
-                     Set<Component> previous = (Set)this.components.get(pair.left);
-                     if(previous == null) {
-                        previous = new HashSet();
-                        this.components.put(pair.left, previous);
-                     }
-
-                     ((Set)previous).add(pair.right);
-                     ++this.nbFiles;
+               case TEMPORARY: {
+                  if (this.skipTemporary) {
                      return false;
                   }
-
+               }
+               case FINAL: {
+                  Pair<Descriptor, Component> pair = SSTable.tryComponentFromFilename(file);
+                  if (pair == null) {
+                     return false;
+                  }
+                  if (!((Descriptor)pair.left).ksname.equals((Directories.this.metadata).keyspace) ||
+                          !((Descriptor)pair.left).cfname.equals((Directories.this.metadata).name)) {
+                     return false;
+                  }
+                  Set<Component> previous = this.components.get(pair.left);
+                  if (previous == null) {
+                     previous = new HashSet<Component>();
+                     this.components.put((Descriptor)pair.left, previous);
+                  }
+                  previous.add((Component)pair.right);
+                  ++this.nbFiles;
                   return false;
                }
-            default:
-               throw new AssertionError();
             }
+            throw new AssertionError();
          };
       }
    }
@@ -902,29 +882,35 @@ public class Directories {
 
       public static boolean hasPrivilege(File file, Directories.FileAction action) {
          boolean privilege = false;
-         switch(null.$SwitchMap$org$apache$cassandra$db$Directories$FileAction[action.ordinal()]) {
-         case 1:
-            privilege = file.canExecute();
-            break;
-         case 2:
-            privilege = file.canWrite();
-            break;
-         case 3:
-            privilege = file.canExecute() && file.canWrite();
-            break;
-         case 4:
-            privilege = file.canRead();
-            break;
-         case 5:
-            privilege = file.canExecute() && file.canRead();
-            break;
-         case 6:
-            privilege = file.canRead() && file.canWrite();
-            break;
-         case 7:
-            privilege = file.canExecute() && file.canRead() && file.canWrite();
+         switch (action) {
+            case X: {
+               privilege = file.canExecute();
+               break;
+            }
+            case W: {
+               privilege = file.canWrite();
+               break;
+            }
+            case XW: {
+               privilege = file.canExecute() && file.canWrite();
+               break;
+            }
+            case R: {
+               privilege = file.canRead();
+               break;
+            }
+            case XR: {
+               privilege = file.canExecute() && file.canRead();
+               break;
+            }
+            case RW: {
+               privilege = file.canRead() && file.canWrite();
+               break;
+            }
+            case XRW: {
+               privilege = file.canExecute() && file.canRead() && file.canWrite();
+            }
          }
-
          return privilege;
       }
    }

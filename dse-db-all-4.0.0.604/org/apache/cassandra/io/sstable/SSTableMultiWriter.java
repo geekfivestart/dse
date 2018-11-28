@@ -24,7 +24,7 @@ public interface SSTableMultiWriter extends Transactional {
 
    TableId getTableId();
 
-   static default void abortOrDie(SSTableMultiWriter writer) {
+   public static void abortOrDie(SSTableMultiWriter writer) {
       Throwables.maybeFail(writer.abort((Throwable)null));
    }
 }

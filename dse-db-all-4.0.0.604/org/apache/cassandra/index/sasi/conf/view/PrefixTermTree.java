@@ -29,7 +29,7 @@ public class PrefixTermTree extends RangeTermTree {
    public Set<SSTableIndex> search(Expression e) {
       Map<ByteBuffer, Set<SSTableIndex>> indexes = e != null && e.lower != null && this.mode != OnDiskIndexBuilder.Mode.CONTAINS?this.trie.prefixMap(e.lower.value):this.trie;
       Set<SSTableIndex> view = new HashSet(((Map)indexes).size());
-      ((Map)indexes).values().forEach(view::addAll);
+      (indexes).values().forEach(view::addAll);
       return Sets.union(view, super.search(e));
    }
 

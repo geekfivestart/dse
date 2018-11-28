@@ -154,25 +154,22 @@ public class DseTool {
    }
 
    public static <T extends Command> Map<String, T> findPlugins(Class<T> type) {
-      Map<String, T> result = new TreeMap();
+      TreeMap<String, T> result = new TreeMap();
       Reflections reflections = new Reflections("com.datastax.bdp.tools", new Scanner[0]);
-      Iterator var3 = reflections.getSubTypesOf(type).iterator();
-
-      while(var3.hasNext()) {
-         Class p = (Class)var3.next();
-
+      for (Class p : reflections.getSubTypesOf(type)) {
          try {
-            T plugin = (Command)p.getConstructor(new Class[0]).newInstance(new Object[0]);
+            T plugin = (T)p.getConstructor(new Class[0]).newInstance(new Object[0]);
             result.put(plugin.getName(), plugin);
-         } catch (IllegalAccessException | NoSuchMethodException | InstantiationException var6) {
+         }
+         catch (IllegalAccessException | InstantiationException | NoSuchMethodException e) {
             System.err.println("--- Unable to instantiate " + p.getName());
-            var6.printStackTrace(System.err);
-         } catch (InvocationTargetException var7) {
+            e.printStackTrace(System.err);
+         }
+         catch (InvocationTargetException e) {
             System.err.println("--- Unable to instantiate " + p.getName());
-            var7.getTargetException().printStackTrace(System.err);
+            e.getTargetException().printStackTrace(System.err);
          }
       }
-
       return result;
    }
 

@@ -28,7 +28,7 @@ class ReadRepairFuture extends CompletableFuture<Void> {
 
    private void onResponse() {
       if(this.outstandingRepairs.decrementAndGet() == 0 && this.ready) {
-         this.complete((Object)null);
+         this.complete(null);
       }
 
    }
@@ -44,7 +44,7 @@ class ReadRepairFuture extends CompletableFuture<Void> {
       if(!this.ready) {
          this.ready = true;
          if(this.outstandingRepairs.get() == 0) {
-            this.complete((Object)null);
+            this.complete(null);
          }
 
       }

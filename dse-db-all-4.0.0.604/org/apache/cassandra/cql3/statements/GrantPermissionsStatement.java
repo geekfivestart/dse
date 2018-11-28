@@ -40,7 +40,7 @@ public class GrantPermissionsStatement extends PermissionsManagementStatement {
          IAuthorizer authorizer = DatabaseDescriptor.getAuthorizer();
          Set<Permission> granted = authorizer.grant(state.getUser(), this.permissions, this.resource, this.grantee, new GrantMode[]{this.grantMode});
          if(!granted.equals(this.permissions) && !this.permissions.equals(authorizer.applicablePermissions(this.resource))) {
-            String permissionsStr = (String)(new TreeSet(this.permissions)).stream().filter((permission) -> {
+            String permissionsStr = (String)(new TreeSet<Permission>(this.permissions)).stream().filter((permission) -> {
                return !granted.contains(permission);
             }).map(PartitionedEnum::name).collect(Collectors.joining(", "));
             ClientWarn.instance.warn(this.grantMode.grantWarningMessage(this.grantee.getRoleName(), this.resource, permissionsStr));

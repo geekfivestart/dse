@@ -346,7 +346,7 @@ public class ReplicatedKeyProvider implements IMultiKeyProvider {
       }
 
       byte[] idHash = md5.digest(idBuffer.array());
-      output.put(0);
+      output.put((byte)0);
       output.put(idBuffer.array());
       output.put(idHash);
       return (SecretKey)keyPair.right;

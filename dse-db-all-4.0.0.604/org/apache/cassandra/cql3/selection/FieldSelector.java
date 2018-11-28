@@ -21,7 +21,7 @@ final class FieldSelector extends Selector {
          UserType type = (UserType)this.readType(metadata, in);
          int field = (int)in.readUnsignedVInt();
          Selector selected = ((Selector.Serializer)Selector.serializers.get(version)).deserialize(in, metadata);
-         return new FieldSelector(type, field, selected, null);
+         return new FieldSelector(type, field, selected);
       }
    };
    private final UserType type;
@@ -43,7 +43,7 @@ final class FieldSelector extends Selector {
          }
 
          public Selector newInstance(QueryOptions options) {
-            return new FieldSelector(type, field, factory.newInstance(options), null);
+            return new FieldSelector(type, field, factory.newInstance(options));
          }
 
          public boolean isAggregateSelectorFactory() {

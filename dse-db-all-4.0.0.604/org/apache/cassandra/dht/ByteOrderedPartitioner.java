@@ -300,7 +300,6 @@ public class ByteOrderedPartitioner implements IPartitioner {
       }
 
       public int hashCode() {
-         int prime = true;
          return 31 + Arrays.hashCode(this.token);
       }
 

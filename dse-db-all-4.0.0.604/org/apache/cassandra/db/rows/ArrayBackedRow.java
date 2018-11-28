@@ -125,13 +125,13 @@ public class ArrayBackedRow extends AbstractRow {
 
    public Iterable<Cell> cells() {
       return () -> {
-         return new ArrayBackedRow.CellIterator(null);
+         return new ArrayBackedRow.CellIterator();
       };
    }
 
    public Iterable<Cell> cellsInLegacyOrder(TableMetadata metadata, boolean reversed) {
       return () -> {
-         return new ArrayBackedRow.CellInLegacyOrderIterator(metadata, reversed, null);
+         return new ArrayBackedRow.CellInLegacyOrderIterator(metadata, reversed);
       };
    }
 

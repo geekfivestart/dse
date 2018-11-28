@@ -5,11 +5,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 public interface TPCMetrics extends TPCLimitsMBean {
    AtomicInteger globallyBackpressuredCores = new AtomicInteger();
 
-   static default void globallyBackpressuredCores(int adjustment) {
+   public static void globallyBackpressuredCores(int adjustment) {
       globallyBackpressuredCores.addAndGet(adjustment);
    }
 
-   static default int globallyBackpressuredCores() {
+   public static int globallyBackpressuredCores() {
       return globallyBackpressuredCores.get();
    }
 

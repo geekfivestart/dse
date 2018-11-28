@@ -67,7 +67,7 @@ public abstract class OgcGeometry {
       }
 
       validateType(geometry, klass);
-      return geometry;
+      return (T)geometry;
    }
 
    static <T extends OGCGeometry> T fromOgcWellKnownBinary(ByteBuffer source, Class<T> klass) {
@@ -80,7 +80,7 @@ public abstract class OgcGeometry {
 
       validateType(geometry, klass);
       validateNormalization(geometry, source);
-      return geometry;
+      return (T)geometry;
    }
 
    static <T extends OGCGeometry> T fromOgcGeoJson(String source, Class<T> klass) {
@@ -92,7 +92,7 @@ public abstract class OgcGeometry {
       }
 
       validateType(geometry, klass);
-      return geometry;
+      return (T)geometry;
    }
 
    public boolean contains(OgcGeometry geometry) {

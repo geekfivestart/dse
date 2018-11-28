@@ -53,20 +53,21 @@ public class PerformanceObjectsKeyspace {
    public static final String USER_READ_IO_SNAPSHOT = "user_read_io_snapshot";
    public static final String USER_WRITE_IO_SNAPSHOT = "user_write_io_snapshot";
    public static final String WRITE_LATENCY_HISTOGRAMS = "write_latency_histograms";
-   public static final List<String> GLOBAL_METRICS = ImmutableList.builder().add(new String[]{"range_latency_histograms", "read_latency_histograms", "write_latency_histograms"}).build();
-   public static final List<String> KEYSPACE_METRICS;
-   public static final ImmutableList<String> TABLE_METRICS;
+   public static final List<String> GLOBAL_METRICS = ImmutableList.<String>builder().add(new String[]{"range_latency_histograms", "read_latency_histograms", "write_latency_histograms"}).build();
+   public static final List<String> KEYSPACE_METRICS=ImmutableList.<String>builder().add("sstables_per_read_histograms").addAll(GLOBAL_METRICS).build();
+   public static final ImmutableList<String> TABLE_METRICS=ImmutableList.<String>builder().add(new String[]{"cell_count_histograms", "partition_size_histograms"}).addAll(KEYSPACE_METRICS).build();
    public static final String LEASES = "leases";
    public static final String NODE_SLOW_LOG_TRACING_SESSION_ID = "tracing_session_id";
-   public static final String SCHEMA_ADD_NODE_SLOW_LOG_TRACING_SESSION_ID;
    public static final String SNAPSHOT_BACKGROUND_IO_PENDING = "background_io_pending";
    private static final String ADD_BIGINT_COLUMN = "ALTER TABLE %s.%s ADD %s bigint;";
-   public static final String NODE_SNAPSHOT_ADD_BACKGROUND_IO_PENDING;
-   public static final String CLUSTER_SNAPSHOT_ADD_BACKGROUND_IO_PENDING;
-   public static final String DC_SNAPSHOT_ADD_BACKGROUND_IO_PENDING;
-   private static final Map<String, TableMetadata> tables;
-   private static final CountDownLatch initialized;
-   private static final Logger logger;
+   public static final String SCHEMA_ADD_NODE_SLOW_LOG_TRACING_SESSION_ID = String.format("ALTER TABLE %s.%s ADD %s uuid;", new Object[]{"dse_perf", "node_slow_log", "tracing_session_id"});
+   public static final String  NODE_SNAPSHOT_ADD_BACKGROUND_IO_PENDING = String.format("ALTER TABLE %s.%s ADD %s bigint;", new Object[]{"dse_perf", "node_snapshot", "background_io_pending"});
+   public static final String  CLUSTER_SNAPSHOT_ADD_BACKGROUND_IO_PENDING = String.format("ALTER TABLE %s.%s ADD %s bigint;", new Object[]{"dse_perf", "cluster_snapshot", "background_io_pending"});
+   public static final String  DC_SNAPSHOT_ADD_BACKGROUND_IO_PENDING = String.format("ALTER TABLE %s.%s ADD %s bigint;", new Object[]{"dse_perf", "dc_snapshot", "background_io_pending"});
+   public static final Map<String,TableMetadata>tables = new ConcurrentHashMap();
+   public static final CountDownLatch initialized = new CountDownLatch(1);
+   public static final Logger logger = LoggerFactory.getLogger(PerformanceObjectsKeyspace.class);
+
    @Inject
    public static Set<PerformanceObjectsKeyspace.TableDef> extraTables;
 
@@ -199,17 +200,6 @@ public class PerformanceObjectsKeyspace {
       return KeyspaceMetadata.create("dse_perf", KeyspaceParams.simple(1));
    }
 
-   static {
-      KEYSPACE_METRICS = ImmutableList.builder().add("sstables_per_read_histograms").addAll(GLOBAL_METRICS).build();
-      TABLE_METRICS = ImmutableList.builder().add(new String[]{"cell_count_histograms", "partition_size_histograms"}).addAll(KEYSPACE_METRICS).build();
-      SCHEMA_ADD_NODE_SLOW_LOG_TRACING_SESSION_ID = String.format("ALTER TABLE %s.%s ADD %s uuid;", new Object[]{"dse_perf", "node_slow_log", "tracing_session_id"});
-      NODE_SNAPSHOT_ADD_BACKGROUND_IO_PENDING = String.format("ALTER TABLE %s.%s ADD %s bigint;", new Object[]{"dse_perf", "node_snapshot", "background_io_pending"});
-      CLUSTER_SNAPSHOT_ADD_BACKGROUND_IO_PENDING = String.format("ALTER TABLE %s.%s ADD %s bigint;", new Object[]{"dse_perf", "cluster_snapshot", "background_io_pending"});
-      DC_SNAPSHOT_ADD_BACKGROUND_IO_PENDING = String.format("ALTER TABLE %s.%s ADD %s bigint;", new Object[]{"dse_perf", "dc_snapshot", "background_io_pending"});
-      tables = new ConcurrentHashMap();
-      initialized = new CountDownLatch(1);
-      logger = LoggerFactory.getLogger(PerformanceObjectsKeyspace.class);
-   }
 
    public static class TableDef {
       private final String tableName;

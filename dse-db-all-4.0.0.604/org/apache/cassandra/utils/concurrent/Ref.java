@@ -172,7 +172,6 @@ public final class Ref<T> implements RefCounted<T> {
             if(fields != null) {
                return fields;
             } else {
-               ArrayList fields;
                fieldMap.put(clazz, fields = new ArrayList());
                Field[] var2 = clazz.getDeclaredFields();
                int var3 = var2.length;

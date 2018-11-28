@@ -129,7 +129,7 @@ public final class DropFunctionStatement extends SchemaAlteringStatement {
             return null;
          }
 
-         old = (Function)Schema.instance.findFunction(this.functionName, this.argTypes).orElse((Object)null);
+         old = (Function)Schema.instance.findFunction(this.functionName, this.argTypes).orElse(null);
          if(old == null || !(old instanceof ScalarFunction)) {
             return null;
          }

@@ -37,7 +37,7 @@ public class CipherFactory {
 
       try {
          this.secureRandom = SecureRandom.getInstance("SHA1PRNG");
-         Class<KeyProvider> keyProviderClass = Class.forName(options.key_provider.class_name);
+         Class<KeyProvider> keyProviderClass = (Class<KeyProvider>)Class.forName(options.key_provider.class_name);
          Constructor ctor = keyProviderClass.getConstructor(new Class[]{TransparentDataEncryptionOptions.class});
          this.keyProvider = (KeyProvider)ctor.newInstance(new Object[]{options});
       } catch (Exception var4) {

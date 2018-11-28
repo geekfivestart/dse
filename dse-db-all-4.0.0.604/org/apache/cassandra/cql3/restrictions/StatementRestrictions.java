@@ -293,14 +293,15 @@ public class StatementRestrictions {
    }
 
    protected Restrictions getRestrictions(ColumnMetadata.Kind kind) {
-      switch(null.$SwitchMap$org$apache$cassandra$schema$ColumnMetadata$Kind[kind.ordinal()]) {
-      case 1:
-         return this.partitionKeyRestrictions;
-      case 2:
-         return this.clusteringColumnsRestrictions;
-      default:
-         return this.nonPrimaryKeyRestrictions;
+      switch (kind) {
+         case PARTITION_KEY: {
+            return this.partitionKeyRestrictions;
+         }
+         case CLUSTERING: {
+            return this.clusteringColumnsRestrictions;
+         }
       }
+      return this.nonPrimaryKeyRestrictions;
    }
 
    public boolean usesSecondaryIndexing() {

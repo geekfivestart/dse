@@ -85,25 +85,27 @@ public abstract class Operation {
       }
 
       public Operation prepare(String keyspace, ColumnMetadata receiver, TableMetadata metadata) throws InvalidRequestException {
-         if(!receiver.type.isCollection()) {
-            throw new InvalidRequestException(String.format("Invalid deletion operation for non collection column %s", new Object[]{receiver.name}));
-         } else if(!receiver.type.isMultiCell()) {
-            throw new InvalidRequestException(String.format("Invalid deletion operation for frozen collection column %s", new Object[]{receiver.name}));
-         } else {
-            switch(null.$SwitchMap$org$apache$cassandra$db$marshal$CollectionType$Kind[((CollectionType)receiver.type).kind.ordinal()]) {
-            case 1:
+         if (!receiver.type.isCollection()) {
+            throw new InvalidRequestException(String.format("Invalid deletion operation for non collection column %s", receiver.name));
+         }
+         if (!receiver.type.isMultiCell()) {
+            throw new InvalidRequestException(String.format("Invalid deletion operation for frozen collection column %s", receiver.name));
+         }
+         switch (((CollectionType)receiver.type).kind) {
+            case LIST: {
                Term idx = this.element.prepare(keyspace, Lists.indexSpecOf(receiver));
                return new Lists.DiscarderByIndex(receiver, idx);
-            case 2:
+            }
+            case SET: {
                Term elt = this.element.prepare(keyspace, Sets.valueSpecOf(receiver));
                return new Sets.ElementDiscarder(receiver, elt);
-            case 3:
+            }
+            case MAP: {
                Term key = this.element.prepare(keyspace, Maps.keySpecOf(receiver));
                return new Maps.DiscarderByKey(receiver, key);
-            default:
-               throw new AssertionError();
             }
          }
+         throw new AssertionError();
       }
    }
 
@@ -158,35 +160,35 @@ public abstract class Operation {
       }
 
       public Operation prepare(TableMetadata metadata, ColumnMetadata receiver) throws InvalidRequestException {
-         if(!(receiver.type instanceof CollectionType)) {
-            if(!(receiver.type instanceof CounterColumnType)) {
-               throw new InvalidRequestException(String.format("Invalid operation (%s) for non counter column %s", new Object[]{this.toString(receiver), receiver.name}));
-            } else {
-               return new Constants.Substracter(receiver, this.value.prepare(metadata.keyspace, receiver));
+         if (!(receiver.type instanceof CollectionType)) {
+            if (!(receiver.type instanceof CounterColumnType)) {
+               throw new InvalidRequestException(String.format("Invalid operation (%s) for non counter column %s", this.toString(receiver), receiver.name));
             }
-         } else if(!receiver.type.isMultiCell()) {
-            throw new InvalidRequestException(String.format("Invalid operation (%s) for frozen collection column %s", new Object[]{this.toString(receiver), receiver.name}));
-         } else {
-            switch(null.$SwitchMap$org$apache$cassandra$db$marshal$CollectionType$Kind[((CollectionType)receiver.type).kind.ordinal()]) {
-            case 1:
+            return new Constants.Substracter(receiver, this.value.prepare(metadata.keyspace, receiver));
+         }
+         if (!receiver.type.isMultiCell()) {
+            throw new InvalidRequestException(String.format("Invalid operation (%s) for frozen collection column %s", this.toString(receiver), receiver.name));
+         }
+         switch (((CollectionType)receiver.type).kind) {
+            case LIST: {
                return new Lists.Discarder(receiver, this.value.prepare(metadata.keyspace, receiver));
-            case 2:
+            }
+            case SET: {
                return new Sets.Discarder(receiver, this.value.prepare(metadata.keyspace, receiver));
-            case 3:
-               ColumnSpecification vr = new ColumnSpecification(receiver.ksName, receiver.cfName, receiver.name, SetType.getInstance(((MapType)receiver.type).getKeysType(), false));
-
+            }
+            case MAP: {
                Term term;
+               ColumnSpecification vr = new ColumnSpecification(receiver.ksName, receiver.cfName, receiver.name, SetType.getInstance(((MapType)receiver.type).getKeysType(), false));
                try {
                   term = this.value.prepare(metadata.keyspace, vr);
-               } catch (InvalidRequestException var6) {
-                  throw new InvalidRequestException(String.format("Value for a map substraction has to be a set, but was: '%s'", new Object[]{this.value}));
                }
-
+               catch (InvalidRequestException e) {
+                  throw new InvalidRequestException(String.format("Value for a map substraction has to be a set, but was: '%s'", this.value));
+               }
                return new Sets.Discarder(receiver, term);
-            default:
-               throw new AssertionError();
             }
          }
+         throw new AssertionError();
       }
 
       protected String toString(ColumnSpecification column) {
@@ -206,35 +208,37 @@ public abstract class Operation {
       }
 
       public Operation prepare(TableMetadata metadata, ColumnMetadata receiver) throws InvalidRequestException {
-         if(!(receiver.type instanceof CollectionType)) {
-            if(receiver.type instanceof TupleType) {
-               throw new InvalidRequestException(String.format("Invalid operation (%s) for tuple column %s", new Object[]{this.toString(receiver), receiver.name}));
-            } else if(!(receiver.type instanceof CounterColumnType)) {
-               throw new InvalidRequestException(String.format("Invalid operation (%s) for non counter column %s", new Object[]{this.toString(receiver), receiver.name}));
-            } else {
-               return new Constants.Adder(receiver, this.value.prepare(metadata.keyspace, receiver));
+         if (!(receiver.type instanceof CollectionType)) {
+            if (receiver.type instanceof TupleType) {
+               throw new InvalidRequestException(String.format("Invalid operation (%s) for tuple column %s", this.toString(receiver), receiver.name));
             }
-         } else if(!receiver.type.isMultiCell()) {
-            throw new InvalidRequestException(String.format("Invalid operation (%s) for frozen collection column %s", new Object[]{this.toString(receiver), receiver.name}));
-         } else {
-            switch(null.$SwitchMap$org$apache$cassandra$db$marshal$CollectionType$Kind[((CollectionType)receiver.type).kind.ordinal()]) {
-            case 1:
+            if (!(receiver.type instanceof CounterColumnType)) {
+               throw new InvalidRequestException(String.format("Invalid operation (%s) for non counter column %s", this.toString(receiver), receiver.name));
+            }
+            return new Constants.Adder(receiver, this.value.prepare(metadata.keyspace, receiver));
+         }
+         if (!receiver.type.isMultiCell()) {
+            throw new InvalidRequestException(String.format("Invalid operation (%s) for frozen collection column %s", this.toString(receiver), receiver.name));
+         }
+         switch (((CollectionType)receiver.type).kind) {
+            case LIST: {
                return new Lists.Appender(receiver, this.value.prepare(metadata.keyspace, receiver));
-            case 2:
+            }
+            case SET: {
                return new Sets.Adder(receiver, this.value.prepare(metadata.keyspace, receiver));
-            case 3:
+            }
+            case MAP: {
                Term term;
                try {
                   term = this.value.prepare(metadata.keyspace, receiver);
-               } catch (InvalidRequestException var5) {
-                  throw new InvalidRequestException(String.format("Value for a map addition has to be a map, but was: '%s'", new Object[]{this.value}));
                }
-
+               catch (InvalidRequestException e) {
+                  throw new InvalidRequestException(String.format("Value for a map addition has to be a map, but was: '%s'", this.value));
+               }
                return new Maps.Putter(receiver, term);
-            default:
-               throw new AssertionError();
             }
          }
+         throw new AssertionError();
       }
 
       protected String toString(ColumnSpecification column) {
@@ -290,27 +294,30 @@ public abstract class Operation {
       }
 
       public Operation prepare(TableMetadata metadata, ColumnMetadata receiver) throws InvalidRequestException {
-         if(!(receiver.type instanceof CollectionType)) {
-            throw new InvalidRequestException(String.format("Invalid operation (%s) for non collection column %s", new Object[]{this.toString(receiver), receiver.name}));
-         } else if(!receiver.type.isMultiCell()) {
-            throw new InvalidRequestException(String.format("Invalid operation (%s) for frozen collection column %s", new Object[]{this.toString(receiver), receiver.name}));
-         } else {
-            switch(null.$SwitchMap$org$apache$cassandra$db$marshal$CollectionType$Kind[((CollectionType)receiver.type).kind.ordinal()]) {
-            case 1:
+         if (!(receiver.type instanceof CollectionType)) {
+            throw new InvalidRequestException(String.format("Invalid operation (%s) for non collection column %s", this.toString(receiver), receiver.name));
+         }
+         if (!receiver.type.isMultiCell()) {
+            throw new InvalidRequestException(String.format("Invalid operation (%s) for frozen collection column %s", this.toString(receiver), receiver.name));
+         }
+         switch (((CollectionType)receiver.type).kind) {
+            case LIST: {
                Term idx = this.selector.prepare(metadata.keyspace, Lists.indexSpecOf(receiver));
                Term lval = this.value.prepare(metadata.keyspace, Lists.valueSpecOf(receiver));
                return new Lists.SetterByIndex(receiver, idx, lval);
-            case 2:
-               throw new InvalidRequestException(String.format("Invalid operation (%s) for set column %s", new Object[]{this.toString(receiver), receiver.name}));
-            case 3:
+            }
+            case SET: {
+               throw new InvalidRequestException(String.format("Invalid operation (%s) for set column %s", this.toString(receiver), receiver.name));
+            }
+            case MAP: {
                Term key = this.selector.prepare(metadata.keyspace, Maps.keySpecOf(receiver));
                Term mval = this.value.prepare(metadata.keyspace, Maps.valueSpecOf(receiver));
                return new Maps.SetterByKey(receiver, key, mval);
-            default:
-               throw new AssertionError();
             }
          }
+         throw new AssertionError();
       }
+
 
       protected String toString(ColumnSpecification column) {
          return String.format("%s[%s] = %s", new Object[]{column.name, this.selector, this.value});
@@ -330,22 +337,27 @@ public abstract class Operation {
 
       public Operation prepare(TableMetadata metadata, ColumnMetadata receiver) throws InvalidRequestException {
          Term v = this.value.prepare(metadata.keyspace, receiver);
-         if(receiver.type instanceof CounterColumnType) {
-            throw new InvalidRequestException(String.format("Cannot set the value of counter column %s (counters can only be incremented/decremented, not set)", new Object[]{receiver.name}));
-         } else if(receiver.type.isCollection()) {
-            switch(null.$SwitchMap$org$apache$cassandra$db$marshal$CollectionType$Kind[((CollectionType)receiver.type).kind.ordinal()]) {
-            case 1:
-               return new Lists.Setter(receiver, v);
-            case 2:
-               return new Sets.Setter(receiver, v);
-            case 3:
-               return new Maps.Setter(receiver, v);
-            default:
-               throw new AssertionError();
-            }
-         } else {
-            return (Operation)(receiver.type.isUDT()?new UserTypes.Setter(receiver, v):new Constants.Setter(receiver, v));
+         if (receiver.type instanceof CounterColumnType) {
+            throw new InvalidRequestException(String.format("Cannot set the value of counter column %s (counters can only be incremented/decremented, not set)", receiver.name));
          }
+         if (receiver.type.isCollection()) {
+            switch (((CollectionType)receiver.type).kind) {
+               case LIST: {
+                  return new Lists.Setter(receiver, v);
+               }
+               case SET: {
+                  return new Sets.Setter(receiver, v);
+               }
+               case MAP: {
+                  return new Maps.Setter(receiver, v);
+               }
+            }
+            throw new AssertionError();
+         }
+         if (receiver.type.isUDT()) {
+            return new UserTypes.Setter(receiver, v);
+         }
+         return new Constants.Setter(receiver, v);
       }
 
       protected String toString(ColumnSpecification column) {

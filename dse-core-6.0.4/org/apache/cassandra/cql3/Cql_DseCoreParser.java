@@ -354,9 +354,8 @@ public class Cql_DseCoreParser extends Parser {
 
       try {
          try {
-            int alt5 = true;
+            int alt5 = 2;
             int LA5_0 = this.input.LA(1);
-            byte alt5;
             if(LA5_0 == 29) {
                alt5 = 1;
             } else {
@@ -406,11 +405,10 @@ public class Cql_DseCoreParser extends Parser {
 
       try {
          try {
-            int alt2 = true;
+            int alt2 = 5;
             int LA2_5;
             int nvaeMark;
             NoViableAltException nvae;
-            byte alt2;
             switch(this.input.LA(1)) {
             case 29:
                LA2_5 = this.input.LA(2);
@@ -470,7 +468,7 @@ public class Cql_DseCoreParser extends Parser {
                alt2 = 1;
                break;
             default:
-               NoViableAltException nvae = new NoViableAltException("", 2, 0, this.input);
+               nvae = new NoViableAltException("", 2, 0, this.input);
                throw nvae;
             }
 
@@ -524,8 +522,7 @@ public class Cql_DseCoreParser extends Parser {
 
       try {
          try {
-            int alt1 = true;
-            byte alt1;
+            int alt1 = 3;
             switch(this.input.LA(1)) {
             case 46:
                alt1 = 1;
@@ -655,9 +652,8 @@ public class Cql_DseCoreParser extends Parser {
 
       try {
          try {
-            int alt6 = true;
+            int alt6 = 3;
             int LA6_0 = this.input.LA(1);
-            byte alt6;
             if(LA6_0 == 29) {
                alt6 = 1;
             } else {
@@ -799,8 +795,7 @@ public class Cql_DseCoreParser extends Parser {
 
       try {
          try {
-            int alt7 = true;
-            byte alt7;
+            int alt7 = 4;
             switch(this.input.LA(1)) {
             case 23:
                alt7 = 1;
@@ -1059,9 +1054,8 @@ public class Cql_DseCoreParser extends Parser {
 
       try {
          try {
-            int alt9 = true;
+            int alt9 = 3;
             int LA9_0 = this.input.LA(1);
-            byte alt9;
             if(LA9_0 == 33) {
                int LA9_1 = this.input.LA(2);
                int LA9_3;
@@ -1170,9 +1164,8 @@ public class Cql_DseCoreParser extends Parser {
 
       try {
          try {
-            int alt8 = true;
+            int alt8 = 2;
             int LA8_0 = this.input.LA(1);
-            byte alt8;
             if(LA8_0 == 33) {
                alt8 = 1;
             } else {

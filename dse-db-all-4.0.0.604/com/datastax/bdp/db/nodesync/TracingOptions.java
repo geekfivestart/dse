@@ -23,7 +23,7 @@ import org.apache.cassandra.utils.versioning.VersionDependent;
 import org.apache.cassandra.utils.versioning.Versioned;
 
 public class TracingOptions {
-   public static final Versioned<NodeSyncVerbs.NodeSyncVersion, Serializer<TracingOptions>> serializers = NodeSyncVerbs.NodeSyncVersion.versioned(TracingOptions.OptionSerializer::<init>);
+   public static final Versioned<NodeSyncVerbs.NodeSyncVersion, Serializer<TracingOptions>> serializers = NodeSyncVerbs.NodeSyncVersion.versioned(TracingOptions.OptionSerializer::new);
    static final String ID = "id";
    static final String LEVEL = "level";
    static final String TIMEOUT_SEC = "timeout_sec";

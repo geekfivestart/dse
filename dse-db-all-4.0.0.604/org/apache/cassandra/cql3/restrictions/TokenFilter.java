@@ -118,7 +118,7 @@ final class TokenFilter implements PartitionKeyRestrictions {
          } else {
             BoundType endBoundType = toBoundType(slice.isInclusive(Bound.END));
             Token end = this.deserializeToken((ByteBuffer)slice.bounds(Bound.END, options).get(0));
-            return start.equals(end) && (BoundType.OPEN == startBoundType || BoundType.OPEN == endBoundType)?ImmutableRangeSet.of():(start.compareTo(end) <= 0?ImmutableRangeSet.of(Range.range(start, startBoundType, end, endBoundType)):ImmutableRangeSet.builder().add(Range.upTo(end, endBoundType)).add(Range.downTo(start, startBoundType)).build());
+            return start.equals(end) && (BoundType.OPEN == startBoundType || BoundType.OPEN == endBoundType)?ImmutableRangeSet.of():(start.compareTo(end) <= 0?ImmutableRangeSet.of(Range.range(start, startBoundType, end, endBoundType)):ImmutableRangeSet.<Token>builder().add(Range.upTo(end, endBoundType)).add(Range.downTo(start, startBoundType)).build());
          }
       } else {
          start = this.deserializeToken((ByteBuffer)slice.bounds(Bound.END, options).get(0));

@@ -58,7 +58,7 @@ public abstract class BaseIterator<V, I extends Iterator<? extends V>, O extends
       if(this.next == null && !this.hasNext()) {
          throw new NoSuchElementException();
       } else {
-         O next = this.next;
+         O next = (O)this.next;
          this.next = null;
          return next;
       }
@@ -72,7 +72,7 @@ public abstract class BaseIterator<V, I extends Iterator<? extends V>, O extends
       for(int i = 0; i < this.moreContents.length; ++i) {
          Stack.MoreContentsHolder holder = this.moreContents[i];
          MoreContents provider = holder.moreContents;
-         I newContents = (Iterator)provider.moreContents();
+         I newContents = (I)provider.moreContents();
          if(newContents != null) {
             if(this.input instanceof CloseableIterator) {
                ((CloseableIterator)this.input).close();
@@ -83,8 +83,8 @@ public abstract class BaseIterator<V, I extends Iterator<? extends V>, O extends
             if(newContents instanceof BaseIterator) {
                BaseIterator abstr = (BaseIterator)newContents;
                prefix = abstr;
-               this.input = abstr.input;
-               this.next = this.apply(abstr.next, holder.length);
+               this.input = (I)abstr.input;
+               this.next = this.apply((V)abstr.next, holder.length);
             }
 
             Throwables.maybeFail(this.runOnClose(holder.length));

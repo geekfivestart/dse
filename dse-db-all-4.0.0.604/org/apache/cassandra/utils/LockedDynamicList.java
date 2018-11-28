@@ -44,7 +44,7 @@ public class LockedDynamicList<E> extends DynamicList<E> {
          this.lock.readLock().unlock();
       }
 
-      return var2;
+      return (E)var2;
    }
 
    public int size() {

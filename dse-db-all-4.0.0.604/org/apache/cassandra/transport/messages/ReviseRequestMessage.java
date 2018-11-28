@@ -51,11 +51,11 @@ public class ReviseRequestMessage extends Message.Request {
       }
 
       return ret.map((res) -> {
-         List<List<ByteBuffer>> rows = Collections.singletonList(Collections.singletonList(BooleanType.instance.decompose(res)));
+         List<List<ByteBuffer>> rows = Collections.singletonList(Collections.singletonList(BooleanType.instance.decompose((Boolean) res)));
          return new ResultMessage.Rows(new ResultSet(RESULT_METADATA, rows));
       }).onErrorReturn((err) -> {
-         JVMStabilityInspector.inspectThrowable(err);
-         return ErrorMessage.fromException(err);
+         JVMStabilityInspector.inspectThrowable((Throwable) err);
+         return ErrorMessage.fromException((Throwable) err);
       });
    }
 
@@ -70,9 +70,9 @@ public class ReviseRequestMessage extends Message.Request {
          public ReviseRequestMessage decode(ByteBuf body, ProtocolVersion version) {
             ReviseRequestMessage.RevisionType revisionType = ReviseRequestMessage.RevisionType.decode(body.readInt());
             if(revisionType == ReviseRequestMessage.RevisionType.CONTINUOUS_PAGING_CANCEL) {
-               return new ReviseRequestMessage(revisionType, body.readInt(), null);
+               return new ReviseRequestMessage(revisionType, body.readInt());
             } else if(revisionType == ReviseRequestMessage.RevisionType.CONTINUOUS_PAGING_BACKPRESSURE) {
-               return new ReviseRequestMessage(revisionType, body.readInt(), body.readInt(), null);
+               return new ReviseRequestMessage(revisionType, body.readInt(), body.readInt());
             } else {
                throw new InvalidRequestException(String.format("Unknown update type: %s", new Object[]{revisionType}));
             }

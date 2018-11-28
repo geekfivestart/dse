@@ -30,16 +30,16 @@ public class DseToolArgumentParser {
    private static final Pair<String, String> USER_OPT = Pair.create("l", "username");
    private static final Pair<String, String> PASSWORD_OPT = Pair.create("p", "password");
    private static final Pair<String, String> CONFIG_FILE_OPT = Pair.create("f", "config-file");
-   private static final Pair<String, String> KEYSTORE_PATH_OPT = Pair.create((Object)null, "keystore-path");
-   private static final Pair<String, String> KEYSTORE_PASSWORD_OPT = Pair.create((Object)null, "keystore-password");
-   private static final Pair<String, String> KEYSTORE_TYPE_OPT = Pair.create((Object)null, "keystore-type");
-   private static final Pair<String, String> TRUSTSTORE_PATH_OPT = Pair.create((Object)null, "truststore-path");
-   private static final Pair<String, String> TRUSTSTORE_PASSWORD_OPT = Pair.create((Object)null, "truststore-password");
-   private static final Pair<String, String> TRUSTSTORE_TYPE_OPT = Pair.create((Object)null, "truststore-type");
-   private static final Pair<String, String> SSL_PROTOCOL_OPT = Pair.create((Object)null, "ssl-protocol");
-   private static final Pair<String, String> CIPHER_SUITES_OPT = Pair.create((Object)null, "cipher-suites");
-   private static final Pair<String, String> SSL_ENABLED_OPT = Pair.create((Object)null, "ssl");
-   private static final Pair<String, String> SSL_AUTH_ENABLED_OPT = Pair.create((Object)null, "sslauth");
+   private static final Pair<String, String> KEYSTORE_PATH_OPT = Pair.create(null, "keystore-path");
+   private static final Pair<String, String> KEYSTORE_PASSWORD_OPT = Pair.create(null, "keystore-password");
+   private static final Pair<String, String> KEYSTORE_TYPE_OPT = Pair.create(null, "keystore-type");
+   private static final Pair<String, String> TRUSTSTORE_PATH_OPT = Pair.create(null, "truststore-path");
+   private static final Pair<String, String> TRUSTSTORE_PASSWORD_OPT = Pair.create(null, "truststore-password");
+   private static final Pair<String, String> TRUSTSTORE_TYPE_OPT = Pair.create(null, "truststore-type");
+   private static final Pair<String, String> SSL_PROTOCOL_OPT = Pair.create(null, "ssl-protocol");
+   private static final Pair<String, String> CIPHER_SUITES_OPT = Pair.create(null, "cipher-suites");
+   private static final Pair<String, String> SSL_ENABLED_OPT = Pair.create(null, "ssl");
+   private static final Pair<String, String> SSL_AUTH_ENABLED_OPT = Pair.create(null, "sslauth");
    private static DseToolArgumentParser.ToolOptions options = null;
    private ClientConfigurationBuilder clientConfigBuilder;
    private DseTool.Plugin commandPlugin = null;
@@ -69,90 +69,49 @@ public class DseToolArgumentParser {
    }
 
    public void parse(String[] args, Map<String, DseTool.Plugin> commands) throws Exception {
-      CommandLineParser parser = new DefaultParser();
-      DseToolArgumentParser.ToolCommandLine cmd = new DseToolArgumentParser.ToolCommandLine(parser.parse(options, args, true));
+      DefaultParser parser = new DefaultParser();
+      ToolCommandLine cmd = new ToolCommandLine(parser.parse((Options)options, args, true));
       this.jmxUsername = cmd.getAsOptional(JMX_USER_OPT);
       this.jmxPassword = cmd.getAsOptional(JMX_PASSWORD_OPT);
       this.username = cmd.getAsOptional(USER_OPT);
       this.password = cmd.getAsOptional(PASSWORD_OPT);
-      if(this.jmxPassword.isPresent() ^ this.jmxUsername.isPresent()) {
+      if (this.jmxPassword.isPresent() ^ this.jmxUsername.isPresent()) {
          throw new IllegalArgumentException("dsetool: You need to specify both JMX username and JMX password.");
-      } else if(this.username.isPresent() ^ this.password.isPresent()) {
+      }
+      if (this.username.isPresent() ^ this.password.isPresent()) {
          throw new IllegalArgumentException("dsetool: You need to specify both a username and a password.");
-      } else {
-         try {
-            this.command = cmd.getCommand();
-         } catch (IllegalArgumentException var8) {
-            throw new ParseException(var8.getMessage());
-         }
-
-         String commandString = this.command.toLowerCase();
-         Iterator var6 = commands.keySet().iterator();
-
-         while(var6.hasNext()) {
-            String key = (String)var6.next();
-            if(key.split(" ")[0].equals(commandString)) {
-               this.commandPlugin = (DseTool.Plugin)commands.get(key);
-            }
-         }
-
-         Optional var10000 = cmd.getAsOptional(HOST_OPT).map(Errors.rethrow().wrap(InetAddress::getByName));
-         ClientConfigurationBuilder var10001 = this.clientConfigBuilder;
-         this.clientConfigBuilder.getClass();
-         var10000.ifPresent(var10001::withCassandraHost);
-         this.rawHostArgument = (String)cmd.getAsOptional(HOST_OPT).orElse(this.rawHostArgument);
-         this.jmxPort = ((Integer)cmd.getAsOptional(JMX_PORT_OPT).map(Integer::parseInt).orElse(Integer.valueOf(this.jmxPort))).intValue();
-         this.arguments = cmd.getCommandArguments();
-         this.solrPort = (String)cmd.getAsOptional(SOLR_PORT_OPT).orElse(this.solrPort);
-         var10000 = cmd.getAsOptional(CASSANDRA_PORT_OPT).map(Integer::parseInt);
-         var10001 = this.clientConfigBuilder;
-         this.clientConfigBuilder.getClass();
-         var10000.ifPresent(var10001::withNativePort);
-         var10000 = cmd.getAsOptional(KEYSTORE_PATH_OPT);
-         var10001 = this.clientConfigBuilder;
-         this.clientConfigBuilder.getClass();
-         var10000.ifPresent(var10001::withSslKeystorePath);
-         var10000 = cmd.getAsOptional(KEYSTORE_PASSWORD_OPT);
-         var10001 = this.clientConfigBuilder;
-         this.clientConfigBuilder.getClass();
-         var10000.ifPresent(var10001::withSslKeystorePassword);
-         var10000 = cmd.getAsOptional(KEYSTORE_TYPE_OPT);
-         var10001 = this.clientConfigBuilder;
-         this.clientConfigBuilder.getClass();
-         var10000.ifPresent(var10001::withSslKeystoreType);
-         var10000 = cmd.getAsOptional(TRUSTSTORE_PATH_OPT);
-         var10001 = this.clientConfigBuilder;
-         this.clientConfigBuilder.getClass();
-         var10000.ifPresent(var10001::withSslTruststorePath);
-         var10000 = cmd.getAsOptional(TRUSTSTORE_PASSWORD_OPT);
-         var10001 = this.clientConfigBuilder;
-         this.clientConfigBuilder.getClass();
-         var10000.ifPresent(var10001::withSslTruststorePassword);
-         var10000 = cmd.getAsOptional(TRUSTSTORE_TYPE_OPT);
-         var10001 = this.clientConfigBuilder;
-         this.clientConfigBuilder.getClass();
-         var10000.ifPresent(var10001::withSslTruststoreType);
-         var10000 = cmd.getAsOptional(SSL_PROTOCOL_OPT);
-         var10001 = this.clientConfigBuilder;
-         this.clientConfigBuilder.getClass();
-         var10000.ifPresent(var10001::withSslProtocol);
-         var10000 = cmd.getAsOptional(CIPHER_SUITES_OPT).map((s) -> {
-            return s.split("\\s*,\\s*");
-         });
-         var10001 = this.clientConfigBuilder;
-         this.clientConfigBuilder.getClass();
-         var10000.ifPresent(var10001::withCipherSuites);
-         var10000 = cmd.getAsOptional(SSL_ENABLED_OPT).map(Boolean::parseBoolean);
-         var10001 = this.clientConfigBuilder;
-         this.clientConfigBuilder.getClass();
-         var10000.ifPresent(var10001::withSslEnabled);
-         boolean clientAuth = ((Boolean)cmd.getAsOptional(SSL_AUTH_ENABLED_OPT).map(Boolean::parseBoolean).orElse(Boolean.valueOf(false))).booleanValue();
-         if(!clientAuth) {
-            this.clientConfigBuilder.withSslKeystorePath((String)null);
-            this.clientConfigBuilder.withSslKeystorePassword((String)null);
-            this.clientConfigBuilder.withSslKeystoreType((String)null);
-         }
-
+      }
+      try {
+         this.command = cmd.getCommand();
+      }
+      catch (IllegalArgumentException e) {
+         throw new ParseException(e.getMessage());
+      }
+      String commandString = this.command.toLowerCase();
+      for (String key : commands.keySet()) {
+         if (!key.split(" ")[0].equals(commandString)) continue;
+         this.commandPlugin = commands.get(key);
+      }
+      cmd.getAsOptional(HOST_OPT).map(Errors.rethrow().wrap(InetAddress::getByName)).ifPresent(this.clientConfigBuilder::withCassandraHost);
+      this.rawHostArgument = cmd.getAsOptional(HOST_OPT).orElse(this.rawHostArgument);
+      this.jmxPort = cmd.getAsOptional(JMX_PORT_OPT).map(Integer::parseInt).orElse(this.jmxPort);
+      this.arguments = cmd.getCommandArguments();
+      this.solrPort = cmd.getAsOptional(SOLR_PORT_OPT).orElse(this.solrPort);
+      cmd.getAsOptional(CASSANDRA_PORT_OPT).map(Integer::parseInt).ifPresent(this.clientConfigBuilder::withNativePort);
+      cmd.getAsOptional(KEYSTORE_PATH_OPT).ifPresent(this.clientConfigBuilder::withSslKeystorePath);
+      cmd.getAsOptional(KEYSTORE_PASSWORD_OPT).ifPresent(this.clientConfigBuilder::withSslKeystorePassword);
+      cmd.getAsOptional(KEYSTORE_TYPE_OPT).ifPresent(this.clientConfigBuilder::withSslKeystoreType);
+      cmd.getAsOptional(TRUSTSTORE_PATH_OPT).ifPresent(this.clientConfigBuilder::withSslTruststorePath);
+      cmd.getAsOptional(TRUSTSTORE_PASSWORD_OPT).ifPresent(this.clientConfigBuilder::withSslTruststorePassword);
+      cmd.getAsOptional(TRUSTSTORE_TYPE_OPT).ifPresent(this.clientConfigBuilder::withSslTruststoreType);
+      cmd.getAsOptional(SSL_PROTOCOL_OPT).ifPresent(this.clientConfigBuilder::withSslProtocol);
+      cmd.getAsOptional(CIPHER_SUITES_OPT).map(s -> s.split("\\s*,\\s*")).ifPresent(this.clientConfigBuilder::withCipherSuites);
+      cmd.getAsOptional(SSL_ENABLED_OPT).map(Boolean::parseBoolean).ifPresent(this.clientConfigBuilder::withSslEnabled);
+      boolean clientAuth = cmd.getAsOptional(SSL_AUTH_ENABLED_OPT).map(Boolean::parseBoolean).orElse(false);
+      if (!clientAuth) {
+         this.clientConfigBuilder.withSslKeystorePath(null);
+         this.clientConfigBuilder.withSslKeystorePassword(null);
+         this.clientConfigBuilder.withSslKeystoreType(null);
       }
    }
 
@@ -173,19 +132,19 @@ public class DseToolArgumentParser {
    }
 
    public String getJmxUsername() {
-      return (String)this.jmxUsername.orElse((Object)null);
+      return (String)this.jmxUsername.orElse(null);
    }
 
    public String getJmxPassword() {
-      return (String)this.jmxPassword.orElse((Object)null);
+      return (String)this.jmxPassword.orElse(null);
    }
 
    public String getUsername() {
-      return (String)this.username.orElse((Object)null);
+      return (String)this.username.orElse(null);
    }
 
    public String getPassword() {
-      return (String)this.password.orElse((Object)null);
+      return (String)this.password.orElse(null);
    }
 
    public String getCommand() {

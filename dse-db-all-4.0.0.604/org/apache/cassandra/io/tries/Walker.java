@@ -165,7 +165,7 @@ public class Walker<Concrete extends Walker<Concrete>> implements AutoCloseable 
          } else {
             int payloadBits = this.payloadFlags();
             if(payloadBits > 0) {
-               payload = extractor.extract(this, this.payloadPosition(), payloadBits);
+               payload = extractor.extract((Concrete) this, this.payloadPosition(), payloadBits);
             }
 
             if(childIndex < 0) {
@@ -194,7 +194,7 @@ public class Walker<Concrete extends Walker<Concrete>> implements AutoCloseable 
          } else {
             int payloadBits = this.payloadFlags();
             if(payloadBits > 0) {
-               payload = extractor.extract(this, this.payloadPosition(), payloadBits);
+               payload = extractor.extract((Concrete)this, this.payloadPosition(), payloadBits);
             }
          }
 

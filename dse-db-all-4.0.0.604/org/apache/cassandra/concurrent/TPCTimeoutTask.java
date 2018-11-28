@@ -28,14 +28,14 @@ public class TPCTimeoutTask<T> implements Runnable {
    public void run() {
       T value = this.valueRef.get();
       if(value != null) {
-         ((Consumer)this.actionRef.getAndSet((Object)null)).accept(value);
-         this.valueRef.set((Object)null);
+         ((Consumer)this.actionRef.getAndSet(null)).accept(value);
+         this.valueRef.set(null);
       }
 
    }
 
    public void submit(Consumer<T> action, long timeoutNanos, TimeUnit timeUnit) {
-      if(this.actionRef.compareAndSet((Object)null, action)) {
+      if(this.actionRef.compareAndSet(null, action)) {
          this.disposable = this.timer.onTimeout(this, timeoutNanos, timeUnit);
       } else {
          throw new IllegalStateException("Task was already submitted!");
@@ -46,8 +46,8 @@ public class TPCTimeoutTask<T> implements Runnable {
       if(this.disposable != null) {
          this.disposable.dispose();
          if(this.disposable.isDisposed()) {
-            this.valueRef.set((Object)null);
-            this.actionRef.set((Object)null);
+            this.valueRef.set(null);
+            this.actionRef.set(null);
          }
       }
 

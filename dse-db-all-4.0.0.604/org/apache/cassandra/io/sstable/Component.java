@@ -43,37 +43,49 @@ public class Component {
    }
 
    static Component parse(String name) {
-      Component.Type type = Component.Type.fromRepresentation(name);
-      switch(null.$SwitchMap$org$apache$cassandra$io$sstable$Component$Type[type.ordinal()]) {
-      case 1:
-         return DATA;
-      case 2:
-         return PARTITION_INDEX;
-      case 3:
-         return ROW_INDEX;
-      case 4:
-         return PRIMARY_INDEX;
-      case 5:
-         return FILTER;
-      case 6:
-         return COMPRESSION_INFO;
-      case 7:
-         return STATS;
-      case 8:
-         return DIGEST;
-      case 9:
-         return CRC;
-      case 10:
-         return SUMMARY;
-      case 11:
-         return TOC;
-      case 12:
-         return new Component(Component.Type.SECONDARY_INDEX, name);
-      case 13:
-         return new Component(Component.Type.CUSTOM, name);
-      default:
-         throw new AssertionError();
+      Type type = Type.fromRepresentation(name);
+      switch (type) {
+         case DATA: {
+            return DATA;
+         }
+         case PARTITION_INDEX: {
+            return PARTITION_INDEX;
+         }
+         case ROW_INDEX: {
+            return ROW_INDEX;
+         }
+         case PRIMARY_INDEX: {
+            return PRIMARY_INDEX;
+         }
+         case FILTER: {
+            return FILTER;
+         }
+         case COMPRESSION_INFO: {
+            return COMPRESSION_INFO;
+         }
+         case STATS: {
+            return STATS;
+         }
+         case DIGEST: {
+            return DIGEST;
+         }
+         case CRC: {
+            return CRC;
+         }
+         case SUMMARY: {
+            return SUMMARY;
+         }
+         case TOC: {
+            return TOC;
+         }
+         case SECONDARY_INDEX: {
+            return new Component(Type.SECONDARY_INDEX, name);
+         }
+         case CUSTOM: {
+            return new Component(Type.CUSTOM, name);
+         }
       }
+      throw new AssertionError();
    }
 
    public String toString() {

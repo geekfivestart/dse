@@ -101,28 +101,21 @@ public class TokenMetadata {
    }
 
    public int pendingRangeChanges(InetAddress source) {
-      int n = 0;
+      int n;
+      n = 0;
       Collection<Range<Token>> sourceRanges = this.getPrimaryRangesFor(this.getTokens(source));
       this.lock.readLock().lock();
-
       try {
-         Iterator var4 = this.bootstrapTokens.keySet().iterator();
-
-         while(var4.hasNext()) {
-            Token token = (Token)var4.next();
-            Iterator var6 = sourceRanges.iterator();
-
-            while(var6.hasNext()) {
-               Range<Token> range = (Range)var6.next();
-               if(range.contains((RingPosition)token)) {
-                  ++n;
-               }
+         for (Token token : this.bootstrapTokens.keySet()) {
+            for (Range<Token> range : sourceRanges) {
+               if (!range.contains(token)) continue;
+               ++n;
             }
          }
-      } finally {
+      }
+      finally {
          this.lock.readLock().unlock();
       }
-
       return n;
    }
 
@@ -243,17 +236,15 @@ public class TokenMetadata {
 
    public Map<InetAddress, UUID> getEndpointToHostIdMapForReading() {
       this.lock.readLock().lock();
-
-      HashMap var2;
       try {
-         Map<InetAddress, UUID> readMap = new HashMap();
-         readMap.putAll(this.endpointToHostIdMap);
-         var2 = readMap;
-      } finally {
+         HashMap<InetAddress, UUID> readMap = new HashMap<InetAddress, UUID>();
+         readMap.putAll((Map<InetAddress, UUID>)this.endpointToHostIdMap);
+         HashMap<InetAddress, UUID> hashMap = readMap;
+         return hashMap;
+      }
+      finally {
          this.lock.readLock().unlock();
       }
-
-      return var2;
    }
 
    /** @deprecated */
@@ -1072,37 +1063,31 @@ public class TokenMetadata {
 
    public Multimap<InetAddress, Token> getEndpointToTokenMapForReading() {
       this.lock.readLock().lock();
-
       try {
-         Multimap<InetAddress, Token> cloned = HashMultimap.create();
-         Iterator var2 = this.tokenToEndpointMap.entrySet().iterator();
-
-         while(var2.hasNext()) {
-            Entry<Token, InetAddress> entry = (Entry)var2.next();
-            cloned.put(entry.getValue(), entry.getKey());
+         HashMultimap cloned = HashMultimap.create();
+         for (Map.Entry<Token, InetAddress> entry : this.tokenToEndpointMap.entrySet()) {
+            cloned.put((Object)entry.getValue(), (Object)entry.getKey());
          }
-
-         HashMultimap var7 = cloned;
-         return var7;
-      } finally {
+         HashMultimap hashMultimap = cloned;
+         return hashMultimap;
+      }
+      finally {
          this.lock.readLock().unlock();
       }
    }
 
    public Map<Token, InetAddress> getNormalAndBootstrappingTokenToEndpointMap() {
       this.lock.readLock().lock();
-
-      HashMap var2;
       try {
-         Map<Token, InetAddress> map = new HashMap(this.tokenToEndpointMap.size() + this.bootstrapTokens.size());
+         HashMap<Token, InetAddress> map = new HashMap<Token, InetAddress>(this.tokenToEndpointMap.size() + this.bootstrapTokens.size());
          map.putAll(this.tokenToEndpointMap);
          map.putAll(this.bootstrapTokens);
-         var2 = map;
-      } finally {
+         HashMap<Token, InetAddress> hashMap = map;
+         return hashMap;
+      }
+      finally {
          this.lock.readLock().unlock();
       }
-
-      return var2;
    }
 
    public TokenMetadata.Topology getTopology() {
@@ -1117,7 +1102,7 @@ public class TokenMetadata {
 
    public void invalidateCachedRings() {
       ++this.ringVersion;
-      this.cachedTokenMap.set((Object)null);
+      this.cachedTokenMap.set(null);
    }
 
    public DecoratedKey decorateKey(ByteBuffer key) {

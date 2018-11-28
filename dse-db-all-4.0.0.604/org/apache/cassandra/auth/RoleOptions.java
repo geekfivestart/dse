@@ -48,34 +48,28 @@ public class RoleOptions {
       return Optional.fromNullable((Map)this.options.get(IRoleManager.Option.OPTIONS));
    }
 
-   public void validate() {
-      Iterator var1 = this.options.entrySet().iterator();
 
-      while(var1.hasNext()) {
-         Entry<IRoleManager.Option, Object> option = (Entry)var1.next();
-         if(!DatabaseDescriptor.getRoleManager().supportedOptions().contains(option.getKey())) {
+   public void validate() {
+      for (Map.Entry<IRoleManager.Option, Object> option : this.options.entrySet()) {
+         if (!DatabaseDescriptor.getRoleManager().supportedOptions().contains((Object)option.getKey())) {
             throw new InvalidRequestException(String.format("%s doesn't support %s", new Object[]{DatabaseDescriptor.getRoleManager().implementation().getClass().getName(), option.getKey()}));
          }
-
-         switch(null.$SwitchMap$org$apache$cassandra$auth$IRoleManager$Option[((IRoleManager.Option)option.getKey()).ordinal()]) {
-         case 1:
-         case 2:
-            if(!(option.getValue() instanceof Boolean)) {
+         switch (option.getKey()) {
+            case LOGIN:
+            case SUPERUSER: {
+               if (option.getValue() instanceof Boolean) break;
                throw new InvalidRequestException(String.format("Invalid value for property '%s'. It must be a boolean", new Object[]{option.getKey()}));
             }
-            break;
-         case 3:
-            if(!(option.getValue() instanceof String)) {
+            case PASSWORD: {
+               if (option.getValue() instanceof String) break;
                throw new InvalidRequestException(String.format("Invalid value for property '%s'. It must be a string", new Object[]{option.getKey()}));
             }
-            break;
-         case 4:
-            if(!(option.getValue() instanceof Map)) {
+            case OPTIONS: {
+               if (option.getValue() instanceof Map) break;
                throw new InvalidRequestException(String.format("Invalid value for property '%s'. It must be a map", new Object[]{option.getKey()}));
             }
          }
       }
-
    }
 
    public String toString() {

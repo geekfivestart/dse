@@ -1,5 +1,56 @@
 Manifest-Version: 1.0
-Implementation-Title: dse-core
-Implementation-Version: 6.0.4
-Implementation-Vendor: DataStax
+Class-Path: stress.jar ant-1.7.1.jar asm-5.0.4.jar ecj-4.4.2.jar guice
+ -4.0.jar jna-4.2.2.jar ST4-4.0.8.jar guava-18.0.jar hppc-0.7.2.jar ja
+ mm-0.3.0.jar jansi-1.11.jar jline-2.12.jar kryo-3.0.3.jar airline-0.7
+ .jar antlr-3.5.2.jar jffi-1.2.16.jar jflex-1.6.0.jar kmip-1.7.1e.jar 
+ sigar-1.6.4.jar durian-3.4.0.jar janino-2.7.8.jar jbcrypt-0.4d.jar js
+ r305-3.0.0.jar minlog-1.3.0.jar mxdump-0.5.1.jar rxjava-1.3.6.jar rxj
+ ava-2.1.3.jar stream-2.5.2.jar agrona-0.9.12.jar airline-2.2.0.jar jn
+ r-ffi-2.1.7.jar json-20090211.jar objenesis-2.1.jar psjava-0.1.19.jar
+  sjk-cli-0.5.1.jar asm-tree-5.0.3.jar asm-util-5.0.3.jar caffeine-2.6
+ .2.jar commons-io-2.5.jar dse-core-6.0.4.jar fastutil-6.5.7.jar httpc
+ ore-4.4.6.jar javax.inject-1.jar lz4-java-1.4.0.jar ohc-core-0.4.4.ja
+ r sjk-core-0.5.1.jar snakeyaml-1.12.jar alfredo-0.1.7.3.jar aopallian
+ ce-1.0.jar dse-graph-6.0.4.jar dse-spark-6.0.4.jar jcommander-1.30.ja
+ r joda-time-1.6.2.jar journalio-1.4.2.jar json-simple-1.1.jar airline
+ -io-2.2.0.jar commons-lang-2.6.jar commons-pool-1.6.jar dse-advrep-6.
+ 0.4.jar dse-search-6.0.4.jar httpclient-4.5.3.jar jnr-posix-3.0.44.ja
+ r jnr-x86asm-1.0.2.jar mina-core-2.0.17.jar scopt_2.11-3.7.0.jar slf4
+ j-api-1.7.25.jar asm-commons-5.0.3.jar commons-cli-1.3.1.jar commons-
+ codec-1.9.jar commons-lang3-3.5.jar commons-math3-3.2.jar metrics-jvm
+ -3.1.2.jar ohc-core-j8-0.4.4.jar reflectasm-1.10.1.jar asm-analysis-5
+ .0.3.jar commons-codec-1.10.jar compress-lzf-0.8.4.jar HdrHistogram-2
+ .1.9.jar jackson-core-2.9.5.jar jctools-core-2.1.1.jar jffi-1.2.16-na
+ tive.jar jvm-attach-api-1.2.jar logback-core-1.2.3.jar metrics-core-2
+ .2.0.jar metrics-core-3.1.2.jar reflections-0.9.10.jar antlr-runtime-
+ 3.5.2.jar javassist-3.20.0-GA.jar jnr-constants-0.9.9.jar rxjava-stri
+ ng-1.1.1.jar rxscala_2.11-0.26.5.jar snappy-java-1.1.2.6.jar api-i18n
+ -1.0.0.2.dse.jar api-util-1.0.0.2.dse.jar commons-digester-1.8.jar ds
+ e-db-all-4.0.0.604.jar dse-dsefs-util-6.0.4.jar RoaringBitmap-0.6.18.
+ jar scala-library-2.11.8.jar scala-reflect-2.11.8.jar sjk-stacktrace-
+ 0.5.1.jar dse-dsefs-shell-6.0.4.jar hadoop-common-2.7.1.3.jar jcl-ove
+ r-slf4j-1.7.25.jar logback-classic-1.2.3.jar spray-json_2.11-1.3.2.ja
+ r commons-compiler-2.7.8.jar concurrent-trees-2.4.0.jar dse-dsefs-cli
+ ent-6.0.4.jar dse-dsefs-common-6.0.4.jar dse-dsefs-hadoop-6.0.4.jar d
+ se-dsefs-plugin-6.0.4.jar dse-dsefs-server-6.0.4.jar jackson-core-asl
+ -1.9.6.jar jackson-databind-2.9.5.jar reactive-streams-1.0.1.jar repo
+ rter-config3-3.0.3.jar scala-async_2.11-0.9.6.jar commons-beanutils-1
+ .9.3.jar esri-geometry-api-1.2.1.jar guice-multibindings-4.0.jar jack
+ son-core-asl-1.9.12.jar javax.servlet-api-3.1.0.jar javax.websocket-a
+ pi-1.0.jar log4j-over-slf4j-1.7.25.jar netty-all-4.1.13.11.dse.jar ap
+ i-asn1-api-1.0.0.2.dse.jar api-asn1-ber-1.0.0.2.dse.jar commons-colle
+ ctions4-4.1.jar dse-analytics-core-6.0.4.jar jackson-mapper-asl-1.9.2
+ .jar metrics-scala_2.11-3.5.6.jar scala-logging_2.11-3.5.0.jar common
+ s-collections-3.2.2.jar commons-configuration-1.6.jar jackson-annotat
+ ions-2.9.0.jar java-uuid-generator-3.1.3.jar api-ldap-model-1.0.0.2.d
+ se.jar dse-java-driver-core-1.6.9.jar jetty-all-9.2.13.v20150730.jar 
+ metrics-healthchecks-3.1.2.jar reporter-config-base-3.0.3.jar validat
+ ion-api-1.1.0.Final.jar dse-dsefs-scala-driver-6.0.4.jar snowball-ste
+ mmer-1.3.0.581.1.jar api-ldap-net-mina-1.0.0.2.dse.jar api-ldap-clien
+ t-api-1.0.0.2.dse.jar api-ldap-codec-core-1.0.0.2.dse.jar api-ldap-ex
+ tras-aci-1.0.0.2.dse.jar elephant-bird-hadoop-compat-4.3.jar api-ldap
+ -extras-codec-1.0.0.2.dse.jar scala-parser-combinators_2.11-1.0.6.jar
+  api-ldap-codec-standalone-1.0.0.2.dse.jar api-ldap-extras-codec-api-
+ 1.0.0.2.dse.jar org.apache.servicemix.bundles.antlr-2.7.7_5.jar
+Main-Class: 
 

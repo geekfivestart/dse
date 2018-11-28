@@ -48,9 +48,9 @@ public class ClientServerConnection implements Comparable<ClientServerConnection
    public void configure(MessageCodec codec) {
       this.maybeWaitForSslHandshake();
       ChannelPipeline pipeline = this.channel.pipeline();
-      pipeline.addLast(new ChannelHandler[]{new ClientServerConnection.ChannelStateHandler(null)});
+      pipeline.addLast(new ChannelHandler[]{new ClientServerConnection.ChannelStateHandler()});
       pipeline.addLast(codec.newPipeline());
-      pipeline.addLast(new ChannelHandler[]{new ClientServerConnection.MessageResponseHandler(null)});
+      pipeline.addLast(new ChannelHandler[]{new ClientServerConnection.MessageResponseHandler()});
       if(!(this.channel instanceof LocalChannel)) {
          this.doVersionHandshake(codec.getCurrentVersion());
       } else {
@@ -174,11 +174,11 @@ public class ClientServerConnection implements Comparable<ClientServerConnection
          Exchanger<Handshake> exchange = new Exchanger();
          ClientServerConnection.HandshakeContext context = new ClientServerConnection.HandshakeContext(Thread.currentThread(), exchange, timeout);
          Message message = new Message(context.id, SystemMessageTypes.HANDSHAKE, new Handshake(currentVersion));
-         message.trySetVersion(-1);
+         message.trySetVersion((byte)-1);
          this.send(context, message);
 
          try {
-            handshake = (Handshake)exchange.exchange((Object)null, timeout, TimeUnit.MILLISECONDS);
+            handshake = (Handshake)exchange.exchange(null, timeout, TimeUnit.MILLISECONDS);
          } catch (InterruptedException var12) {
             if(context.hasError) {
                if(context.error != null) {
@@ -302,7 +302,7 @@ public class ClientServerConnection implements Comparable<ClientServerConnection
       public volatile Throwable error;
       public volatile boolean hasError;
 
-      public HandshakeContext(Thread var1, Exchanger<Handshake> handshaker, long exchanger) {
+      public HandshakeContext(Thread handshaker, Exchanger<Handshake> exchanger, long timeout) {
          this.handshaker = handshaker;
          this.exchanger = exchanger;
          this.timeout = timeout;

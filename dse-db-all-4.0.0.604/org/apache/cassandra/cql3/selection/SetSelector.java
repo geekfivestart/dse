@@ -33,7 +33,7 @@ final class SetSelector extends Selector {
             elements.add(serializer.deserialize(in, metadata));
          }
 
-         return new SetSelector(type, elements, null);
+         return new SetSelector(type, elements);
       }
    };
    private final SetType<?> type;
@@ -46,7 +46,7 @@ final class SetSelector extends Selector {
          }
 
          public Selector newInstance(QueryOptions options) {
-            return new SetSelector(type, factories.newInstances(options), null);
+            return new SetSelector(type, factories.newInstances(options));
          }
       };
    }

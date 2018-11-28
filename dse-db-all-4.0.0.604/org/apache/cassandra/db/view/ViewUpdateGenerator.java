@@ -49,27 +49,32 @@ public class ViewUpdateGenerator {
    }
 
    protected Flow<PartitionUpdate> createViewUpdates(Row existingBaseRow, Row mergedBaseRow) {
-      Flow flowableViewUpdates;
-      switch(null.$SwitchMap$org$apache$cassandra$db$view$ViewUpdateGenerator$UpdateAction[this.updateAction(existingBaseRow, mergedBaseRow).ordinal()]) {
-      case 1:
-         flowableViewUpdates = Flow.empty();
-         break;
-      case 2:
-         flowableViewUpdates = this.createEntry(mergedBaseRow);
-         break;
-      case 3:
-         flowableViewUpdates = this.deleteOldEntry(existingBaseRow, mergedBaseRow);
-         break;
-      case 4:
-         flowableViewUpdates = this.updateEntry(existingBaseRow, mergedBaseRow);
-         break;
-      case 5:
-         flowableViewUpdates = Flow.concat(new Flow[]{this.createEntry(mergedBaseRow), this.deleteOldEntry(existingBaseRow, mergedBaseRow)});
-         break;
-      default:
-         throw new AssertionError();
+      Flow<PartitionUpdate> flowableViewUpdates;
+      switch (this.updateAction(existingBaseRow, mergedBaseRow)) {
+         case NONE: {
+            flowableViewUpdates = Flow.empty();
+            break;
+         }
+         case NEW_ENTRY: {
+            flowableViewUpdates = this.createEntry(mergedBaseRow);
+            break;
+         }
+         case DELETE_OLD: {
+            flowableViewUpdates = this.deleteOldEntry(existingBaseRow, mergedBaseRow);
+            break;
+         }
+         case UPDATE_EXISTING: {
+            flowableViewUpdates = this.updateEntry(existingBaseRow, mergedBaseRow);
+            break;
+         }
+         case SWITCH_ENTRY: {
+            flowableViewUpdates = Flow.concat(this.createEntry(mergedBaseRow), this.deleteOldEntry(existingBaseRow, mergedBaseRow));
+            break;
+         }
+         default: {
+            throw new AssertionError();
+         }
       }
-
       return flowableViewUpdates;
    }
 
@@ -386,14 +391,15 @@ public class ViewUpdateGenerator {
    }
 
    private ByteBuffer getValueForPK(ColumnMetadata column, Row row) {
-      switch(null.$SwitchMap$org$apache$cassandra$schema$ColumnMetadata$Kind[column.kind.ordinal()]) {
-      case 1:
-         return this.basePartitionKey[column.position()];
-      case 2:
-         return row.clustering().get(column.position());
-      default:
-         return row.getCell(column).value();
+      switch (column.kind) {
+         case PARTITION_KEY: {
+            return this.basePartitionKey[column.position()];
+         }
+         case CLUSTERING: {
+            return row.clustering().get(column.position());
+         }
       }
+      return row.getCell(column).value();
    }
 
    private static enum UpdateAction {

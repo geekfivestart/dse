@@ -299,7 +299,7 @@ public class EstimatedHistogram {
          int size = 0;
          long[] offsets = eh.getBucketOffsets();
          long[] buckets = eh.getBuckets(false);
-         int size = size + TypeSizes.sizeof(buckets.length);
+         size = size + TypeSizes.sizeof(buckets.length);
 
          for(int i = 0; i < buckets.length; ++i) {
             size += TypeSizes.sizeof(offsets[i == 0?0:i - 1]);

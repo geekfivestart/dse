@@ -407,17 +407,19 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean {
          this.latencyCalculator = ScheduledExecutors.optionalTasks.scheduleWithFixedDelay(new Runnable() {
             public void run() {
                SpeculativeRetryParam retryPolicy = ColumnFamilyStore.this.metadata.get().params.speculativeRetry;
-               switch(null.$SwitchMap$org$apache$cassandra$schema$SpeculativeRetryParam$Kind[retryPolicy.kind().ordinal()]) {
-               case 1:
-                  ColumnFamilyStore.this.sampleLatencyNanos = (long)ColumnFamilyStore.this.metric.coordinatorReadLatency.getSnapshot().getValue(retryPolicy.threshold());
-                  break;
-               case 2:
-                  ColumnFamilyStore.this.sampleLatencyNanos = (long)retryPolicy.threshold();
-                  break;
-               default:
-                  ColumnFamilyStore.this.sampleLatencyNanos = 9223372036854775807L;
+               switch (retryPolicy.kind()) {
+                  case PERCENTILE: {
+                     ColumnFamilyStore.this.sampleLatencyNanos = (long)ColumnFamilyStore.this.metric.coordinatorReadLatency.getSnapshot().getValue(retryPolicy.threshold());
+                     break;
+                  }
+                  case CUSTOM: {
+                     ColumnFamilyStore.this.sampleLatencyNanos = (long)retryPolicy.threshold();
+                     break;
+                  }
+                  default: {
+                     ColumnFamilyStore.this.sampleLatencyNanos = Long.MAX_VALUE;
+                  }
                }
-
             }
          }, DatabaseDescriptor.getReadRpcTimeout(), DatabaseDescriptor.getReadRpcTimeout(), TimeUnit.MILLISECONDS);
       } else {
@@ -526,81 +528,49 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean {
       throw new RuntimeException(String.format("Incompatible SSTable found. Current version %s is unable to read file: %s. Please run upgradesstables.", new Object[]{desc.getFormat().getLatestVersion(), desc}));
    }
 
+
    public static void scrubDataDirectories(TableMetadata metadata) throws StartupException {
       Directories directories = new Directories(metadata, initialDirectories);
-      Set<File> cleanedDirectories = new HashSet();
-      clearEphemeralSnapshots(directories);
+      HashSet<File> cleanedDirectories = new HashSet<File>();
+      ColumnFamilyStore.clearEphemeralSnapshots(directories);
       directories.removeTemporaryDirectories();
-      logger.trace("Removing temporary or obsoleted files from unfinished operations for table {}", metadata.name);
-      if(!LifecycleTransaction.removeUnfinishedLeftovers(metadata)) {
-         throw new StartupException(3, String.format("Cannot remove temporary or obsoleted files for %s due to a problem with transaction log files. Please check records with problems in the log messages above and fix them. Refer to the 3.0 upgrading instructions in NEWS.txt for a description of transaction log files.", new Object[]{metadata.toString()}));
-      } else {
-         logger.trace("Further extra check for orphan sstable files for {}", metadata.name);
-         Iterator var3 = directories.sstableLister(Directories.OnTxnErr.IGNORE).list().entrySet().iterator();
-
-         while(true) {
-            Descriptor desc;
-            Set components;
-            File file;
-            do {
-               if(!var3.hasNext()) {
-                  Pattern tmpCacheFilePattern = Pattern.compile(metadata.keyspace + "-" + metadata.name + "-(Key|Row)Cache.*\\.tmp$");
-                  File dir = new File(DatabaseDescriptor.getSavedCachesLocation());
-                  if(dir.exists()) {
-                     assert dir.isDirectory();
-
-                     File[] var14 = dir.listFiles();
-                     int var16 = var14.length;
-
-                     for(int var18 = 0; var18 < var16; ++var18) {
-                        file = var14[var18];
-                        if(tmpCacheFilePattern.matcher(file.getName()).matches() && !file.delete()) {
-                           logger.warn("could not delete {}", file.getAbsolutePath());
-                        }
-                     }
-                  }
-
-                  Iterator var15 = metadata.indexes.iterator();
-
-                  while(var15.hasNext()) {
-                     IndexMetadata index = (IndexMetadata)var15.next();
-                     if(!index.isCustom()) {
-                        TableMetadata indexMetadata = CassandraIndex.indexCfsMetadata(metadata, index);
-                        scrubDataDirectories(indexMetadata);
-                     }
-                  }
-
-                  return;
-               }
-
-               Entry<Descriptor, Set<Component>> sstableFiles = (Entry)var3.next();
-               desc = (Descriptor)sstableFiles.getKey();
-               File directory = desc.directory;
-               components = (Set)sstableFiles.getValue();
-               if(!cleanedDirectories.contains(directory)) {
-                  cleanedDirectories.add(directory);
-                  Iterator var8 = desc.getTemporaryFiles().iterator();
-
-                  while(var8.hasNext()) {
-                     File tmpFile = (File)var8.next();
-                     tmpFile.delete();
-                  }
-               }
-
-               file = new File(desc.filenameFor(Component.DATA));
-            } while(components.contains(Component.DATA) && file.length() > 0L);
-
-            logger.warn("Removing orphans for {}: {}", desc, components);
-            Iterator var21 = components.iterator();
-
-            while(var21.hasNext()) {
-               Component component = (Component)var21.next();
-               File file = new File(desc.filenameFor(component));
-               if(file.exists()) {
-                  FileUtils.deleteWithConfirm(desc.filenameFor(component));
-               }
+      logger.trace("Removing temporary or obsoleted files from unfinished operations for table {}", (Object)metadata.name);
+      if (!LifecycleTransaction.removeUnfinishedLeftovers(metadata)) {
+         throw new StartupException(3, String.format("Cannot remove temporary or obsoleted files for %s due to a problem with transaction log files. Please check records with problems in the log messages above and fix them. Refer to the 3.0 upgrading instructions in NEWS.txt for a description of transaction log files.", metadata.toString()));
+      }
+      logger.trace("Further extra check for orphan sstable files for {}", (Object)metadata.name);
+      for (Map.Entry<Descriptor, Set<Component>> sstableFiles : directories.sstableLister(Directories.OnTxnErr.IGNORE).list().entrySet()) {
+         Descriptor desc = sstableFiles.getKey();
+         File directory = desc.directory;
+         Set<Component> components = sstableFiles.getValue();
+         if (!cleanedDirectories.contains(directory)) {
+            cleanedDirectories.add(directory);
+            for (File tmpFile2 : desc.getTemporaryFiles()) {
+               tmpFile2.delete();
             }
          }
+         File dataFile = new File(desc.filenameFor(Component.DATA));
+         if (components.contains(Component.DATA) && dataFile.length() > 0L) continue;
+         logger.warn("Removing orphans for {}: {}", (Object)desc, components);
+         for (Component component : components) {
+            File file = new File(desc.filenameFor(component));
+            if (!file.exists()) continue;
+            FileUtils.deleteWithConfirm(desc.filenameFor(component));
+         }
+      }
+      Pattern tmpCacheFilePattern = Pattern.compile(metadata.keyspace + "-" + metadata.name + "-(Key|Row)Cache.*\\.tmp$");
+      File dir = new File(DatabaseDescriptor.getSavedCachesLocation());
+      if (dir.exists()) {
+         assert (dir.isDirectory());
+         for (File file : dir.listFiles()) {
+            if (!tmpCacheFilePattern.matcher(file.getName()).matches() || file.delete()) continue;
+            logger.warn("could not delete {}", (Object)file.getAbsolutePath());
+         }
+      }
+      for (IndexMetadata index : metadata.indexes) {
+         if (index.isCustom()) continue;
+         TableMetadata indexMetadata = CassandraIndex.indexCfsMetadata(metadata, index);
+         ColumnFamilyStore.scrubDataDirectories(indexMetadata);
       }
    }
 
@@ -784,7 +754,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean {
       Tracker var1 = this.data;
       synchronized(this.data) {
          this.logFlush();
-         ColumnFamilyStore.Flush flush = new ColumnFamilyStore.Flush(false, null);
+         ColumnFamilyStore.Flush flush = new ColumnFamilyStore.Flush(false);
          flushExecutor.execute(flush);
          CompletableFuture<CommitLogPosition> future = new CompletableFuture();
          postFlushExecutor.execute(() -> {
@@ -1135,40 +1105,16 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean {
    }
 
    public List<String> getSSTablesForKey(String key, boolean hexFormat) {
-      ByteBuffer keyBuffer = hexFormat?ByteBufferUtil.hexToBytes(key):this.metadata().partitionKeyType.fromString(key);
+      ByteBuffer keyBuffer = hexFormat ? ByteBufferUtil.hexToBytes(key) : this.metadata().partitionKeyType.fromString(key);
       DecoratedKey dk = this.decorateKey(keyBuffer);
-      OpOrder.Group op = this.readOrdering.start();
-      Throwable var6 = null;
-
-      try {
-         List<String> files = new ArrayList();
-         Iterator var8 = this.select(View.select(SSTableSet.LIVE, dk)).sstables.iterator();
-
-         while(var8.hasNext()) {
-            SSTableReader sstr = (SSTableReader)var8.next();
-            if(sstr.contains(dk, Rebufferer.ReaderConstraint.NONE)) {
-               files.add(sstr.getFilename());
-            }
+      try (OpOrder.Group op = this.readOrdering.start();){
+         ArrayList<String> files = new ArrayList<String>();
+         for (SSTableReader sstr : this.select(View.select((SSTableSet)SSTableSet.LIVE, (DecoratedKey)dk)).sstables) {
+            if (!sstr.contains(dk, Rebufferer.ReaderConstraint.NONE)) continue;
+            files.add(sstr.getFilename());
          }
-
-         ArrayList var19 = files;
-         return var19;
-      } catch (Throwable var17) {
-         var6 = var17;
-         throw var17;
-      } finally {
-         if(op != null) {
-            if(var6 != null) {
-               try {
-                  op.close();
-               } catch (Throwable var16) {
-                  var6.addSuppressed(var16);
-               }
-            } else {
-               op.close();
-            }
-         }
-
+         ArrayList<String> arrayList = files;
+         return arrayList;
       }
    }
 
@@ -1235,62 +1181,31 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean {
 
    public Set<SSTableReader> snapshotWithoutFlush(String snapshotName, Predicate<SSTableReader> predicate, boolean ephemeral, Set<SSTableReader> alreadySnapshotted) {
       assert alreadySnapshotted != null;
-
-      Set<SSTableReader> snapshottedSSTables = new HashSet();
-      Iterator var6 = this.concatWithIndexes().iterator();
-
-      while(var6.hasNext()) {
-         ColumnFamilyStore cfs = (ColumnFamilyStore)var6.next();
-         JSONArray filesJSONArr = new JSONArray();
-         ColumnFamilyStore.RefViewFragment currentView = cfs.selectAndReference(View.select(SSTableSet.CANONICAL, (x) -> {
-            return predicate == null || predicate.apply(x);
-         }));
-         Throwable var10 = null;
-
-         try {
-            Iterator var11 = currentView.sstables.iterator();
-
-            while(var11.hasNext()) {
-               SSTableReader ssTable = (SSTableReader)var11.next();
-               if(!alreadySnapshotted.contains(ssTable)) {
-                  File snapshotDirectory = Directories.getSnapshotDirectory(ssTable.descriptor, snapshotName);
-                  ssTable.createLinks(snapshotDirectory.getPath());
-                  filesJSONArr.add(ssTable.descriptor.relativeFilenameFor(Component.DATA));
-                  if(logger.isTraceEnabled()) {
-                     logger.trace("Snapshot for {} keyspace data file {} created in {}", new Object[]{this.keyspace, ssTable.getFilename(), snapshotDirectory});
-                  }
-
-                  snapshottedSSTables.add(ssTable);
+      final Set<SSTableReader> snapshottedSSTables = new HashSet<SSTableReader>();
+      for (final ColumnFamilyStore cfs : this.concatWithIndexes()) {
+         final JSONArray filesJSONArr = new JSONArray();
+         try (final RefViewFragment currentView = cfs.selectAndReference(View.select(SSTableSet.CANONICAL, (Predicate<SSTableReader>)(x -> predicate == null || predicate.apply(x))))) {
+            for (final SSTableReader ssTable : currentView.sstables) {
+               if (alreadySnapshotted.contains(ssTable)) {
+                  continue;
                }
+               final File snapshotDirectory = Directories.getSnapshotDirectory(ssTable.descriptor, snapshotName);
+               ssTable.createLinks(snapshotDirectory.getPath());
+               filesJSONArr.add((Object)ssTable.descriptor.relativeFilenameFor(Component.DATA));
+               if (ColumnFamilyStore.logger.isTraceEnabled()) {
+                  ColumnFamilyStore.logger.trace("Snapshot for {} keyspace data file {} created in {}", new Object[] { this.keyspace, ssTable.getFilename(), snapshotDirectory });
+               }
+               snapshottedSSTables.add(ssTable);
             }
-
             this.writeSnapshotManifest(filesJSONArr, snapshotName);
-            if(!SchemaConstants.isLocalSystemKeyspace(this.metadata.keyspace) && !SchemaConstants.isReplicatedSystemKeyspace(this.metadata.keyspace)) {
+            if (!SchemaConstants.isLocalSystemKeyspace(this.metadata.keyspace) && !SchemaConstants.isReplicatedSystemKeyspace(this.metadata.keyspace)) {
                this.writeSnapshotSchema(snapshotName);
             }
-         } catch (Throwable var21) {
-            var10 = var21;
-            throw var21;
-         } finally {
-            if(currentView != null) {
-               if(var10 != null) {
-                  try {
-                     currentView.close();
-                  } catch (Throwable var20) {
-                     var10.addSuppressed(var20);
-                  }
-               } else {
-                  currentView.close();
-               }
-            }
-
          }
       }
-
-      if(ephemeral) {
+      if (ephemeral) {
          this.createEphemeralSnapshotMarkerFile(snapshotName);
       }
-
       return snapshottedSSTables;
    }
 
@@ -1333,43 +1248,19 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean {
    }
 
    private void writeSnapshotSchema(String snapshotName) {
-      File schemaFile = this.getDirectories().getSnapshotSchemaFile(snapshotName);
-
+      final File schemaFile = this.getDirectories().getSnapshotSchemaFile(snapshotName);
       try {
-         if(!schemaFile.getParentFile().exists()) {
+         if (!schemaFile.getParentFile().exists()) {
             schemaFile.getParentFile().mkdirs();
          }
-
-         PrintStream out = new PrintStream(schemaFile);
-         Throwable var4 = null;
-
-         try {
-            Iterator var5 = ColumnFamilyStoreCQLHelper.dumpReCreateStatements(this.metadata()).iterator();
-
-            while(var5.hasNext()) {
-               String s = (String)var5.next();
+         try (final PrintStream out = new PrintStream(schemaFile)) {
+            for (final String s : ColumnFamilyStoreCQLHelper.dumpReCreateStatements(this.metadata())) {
                out.println(s);
             }
-         } catch (Throwable var15) {
-            var4 = var15;
-            throw var15;
-         } finally {
-            if(out != null) {
-               if(var4 != null) {
-                  try {
-                     out.close();
-                  } catch (Throwable var14) {
-                     var4.addSuppressed(var14);
-                  }
-               } else {
-                  out.close();
-               }
-            }
-
          }
-
-      } catch (IOException var17) {
-         throw new FSWriteError(var17, schemaFile);
+      }
+      catch (IOException e) {
+         throw new FSWriteError(e, schemaFile);
       }
    }
 
@@ -1657,57 +1548,52 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean {
    }
 
    public void truncateBlocking(final boolean snapshot) {
-      logger.info("Truncating {}.{}", this.keyspace.getName(), this.name);
-      final CommitLogPosition replayAfter;
-      if(!this.keyspace.getMetadata().params.durableWrites && !snapshot) {
-         this.viewManager.dumpMemtables();
-
-         try {
-            replayAfter = (CommitLogPosition)this.dumpMemtable().get();
-         } catch (Exception var11) {
-            throw new RuntimeException(var11);
-         }
-      } else {
+      ColumnFamilyStore.logger.info("Truncating {}.{}", (Object)this.keyspace.getName(), (Object)this.name);
+      CommitLogPosition replayAfter;
+      if (this.keyspace.getMetadata().params.durableWrites || snapshot) {
          replayAfter = this.forceBlockingFlush();
          this.viewManager.forceBlockingFlush();
       }
-
-      final long now = System.currentTimeMillis();
-      Iterator var7 = this.concatWithIndexes().iterator();
-
-      while(var7.hasNext()) {
-         ColumnFamilyStore cfs = (ColumnFamilyStore)var7.next();
-
-         SSTableReader sstable;
-         for(Iterator var9 = cfs.getLiveSSTables().iterator(); var9.hasNext(); now = Math.max(now, sstable.maxDataAge)) {
-            sstable = (SSTableReader)var9.next();
+      else {
+         this.viewManager.dumpMemtables();
+         try {
+            replayAfter = this.dumpMemtable().get();
+         }
+         catch (Exception e) {
+            throw new RuntimeException(e);
          }
       }
-
-      Runnable truncateRunnable = new Runnable() {
+      long now = System.currentTimeMillis();
+      for (final ColumnFamilyStore cfs : this.concatWithIndexes()) {
+         for (final SSTableReader sstable : cfs.getLiveSSTables()) {
+            now = Math.max(now, sstable.maxDataAge);
+         }
+      }
+      final long truncatedAt = now;
+      final Runnable truncateRunnable = new Runnable() {
+         @Override
          public void run() {
             ColumnFamilyStore.logger.debug("Discarding sstable data for truncated CF + indexes");
-            ColumnFamilyStore.this.data.notifyTruncated(now);
-            if(snapshot) {
+            ColumnFamilyStore.this.data.notifyTruncated(truncatedAt);
+            if (snapshot) {
                ColumnFamilyStore.this.snapshot(Keyspace.getTimestampedSnapshotNameWithPrefix(ColumnFamilyStore.this.name, "truncated"));
             }
-
-            ColumnFamilyStore.this.discardSSTables(now);
-            ColumnFamilyStore.this.indexManager.truncateAllIndexesBlocking(now);
-            ColumnFamilyStore.this.viewManager.truncateBlocking(replayAfter, now);
-            TPCUtils.blockingAwait(SystemKeyspace.saveTruncationRecord(ColumnFamilyStore.this, now, replayAfter));
+            ColumnFamilyStore.this.discardSSTables(truncatedAt);
+            ColumnFamilyStore.this.indexManager.truncateAllIndexesBlocking(truncatedAt);
+            ColumnFamilyStore.this.viewManager.truncateBlocking(replayAfter, truncatedAt);
+            TPCUtils.blockingAwait(SystemKeyspace.saveTruncationRecord(ColumnFamilyStore.this, truncatedAt, replayAfter));
             ColumnFamilyStore.logger.trace("cleaning out row cache");
             ColumnFamilyStore.this.invalidateCaches();
          }
       };
       this.runWithCompactionsDisabled(Executors.callable(truncateRunnable), true);
-      logger.info("Truncate of {}.{} is complete", this.keyspace.getName(), this.name);
+      ColumnFamilyStore.logger.info("Truncate of {}.{} is complete", (Object)this.keyspace.getName(), (Object)this.name);
    }
 
    public Future<CommitLogPosition> dumpMemtable() {
       Tracker var1 = this.data;
       synchronized(this.data) {
-         ColumnFamilyStore.Flush flush = new ColumnFamilyStore.Flush(true, null);
+         ColumnFamilyStore.Flush flush = new ColumnFamilyStore.Flush(true);
          flushExecutor.execute(flush);
          postFlushExecutor.execute(flush.postFlushTask);
          return flush.postFlushTask;
@@ -1725,76 +1611,34 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean {
    }
 
    public <V> V runWithCompactionsDisabled(Callable<V> callable, Predicate<OperationType> opPredicate, Predicate<SSTableReader> readerPredicate, boolean interruptViews) {
-      synchronized(this) {
-         logger.debug("Cancelling in-progress compactions for {}", this.metadata.name);
-         Iterable<ColumnFamilyStore> selfWithAuxiliaryCfs = interruptViews?Iterables.concat(this.concatWithIndexes(), this.viewManager.allViewsCfs()):this.concatWithIndexes();
-         Iterator var7 = selfWithAuxiliaryCfs.iterator();
-
-         ColumnFamilyStore cfs;
-         while(var7.hasNext()) {
-            cfs = (ColumnFamilyStore)var7.next();
+      synchronized (this) {
+         ColumnFamilyStore.logger.debug("Cancelling in-progress compactions for {}", (Object)this.metadata.name);
+         final Iterable<ColumnFamilyStore> selfWithAuxiliaryCfs = interruptViews ? Iterables.concat((Iterable)this.concatWithIndexes(), (Iterable)this.viewManager.allViewsCfs()) : this.concatWithIndexes();
+         for (final ColumnFamilyStore cfs : selfWithAuxiliaryCfs) {
             cfs.getCompactionStrategyManager().pause();
          }
-
-         boolean var19 = false;
-
-         ColumnFamilyStore cfs;
-         label166: {
-            Object var23;
+         try {
+            CompactionManager.instance.interruptCompactionForCFs(selfWithAuxiliaryCfs, opPredicate, readerPredicate);
+            CompactionManager.instance.waitForCessation(selfWithAuxiliaryCfs, opPredicate, readerPredicate);
+            for (final ColumnFamilyStore cfs : selfWithAuxiliaryCfs) {
+               if (CompactionManager.instance.isCompacting((Iterable<ColumnFamilyStore>)ImmutableList.of(cfs), opPredicate, readerPredicate)) {
+                  ColumnFamilyStore.logger.warn("Unable to cancel in-progress compactions for {}.  Perhaps there is an unusually large row in progress somewhere, or the system is simply overloaded.", (Object)this.metadata.name);
+                  return null;
+               }
+            }
+            ColumnFamilyStore.logger.debug("Compactions successfully cancelled");
             try {
-               var19 = true;
-               CompactionManager.instance.interruptCompactionForCFs(selfWithAuxiliaryCfs, opPredicate, readerPredicate);
-               CompactionManager.instance.waitForCessation(selfWithAuxiliaryCfs, opPredicate, readerPredicate);
-               var7 = selfWithAuxiliaryCfs.iterator();
-
-               while(var7.hasNext()) {
-                  cfs = (ColumnFamilyStore)var7.next();
-                  if(CompactionManager.instance.isCompacting(ImmutableList.of(cfs), opPredicate, readerPredicate)) {
-                     logger.warn("Unable to cancel in-progress compactions for {}.  Perhaps there is an unusually large row in progress somewhere, or the system is simply overloaded.", this.metadata.name);
-                     cfs = null;
-                     var19 = false;
-                     break label166;
-                  }
-               }
-
-               logger.debug("Compactions successfully cancelled");
-
-               try {
-                  var23 = callable.call();
-                  var19 = false;
-               } catch (Exception var20) {
-                  throw new RuntimeException(var20);
-               }
-            } finally {
-               if(var19) {
-                  Iterator var13 = selfWithAuxiliaryCfs.iterator();
-
-                  while(var13.hasNext()) {
-                     ColumnFamilyStore cfs = (ColumnFamilyStore)var13.next();
-                     cfs.getCompactionStrategyManager().resume();
-                  }
-
-               }
+               return callable.call();
             }
-
-            Iterator var24 = selfWithAuxiliaryCfs.iterator();
-
-            while(var24.hasNext()) {
-               cfs = (ColumnFamilyStore)var24.next();
-               cfs.getCompactionStrategyManager().resume();
+            catch (Exception e) {
+               throw new RuntimeException(e);
             }
-
-            return var23;
          }
-
-         Iterator var10 = selfWithAuxiliaryCfs.iterator();
-
-         while(var10.hasNext()) {
-            ColumnFamilyStore cfs = (ColumnFamilyStore)var10.next();
-            cfs.getCompactionStrategyManager().resume();
+         finally {
+            for (final ColumnFamilyStore cfs2 : selfWithAuxiliaryCfs) {
+               cfs2.getCompactionStrategyManager().resume();
+            }
          }
-
-         return cfs;
       }
    }
 
@@ -2288,7 +2132,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean {
 
          ColumnFamilyStore.setCommitLogUpperBound(commitLogUpperBound);
          this.writeBarrier.issue();
-         this.postFlush = ColumnFamilyStore.this.new PostFlush(this.memtables, null);
+         this.postFlush = ColumnFamilyStore.this.new PostFlush(this.memtables);
          this.postFlushTask = ListenableFutureTask.create(this.postFlush);
       }
 
@@ -2461,7 +2305,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean {
       final List<Memtable> memtables;
       volatile Throwable flushFailure;
 
-      private PostFlush(List<Memtable> var1) {
+      private PostFlush(List<Memtable> memtables) {
          this.latch = new CountDownLatch(1);
          this.flushFailure = null;
          this.memtables = memtables;

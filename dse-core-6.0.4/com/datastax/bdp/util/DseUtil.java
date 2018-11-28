@@ -308,7 +308,7 @@ public class DseUtil {
    }
 
    public static <V, T extends V> Optional<T> firstInstanceOf(V[] elems, Class<T> klass) {
-      return Arrays.stream(elems).filter((x) -> {
+      return (Optional<T>) Arrays.stream(elems).filter((x) -> {
          return klass.isAssignableFrom(x.getClass());
       }).map((x) -> {
          return x;

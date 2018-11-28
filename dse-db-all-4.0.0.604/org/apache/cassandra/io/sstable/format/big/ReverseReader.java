@@ -53,7 +53,7 @@ class ReverseReader extends AbstractReader {
          estimatedRowCount = 1;
       }
 
-      return new ReverseReader.ReusablePartitionData(this.metadata, estimatedRowCount, null);
+      return new ReverseReader.ReusablePartitionData(this.metadata, estimatedRowCount);
    }
 
    public boolean setForSlice(Slice slice) throws IOException {
@@ -71,7 +71,7 @@ class ReverseReader extends AbstractReader {
          }
 
          if(this.skipLastIteratedItem) {
-            this.iterator = new ReverseReader.SkipLastIterator(this.iterator, null);
+            this.iterator = new ReverseReader.SkipLastIterator(this.iterator);
          }
 
       }
@@ -94,45 +94,43 @@ class ReverseReader extends AbstractReader {
    }
 
    protected boolean prepStep(boolean hasNextBlock, boolean hasPreviousBlock) throws IOException {
-      switch(null.$SwitchMap$org$apache$cassandra$io$sstable$format$big$ReverseReader$PrepStage[this.prepStage.ordinal()]) {
-      case 1:
-         this.skipLastIteratedItem = false;
-         this.skipFirstIteratedItem = false;
-         this.buffer.reset();
-         if(this.openMarker != null) {
-            this.buffer.add(new RangeTombstoneBoundMarker(this.start, this.openMarker));
-            this.skipLastIteratedItem = hasNextBlock;
-         }
-
-         this.prepStage = ReverseReader.PrepStage.PROCESSING;
-      case 2:
-         if(this.deserializer.hasNext() && this.deserializer.compareNextTo(this.end) < 0 && !this.stopReadingDisk()) {
-            Unfiltered unfiltered = this.deserializer.readNext();
-            if(!unfiltered.isEmpty()) {
-               this.buffer.add(unfiltered);
+      switch (this.prepStage) {
+         case OPEN: {
+            this.skipLastIteratedItem = false;
+            this.skipFirstIteratedItem = false;
+            this.buffer.reset();
+            if (this.openMarker != null) {
+               this.buffer.add(new RangeTombstoneBoundMarker(this.start, this.openMarker));
+               this.skipLastIteratedItem = hasNextBlock;
             }
-
-            if(unfiltered.isRangeTombstoneMarker()) {
-               this.updateOpenMarker((RangeTombstoneMarker)unfiltered);
+            this.prepStage = PrepStage.PROCESSING;
+         }
+         case PROCESSING: {
+            if (this.deserializer.hasNext() && this.deserializer.compareNextTo(this.end) < 0 && !this.stopReadingDisk()) {
+               Unfiltered unfiltered = this.deserializer.readNext();
+               if (!unfiltered.isEmpty()) {
+                  this.buffer.add(unfiltered);
+               }
+               if (unfiltered.isRangeTombstoneMarker()) {
+                  this.updateOpenMarker((RangeTombstoneMarker)unfiltered);
+               }
+               return false;
             }
-
-            return false;
-         } else {
-            this.prepStage = ReverseReader.PrepStage.CLOSE;
+            this.prepStage = PrepStage.CLOSE;
          }
-      case 3:
-         if(this.openMarker != null) {
-            this.buffer.add(new RangeTombstoneBoundMarker(this.end, this.openMarker));
-            this.skipFirstIteratedItem = hasPreviousBlock;
+         case CLOSE: {
+            if (this.openMarker != null) {
+               this.buffer.add(new RangeTombstoneBoundMarker(this.end, this.openMarker));
+               this.skipFirstIteratedItem = hasPreviousBlock;
+            }
+            this.buffer.build();
+            this.prepStage = PrepStage.DONE;
          }
-
-         this.buffer.build();
-         this.prepStage = ReverseReader.PrepStage.DONE;
-      case 4:
-         this.setIterator(this.slice);
-      default:
-         return true;
+         case DONE: {
+            this.setIterator(this.slice);
+         }
       }
+      return true;
    }
 
    protected RangeTombstoneMarker sliceStartMarker() {

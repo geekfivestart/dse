@@ -366,31 +366,20 @@ public abstract class CommitLogSegment {
    }
 
    public synchronized Collection<TableId> getDirtyTableIds() {
-      if(!this.tableClean.isEmpty() && !this.tableDirty.isEmpty()) {
-         List<TableId> r = new ArrayList(this.tableDirty.size());
-         Iterator var2 = this.tableDirty.entrySet().iterator();
-
-         while(true) {
-            Entry dirty;
-            IntegerInterval dirtyInterval;
-            IntegerInterval.Set cleanSet;
-            do {
-               if(!var2.hasNext()) {
-                  return r;
-               }
-
-               dirty = (Entry)var2.next();
-               TableId tableId = (TableId)dirty.getKey();
-               dirtyInterval = (IntegerInterval)dirty.getValue();
-               cleanSet = (IntegerInterval.Set)this.tableClean.get(tableId);
-            } while(cleanSet != null && cleanSet.covers(dirtyInterval));
-
-            r.add(dirty.getKey());
-         }
-      } else {
+      if (this.tableClean.isEmpty() || this.tableDirty.isEmpty()) {
          return this.tableDirty.keySet();
       }
+      ArrayList<TableId> r = new ArrayList<TableId>(this.tableDirty.size());
+      for (Map.Entry dirty : this.tableDirty.entrySet()) {
+         TableId tableId = (TableId)dirty.getKey();
+         IntegerInterval dirtyInterval = (IntegerInterval)dirty.getValue();
+         IntegerInterval.Set cleanSet = this.tableClean.get(tableId);
+         if (cleanSet != null && cleanSet.covers(dirtyInterval)) continue;
+         r.add((TableId)dirty.getKey());
+      }
+      return r;
    }
+
 
    public synchronized boolean isUnused() {
       if(this.isStillAllocating()) {

@@ -16,7 +16,7 @@ public class SimpleCondition implements Condition {
    public void await() throws InterruptedException {
       if(!this.isSignaled()) {
          if(this.waiting == null) {
-            waitingUpdater.compareAndSet(this, (Object)null, new WaitQueue());
+            waitingUpdater.compareAndSet(this, null, new WaitQueue());
          }
 
          WaitQueue.Signal s = this.waiting.register(Thread.currentThread());
@@ -38,7 +38,7 @@ public class SimpleCondition implements Condition {
          long start = System.nanoTime();
          long until = start + unit.toNanos(time);
          if(this.waiting == null) {
-            waitingUpdater.compareAndSet(this, (Object)null, new WaitQueue());
+            waitingUpdater.compareAndSet(this, null, new WaitQueue());
          }
 
          WaitQueue.Signal s = this.waiting.register(Thread.currentThread());

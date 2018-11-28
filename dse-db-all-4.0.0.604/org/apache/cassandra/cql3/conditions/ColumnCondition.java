@@ -122,20 +122,25 @@ public abstract class ColumnCondition {
       }
    }
 
-   protected static final boolean evaluateComparisonWithOperator(int comparison, Operator operator) {
-      switch(null.$SwitchMap$org$apache$cassandra$cql3$Operator[operator.ordinal()]) {
-      case 1:
-         return false;
-      case 2:
-         return true;
-      case 3:
-      case 4:
-         return comparison < 0;
-      case 5:
-      case 6:
-         return comparison > 0;
-      default:
-         throw new AssertionError();
+   protected static final boolean evaluateComparisonWithOperator(final int comparison, final Operator operator) {
+      switch (operator) {
+         case EQ: {
+            return false;
+         }
+         case LT:
+         case LTE: {
+            return comparison < 0;
+         }
+         case GT:
+         case GTE: {
+            return comparison > 0;
+         }
+         case NEQ: {
+            return true;
+         }
+         default: {
+            throw new AssertionError();
+         }
       }
    }
 
@@ -192,46 +197,50 @@ public abstract class ColumnCondition {
          return new ColumnCondition.Raw((Term.Raw)null, (List)null, inMarker, (Term.Raw)null, udtField, Operator.IN);
       }
 
-      public ColumnCondition prepare(String keyspace, ColumnMetadata receiver, TableMetadata cfm) {
-         if(receiver.type instanceof CounterColumnType) {
+      public ColumnCondition prepare(final String keyspace, final ColumnMetadata receiver, final TableMetadata cfm) {
+         if (receiver.type instanceof CounterColumnType) {
             throw RequestValidations.invalidRequest("Conditions on counters are not supported");
-         } else if(this.collectionElement != null) {
-            if(!receiver.type.isCollection()) {
-               throw RequestValidations.invalidRequest("Invalid element access syntax for non-collection column %s", new Object[]{receiver.name});
-            } else {
-               ColumnSpecification elementSpec;
-               ColumnSpecification valueSpec;
-               switch(null.$SwitchMap$org$apache$cassandra$db$marshal$CollectionType$Kind[((CollectionType)receiver.type).kind.ordinal()]) {
-               case 1:
+         }
+         if (this.collectionElement != null) {
+            if (!receiver.type.isCollection()) {
+               throw RequestValidations.invalidRequest("Invalid element access syntax for non-collection column %s", receiver.name);
+            }
+            ColumnSpecification elementSpec = null;
+            ColumnSpecification valueSpec = null;
+            switch (((CollectionType)receiver.type).kind) {
+               case LIST: {
                   elementSpec = Lists.indexSpecOf(receiver);
                   valueSpec = Lists.valueSpecOf(receiver);
                   break;
-               case 2:
-                  throw RequestValidations.invalidRequest("Invalid element access syntax for set column %s", new Object[]{receiver.name});
-               case 3:
+               }
+               case MAP: {
                   elementSpec = Maps.keySpecOf(receiver);
                   valueSpec = Maps.valueSpecOf(receiver);
                   break;
-               default:
+               }
+               case SET: {
+                  throw RequestValidations.invalidRequest("Invalid element access syntax for set column %s", receiver.name);
+               }
+               default: {
                   throw new AssertionError();
                }
-
-               this.validateOperationOnDurations(valueSpec.type);
-               return ColumnCondition.condition(receiver, this.collectionElement.prepare(keyspace, elementSpec), this.operator, this.prepareTerms(keyspace, valueSpec));
             }
-         } else if(this.udtField != null) {
-            UserType userType = (UserType)receiver.type;
-            int fieldPosition = userType.fieldPosition(this.udtField);
-            if(fieldPosition == -1) {
-               throw RequestValidations.invalidRequest("Unknown field %s for column %s", new Object[]{this.udtField, receiver.name});
-            } else {
-               ColumnSpecification fieldReceiver = UserTypes.fieldSpecOf(receiver, fieldPosition);
-               this.validateOperationOnDurations(fieldReceiver.type);
-               return ColumnCondition.condition(receiver, this.udtField, this.operator, this.prepareTerms(keyspace, fieldReceiver));
+            this.validateOperationOnDurations(valueSpec.type);
+            return ColumnCondition.condition(receiver, this.collectionElement.prepare(keyspace, elementSpec), this.operator, this.prepareTerms(keyspace, valueSpec));
+         }
+         else {
+            if (this.udtField == null) {
+               this.validateOperationOnDurations(receiver.type);
+               return ColumnCondition.condition(receiver, this.operator, this.prepareTerms(keyspace, receiver));
             }
-         } else {
-            this.validateOperationOnDurations(receiver.type);
-            return ColumnCondition.condition(receiver, this.operator, this.prepareTerms(keyspace, receiver));
+            final UserType userType = (UserType)receiver.type;
+            final int fieldPosition = userType.fieldPosition(this.udtField);
+            if (fieldPosition == -1) {
+               throw RequestValidations.invalidRequest("Unknown field %s for column %s", this.udtField, receiver.name);
+            }
+            final ColumnSpecification fieldReceiver = UserTypes.fieldSpecOf(receiver, fieldPosition);
+            this.validateOperationOnDurations(fieldReceiver.type);
+            return ColumnCondition.condition(receiver, this.udtField, this.operator, this.prepareTerms(keyspace, fieldReceiver));
          }
       }
 
@@ -387,23 +396,24 @@ public abstract class ColumnCondition {
       }
 
       private static boolean valueAppliesTo(CollectionType<?> type, Iterator<Cell> iter, Term.Terminal value, Operator operator) {
-         if(value == null) {
+         if (value == null) {
             return !iter.hasNext();
-         } else {
-            switch(null.$SwitchMap$org$apache$cassandra$db$marshal$CollectionType$Kind[type.kind.ordinal()]) {
-            case 1:
+         }
+         switch (type.kind) {
+            case LIST: {
                List<ByteBuffer> valueList = ((Lists.Value)value).elements;
-               return listAppliesTo((ListType)type, iter, valueList, operator);
-            case 2:
+               return MultiCellCollectionBound.listAppliesTo((ListType)type, iter, valueList, operator);
+            }
+            case SET: {
                Set<ByteBuffer> valueSet = ((Sets.Value)value).elements;
-               return setAppliesTo((SetType)type, iter, valueSet, operator);
-            case 3:
+               return MultiCellCollectionBound.setAppliesTo((SetType)type, iter, valueSet, operator);
+            }
+            case MAP: {
                Map<ByteBuffer, ByteBuffer> valueMap = ((Maps.Value)value).map;
-               return mapAppliesTo((MapType)type, iter, valueMap, operator);
-            default:
-               throw new AssertionError();
+               return MultiCellCollectionBound.mapAppliesTo((MapType)type, iter, valueMap, operator);
             }
          }
+         throw new AssertionError();
       }
 
       private static boolean setOrListAppliesTo(AbstractType<?> type, Iterator<Cell> iter, Iterator<ByteBuffer> conditionIter, Operator operator, boolean isSet) {
@@ -592,20 +602,28 @@ public abstract class ColumnCondition {
          return null;
       }
 
-      protected static boolean compareWithOperator(Operator operator, AbstractType<?> type, ByteBuffer value, ByteBuffer otherValue) {
-         if(value == ByteBufferUtil.UNSET_BYTE_BUFFER) {
+      protected static boolean compareWithOperator(final Operator operator, final AbstractType<?> type, final ByteBuffer value, final ByteBuffer otherValue) {
+         if (value == ByteBufferUtil.UNSET_BYTE_BUFFER) {
             throw RequestValidations.invalidRequest("Invalid 'unset' value in condition");
-         } else if(value == null) {
-            switch(null.$SwitchMap$org$apache$cassandra$cql3$Operator[operator.ordinal()]) {
-            case 1:
-               return otherValue == null;
-            case 2:
-               return otherValue != null;
-            default:
-               throw RequestValidations.invalidRequest("Invalid comparison with null for operator \"%s\"", new Object[]{operator});
+         }
+         if (value == null) {
+            switch (operator) {
+               case EQ: {
+                  return otherValue == null;
+               }
+               case NEQ: {
+                  return otherValue != null;
+               }
+               default: {
+                  throw RequestValidations.invalidRequest("Invalid comparison with null for operator \"%s\"", operator);
+               }
             }
-         } else {
-            return otherValue == null?operator == Operator.NEQ:operator.isSatisfiedBy(type, otherValue, value);
+         }
+         else {
+            if (otherValue == null) {
+               return operator == Operator.NEQ;
+            }
+            return operator.isSatisfiedBy(type, otherValue, value);
          }
       }
    }
@@ -614,7 +632,7 @@ public abstract class ColumnCondition {
       private final FieldIdentifier udtField;
 
       public UDTFieldCondition(ColumnMetadata column, FieldIdentifier udtField, Operator op, Terms values) {
-         super(column, op, values, null);
+         super(column, op, values);
 
          assert udtField != null;
 
@@ -622,7 +640,7 @@ public abstract class ColumnCondition {
       }
 
       public ColumnCondition.Bound bind(QueryOptions options) {
-         return new ColumnCondition.UDTFieldAccessBound(this.column, this.udtField, this.operator, this.bindAndGetTerms(options), null);
+         return new ColumnCondition.UDTFieldAccessBound(this.column, this.udtField, this.operator, this.bindAndGetTerms(options));
       }
    }
 
@@ -630,7 +648,7 @@ public abstract class ColumnCondition {
       private final Term collectionElement;
 
       public CollectionElementCondition(ColumnMetadata column, Term collectionElement, Operator op, Terms values) {
-         super(column, op, values, null);
+         super(column, op, values);
          this.collectionElement = collectionElement;
       }
 
@@ -645,17 +663,17 @@ public abstract class ColumnCondition {
       }
 
       public ColumnCondition.Bound bind(QueryOptions options) {
-         return new ColumnCondition.ElementAccessBound(this.column, this.collectionElement.bindAndGet(options), this.operator, this.bindAndGetTerms(options), null);
+         return new ColumnCondition.ElementAccessBound(this.column, this.collectionElement.bindAndGet(options), this.operator, this.bindAndGetTerms(options));
       }
    }
 
    private static final class SimpleColumnCondition extends ColumnCondition {
       public SimpleColumnCondition(ColumnMetadata column, Operator op, Terms values) {
-         super(column, op, values, null);
+         super(column, op, values);
       }
 
       public ColumnCondition.Bound bind(QueryOptions options) {
-         return (ColumnCondition.Bound)(this.column.type.isCollection() && this.column.type.isMultiCell()?new ColumnCondition.MultiCellCollectionBound(this.column, this.operator, this.bindTerms(options)):(this.column.type.isUDT() && this.column.type.isMultiCell()?new ColumnCondition.MultiCellUdtBound(this.column, this.operator, this.bindAndGetTerms(options), options.getProtocolVersion(), null):new ColumnCondition.SimpleBound(this.column, this.operator, this.bindAndGetTerms(options), null)));
+         return (ColumnCondition.Bound)(this.column.type.isCollection() && this.column.type.isMultiCell()?new ColumnCondition.MultiCellCollectionBound(this.column, this.operator, this.bindTerms(options)):(this.column.type.isUDT() && this.column.type.isMultiCell()?new ColumnCondition.MultiCellUdtBound(this.column, this.operator, this.bindAndGetTerms(options), options.getProtocolVersion()):new ColumnCondition.SimpleBound(this.column, this.operator, this.bindAndGetTerms(options))));
       }
    }
 }

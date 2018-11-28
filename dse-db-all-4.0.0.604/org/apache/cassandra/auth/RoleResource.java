@@ -17,14 +17,15 @@ import org.apache.cassandra.utils.versioning.Versioned;
 import org.apache.commons.lang3.StringUtils;
 
 public class RoleResource implements IResource, Comparable<RoleResource> {
-   public static final Versioned<EncodingVersion, RoleResource.RoleResourceSerializer> rawSerializers = EncodingVersion.versioned(RoleResource.RoleResourceSerializer::<init>);
+   public static final Versioned<EncodingVersion, RoleResource.RoleResourceSerializer> rawSerializers = EncodingVersion.versioned(RoleResource.RoleResourceSerializer::new);
    public static final Versioned<AuthVerbs.AuthVersion, Serializer<RoleResource>> serializers = AuthVerbs.AuthVersion.versioned((v) -> {
       return (RoleResource.RoleResourceSerializer)rawSerializers.get(v.encodingVersion);
    });
-   private static final Set<Permission> ROOT_LEVEL_PERMISSIONS;
-   private static final Set<Permission> ROLE_LEVEL_PERMISSIONS;
+
+   private static final Set<Permission> ROOT_LEVEL_PERMISSIONS = Permissions.immutableSetOf(new Permission[]{CorePermission.CREATE, CorePermission.ALTER, CorePermission.DROP, CorePermission.AUTHORIZE, CorePermission.DESCRIBE});
+   private static final Set<Permission> ROLE_LEVEL_PERMISSIONS = Permissions.immutableSetOf(new Permission[]{CorePermission.ALTER, CorePermission.DROP, CorePermission.AUTHORIZE});
    private static final String ROOT_NAME = "roles";
-   private static final RoleResource ROOT_RESOURCE;
+   private static final RoleResource  ROOT_RESOURCE = new RoleResource();
    private final RoleResource.Level level;
    private final String name;
 
@@ -110,11 +111,7 @@ public class RoleResource implements IResource, Comparable<RoleResource> {
       return Objects.hash(new Object[]{this.level, this.name});
    }
 
-   static {
-      ROOT_LEVEL_PERMISSIONS = Permissions.immutableSetOf(new Permission[]{CorePermission.CREATE, CorePermission.ALTER, CorePermission.DROP, CorePermission.AUTHORIZE, CorePermission.DESCRIBE});
-      ROLE_LEVEL_PERMISSIONS = Permissions.immutableSetOf(new Permission[]{CorePermission.ALTER, CorePermission.DROP, CorePermission.AUTHORIZE});
-      ROOT_RESOURCE = new RoleResource();
-   }
+
 
    public static final class RoleResourceSerializer extends VersionDependent<EncodingVersion> implements Serializer<RoleResource> {
       public RoleResourceSerializer(EncodingVersion encodingVersion) {

@@ -359,7 +359,7 @@ public class OnDiskIndexBuilder {
       private int dataBlocksCnt;
       private TokenTreeBuilder superBlockTree = new DynamicTokenTreeBuilder();
 
-      public DataBuilderLevel(SequentialWriter var1, OnDiskIndexBuilder.MutableBlock<OnDiskIndexBuilder.InMemoryDataTerm> out) {
+      public DataBuilderLevel(SequentialWriter out, OnDiskIndexBuilder.MutableBlock<OnDiskIndexBuilder.InMemoryDataTerm> block) {
          super(out, block);
       }
 
@@ -402,7 +402,7 @@ public class OnDiskIndexBuilder {
       private final OnDiskIndexBuilder.MutableBlock<T> inProcessBlock;
       private OnDiskIndexBuilder.InMemoryPointerTerm lastTerm;
 
-      public MutableLevel(SequentialWriter var1, OnDiskIndexBuilder.MutableBlock<T> out) {
+      public MutableLevel(SequentialWriter out, OnDiskIndexBuilder.MutableBlock<T> block) {
          this.out = out;
          this.inProcessBlock = block;
       }

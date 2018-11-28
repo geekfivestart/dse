@@ -70,7 +70,7 @@ public class CreateTableStatement extends SchemaAlteringStatement implements Tab
    private boolean isDense;
    private boolean isCompound;
    private boolean hasCounters;
-   private final Map<ColumnIdentifier, AbstractType> columns = new TreeMap((o1, o2) -> {
+   private final Map<ColumnIdentifier, AbstractType> columns = new TreeMap<ColumnIdentifier,AbstractType>((o1, o2) -> {
       return o1.bytes.compareTo(o2.bytes);
    });
    private final Set<ColumnIdentifier> staticColumns;
@@ -218,166 +218,123 @@ public class CreateTableStatement extends SchemaAlteringStatement implements Tab
       }
 
       public ParsedStatement.Prepared prepare(Types udts) throws RequestValidationException {
-         if(!CreateTableStatement.PATTERN_WORD_CHARS.matcher(this.columnFamily()).matches()) {
-            throw new InvalidRequestException(String.format("\"%s\" is not a valid table name (must be alphanumeric character or underscore only: [a-zA-Z_0-9]+)", new Object[]{this.columnFamily()}));
-         } else if(this.columnFamily().length() > 48) {
-            throw new InvalidRequestException(String.format("Table names shouldn't be more than %s characters long (got \"%s\")", new Object[]{Integer.valueOf(48), this.columnFamily()}));
-         } else {
-            Iterator var2 = this.definedNames.entrySet().iterator();
-
-            while(var2.hasNext()) {
-               com.google.common.collect.Multiset.Entry<ColumnIdentifier> entry = (com.google.common.collect.Multiset.Entry)var2.next();
-               if(entry.getCount() > 1) {
-                  throw new InvalidRequestException(String.format("Multiple definition of identifier %s", new Object[]{entry.getElement()}));
+         boolean useCompactStorage;
+         if (!PATTERN_WORD_CHARS.matcher(this.columnFamily()).matches()) {
+            throw new InvalidRequestException(String.format("\"%s\" is not a valid table name (must be alphanumeric character or underscore only: [a-zA-Z_0-9]+)", this.columnFamily()));
+         }
+         if (this.columnFamily().length() > 48) {
+            throw new InvalidRequestException(String.format("Table names shouldn't be more than %s characters long (got \"%s\")", 48, this.columnFamily()));
+         }
+         for (Multiset.Entry entry : this.definedNames.entrySet()) {
+            if (entry.getCount() <= 1) continue;
+            throw new InvalidRequestException(String.format("Multiple definition of identifier %s", entry.getElement()));
+         }
+         this.properties.validate();
+         TableParams params = this.properties.properties.asNewTableParams();
+         CreateTableStatement stmt = new CreateTableStatement(this.cfName, params, this.ifNotExists, this.staticColumns, this.properties.properties.getId());
+         for (Map.Entry<ColumnIdentifier, CQL3Type.Raw> entry : this.definitions.entrySet()) {
+            ColumnIdentifier id = entry.getKey();
+            CQL3Type pt = entry.getValue().prepare(this.keyspace(), udts);
+            if (pt.getType().isMultiCell()) {
+               stmt.multicellColumns.put(id.bytes, pt.getType());
+            }
+            if (entry.getValue().isCounter()) {
+               stmt.hasCounters = true;
+            }
+            if (pt.getType().isUDT() && pt.getType().isMultiCell()) {
+               for (AbstractType<?> innerType : ((UserType)pt.getType()).fieldTypes()) {
+                  if (!innerType.isMultiCell()) continue;
+                  assert (innerType.isCollection());
+                  throw new InvalidRequestException("Non-frozen UDTs with nested non-frozen collections are not supported");
                }
             }
-
-            this.properties.validate();
-            TableParams params = this.properties.properties.asNewTableParams();
-            CreateTableStatement stmt = new CreateTableStatement(this.cfName, params, this.ifNotExists, this.staticColumns, this.properties.properties.getId());
-
-            ColumnIdentifier t;
-            CQL3Type pt;
-            for(Iterator var4 = this.definitions.entrySet().iterator(); var4.hasNext(); stmt.columns.put(t, pt.getType())) {
-               Entry<ColumnIdentifier, CQL3Type.Raw> entry = (Entry)var4.next();
-               t = (ColumnIdentifier)entry.getKey();
-               pt = ((CQL3Type.Raw)entry.getValue()).prepare(this.keyspace(), udts);
-               if(pt.getType().isMultiCell()) {
-                  stmt.multicellColumns.put(t.bytes, pt.getType());
-               }
-
-               if(((CQL3Type.Raw)entry.getValue()).isCounter()) {
-                  stmt.hasCounters = true;
-               }
-
-               if(pt.getType().isUDT() && pt.getType().isMultiCell()) {
-                  Iterator var8 = ((UserType)pt.getType()).fieldTypes().iterator();
-
-                  while(var8.hasNext()) {
-                     AbstractType<?> innerType = (AbstractType)var8.next();
-                     if(innerType.isMultiCell()) {
-                        assert innerType.isCollection();
-
-                        throw new InvalidRequestException("Non-frozen UDTs with nested non-frozen collections are not supported");
-                     }
-                  }
-               }
+            stmt.columns.put(id, pt.getType());
+         }
+         if (this.keyAliases.isEmpty()) {
+            throw new InvalidRequestException("No PRIMARY KEY specifed (exactly one required)");
+         }
+         if (this.keyAliases.size() > 1) {
+            throw new InvalidRequestException("Multiple PRIMARY KEYs specifed (exactly one required)");
+         }
+         if (stmt.hasCounters && params.defaultTimeToLive > 0) {
+            throw new InvalidRequestException("Cannot set default_time_to_live on a table with counters");
+         }
+         List<ColumnIdentifier> kAliases = this.keyAliases.get(0);
+         stmt.keyTypes = new ArrayList(kAliases.size());
+         for (ColumnIdentifier alias : kAliases) {
+            stmt.keyAliases.add(alias);
+            AbstractType<?> t = this.getTypeAndRemove(stmt.columns, alias);
+            if (t.asCQL3Type().getType() instanceof CounterColumnType) {
+               throw new InvalidRequestException(String.format("counter type is not supported for PRIMARY KEY part %s", alias));
             }
-
-            if(this.keyAliases.isEmpty()) {
-               throw new InvalidRequestException("No PRIMARY KEY specifed (exactly one required)");
-            } else if(this.keyAliases.size() > 1) {
-               throw new InvalidRequestException("Multiple PRIMARY KEYs specifed (exactly one required)");
-            } else if(stmt.hasCounters && params.defaultTimeToLive > 0) {
-               throw new InvalidRequestException("Cannot set default_time_to_live on a table with counters");
-            } else {
-               List<ColumnIdentifier> kAliases = (List)this.keyAliases.get(0);
-               stmt.keyTypes = new ArrayList(kAliases.size());
-               Iterator var13 = kAliases.iterator();
-
-               AbstractType type;
-               while(var13.hasNext()) {
-                  t = (ColumnIdentifier)var13.next();
-                  stmt.keyAliases.add(t);
-                  type = this.getTypeAndRemove(stmt.columns, t);
-                  if(type.asCQL3Type().getType() instanceof CounterColumnType) {
-                     throw new InvalidRequestException(String.format("counter type is not supported for PRIMARY KEY part %s", new Object[]{t}));
-                  }
-
-                  if(type.asCQL3Type().getType().referencesDuration()) {
-                     throw new InvalidRequestException(String.format("duration type is not supported for PRIMARY KEY part %s", new Object[]{t}));
-                  }
-
-                  if(this.staticColumns.contains(t)) {
-                     throw new InvalidRequestException(String.format("Static column %s cannot be part of the PRIMARY KEY", new Object[]{t}));
-                  }
-
-                  stmt.keyTypes.add(type);
-               }
-
-               stmt.clusteringTypes = new ArrayList(this.columnAliases.size());
-               var13 = this.columnAliases.iterator();
-
-               while(var13.hasNext()) {
-                  t = (ColumnIdentifier)var13.next();
-                  stmt.columnAliases.add(t);
-                  type = this.getTypeAndRemove(stmt.columns, t);
-                  if(type.asCQL3Type().getType() instanceof CounterColumnType) {
-                     throw new InvalidRequestException(String.format("counter type is not supported for PRIMARY KEY part %s", new Object[]{t}));
-                  }
-
-                  if(type.asCQL3Type().getType().referencesDuration()) {
-                     throw new InvalidRequestException(String.format("duration type is not supported for PRIMARY KEY part %s", new Object[]{t}));
-                  }
-
-                  if(this.staticColumns.contains(t)) {
-                     throw new InvalidRequestException(String.format("Static column %s cannot be part of the PRIMARY KEY", new Object[]{t}));
-                  }
-
-                  stmt.clusteringTypes.add(type);
-               }
-
-               if(stmt.hasCounters) {
-                  var13 = stmt.columns.values().iterator();
-
-                  while(var13.hasNext()) {
-                     AbstractType<?> type = (AbstractType)var13.next();
-                     if(!type.isCounter()) {
-                        throw new InvalidRequestException("Cannot mix counter and non counter columns in the same table");
-                     }
-                  }
-               }
-
-               boolean useCompactStorage = this.properties.useCompactStorage;
-               stmt.isDense = useCompactStorage && !stmt.clusteringTypes.isEmpty();
-               stmt.isCompound = !useCompactStorage || stmt.clusteringTypes.size() > 1;
-               if(useCompactStorage) {
-                  if(!stmt.multicellColumns.isEmpty()) {
-                     throw new InvalidRequestException("Non-frozen collections and UDTs are not supported with COMPACT STORAGE");
-                  }
-
-                  if(!this.staticColumns.isEmpty()) {
-                     throw new InvalidRequestException("Static columns are not supported in COMPACT STORAGE tables");
-                  }
-
-                  if(stmt.clusteringTypes.isEmpty() && stmt.columns.isEmpty()) {
-                     throw new InvalidRequestException("No definition found that is not part of the PRIMARY KEY");
-                  }
-
-                  if(stmt.isDense) {
-                     if(stmt.columns.size() > 1) {
-                        throw new InvalidRequestException(String.format("COMPACT STORAGE with composite PRIMARY KEY allows no more than one column not part of the PRIMARY KEY (got: %s)", new Object[]{StringUtils.join(stmt.columns.keySet(), ", ")}));
-                     }
-                  } else if(stmt.columns.isEmpty()) {
-                     throw new InvalidRequestException("COMPACT STORAGE with non-composite PRIMARY KEY require one column not part of the PRIMARY KEY, none given");
-                  }
-               } else if(stmt.clusteringTypes.isEmpty() && !this.staticColumns.isEmpty() && this.columnAliases.isEmpty()) {
-                  throw new InvalidRequestException("Static columns are only useful (and thus allowed) if the table has at least one clustering column");
-               }
-
-               if(!this.properties.definedOrdering.isEmpty()) {
-                  if(this.properties.definedOrdering.size() > this.columnAliases.size()) {
-                     throw new InvalidRequestException("Only clustering key columns can be defined in CLUSTERING ORDER directive");
-                  }
-
-                  int i = 0;
-
-                  for(Iterator var18 = this.properties.definedOrdering.keySet().iterator(); var18.hasNext(); ++i) {
-                     ColumnIdentifier id = (ColumnIdentifier)var18.next();
-                     ColumnIdentifier c = (ColumnIdentifier)this.columnAliases.get(i);
-                     if(!id.equals(c)) {
-                        if(this.properties.definedOrdering.containsKey(c)) {
-                           throw new InvalidRequestException(String.format("The order of columns in the CLUSTERING ORDER directive must be the one of the clustering key (%s must appear before %s)", new Object[]{c, id}));
-                        }
-
-                        throw new InvalidRequestException(String.format("Missing CLUSTERING ORDER for column %s", new Object[]{c}));
-                     }
-                  }
-               }
-
-               return new ParsedStatement.Prepared(stmt);
+            if (t.asCQL3Type().getType().referencesDuration()) {
+               throw new InvalidRequestException(String.format("duration type is not supported for PRIMARY KEY part %s", alias));
+            }
+            if (this.staticColumns.contains(alias)) {
+               throw new InvalidRequestException(String.format("Static column %s cannot be part of the PRIMARY KEY", alias));
+            }
+            stmt.keyTypes.add(t);
+         }
+         stmt.clusteringTypes = new ArrayList(this.columnAliases.size());
+         for (ColumnIdentifier t : this.columnAliases) {
+            stmt.columnAliases.add(t);
+            AbstractType<?> type = this.getTypeAndRemove(stmt.columns, t);
+            if (type.asCQL3Type().getType() instanceof CounterColumnType) {
+               throw new InvalidRequestException(String.format("counter type is not supported for PRIMARY KEY part %s", t));
+            }
+            if (type.asCQL3Type().getType().referencesDuration()) {
+               throw new InvalidRequestException(String.format("duration type is not supported for PRIMARY KEY part %s", t));
+            }
+            if (this.staticColumns.contains(t)) {
+               throw new InvalidRequestException(String.format("Static column %s cannot be part of the PRIMARY KEY", t));
+            }
+            stmt.clusteringTypes.add(type);
+         }
+         if (stmt.hasCounters) {
+            for (AbstractType type : stmt.columns.values()) {
+               if (type.isCounter()) continue;
+               throw new InvalidRequestException("Cannot mix counter and non counter columns in the same table");
             }
          }
+         stmt.isDense = (useCompactStorage = this.properties.useCompactStorage) && !stmt.clusteringTypes.isEmpty();
+         stmt.isCompound = !useCompactStorage || stmt.clusteringTypes.size() > 1;
+         if (useCompactStorage) {
+            if (!stmt.multicellColumns.isEmpty()) {
+               throw new InvalidRequestException("Non-frozen collections and UDTs are not supported with COMPACT STORAGE");
+            }
+            if (!this.staticColumns.isEmpty()) {
+               throw new InvalidRequestException("Static columns are not supported in COMPACT STORAGE tables");
+            }
+            if (stmt.clusteringTypes.isEmpty() && stmt.columns.isEmpty()) {
+               throw new InvalidRequestException("No definition found that is not part of the PRIMARY KEY");
+            }
+            if (stmt.isDense) {
+               if (stmt.columns.size() > 1) {
+                  throw new InvalidRequestException(String.format("COMPACT STORAGE with composite PRIMARY KEY allows no more than one column not part of the PRIMARY KEY (got: %s)", StringUtils.join(stmt.columns.keySet(), (String)", ")));
+               }
+            } else if (stmt.columns.isEmpty()) {
+               throw new InvalidRequestException("COMPACT STORAGE with non-composite PRIMARY KEY require one column not part of the PRIMARY KEY, none given");
+            }
+         } else if (stmt.clusteringTypes.isEmpty() && !this.staticColumns.isEmpty() && this.columnAliases.isEmpty()) {
+            throw new InvalidRequestException("Static columns are only useful (and thus allowed) if the table has at least one clustering column");
+         }
+         if (!this.properties.definedOrdering.isEmpty()) {
+            if (this.properties.definedOrdering.size() > this.columnAliases.size()) {
+               throw new InvalidRequestException("Only clustering key columns can be defined in CLUSTERING ORDER directive");
+            }
+            int i = 0;
+            for (ColumnIdentifier id : this.properties.definedOrdering.keySet()) {
+               ColumnIdentifier c;
+               if (!id.equals(c = this.columnAliases.get(i))) {
+                  if (this.properties.definedOrdering.containsKey(c)) {
+                     throw new InvalidRequestException(String.format("The order of columns in the CLUSTERING ORDER directive must be the one of the clustering key (%s must appear before %s)", c, id));
+                  }
+                  throw new InvalidRequestException(String.format("Missing CLUSTERING ORDER for column %s", c));
+               }
+               ++i;
+            }
+         }
+         return new ParsedStatement.Prepared(stmt);
       }
 
       private AbstractType<?> getTypeAndRemove(Map<ColumnIdentifier, AbstractType> columns, ColumnIdentifier t) throws InvalidRequestException {

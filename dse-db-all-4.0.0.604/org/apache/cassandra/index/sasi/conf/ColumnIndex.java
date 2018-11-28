@@ -173,29 +173,27 @@ public class ColumnIndex {
    }
 
    public static ByteBuffer getValueOf(ColumnMetadata column, Row row, int nowInSecs) {
-      if(row == null) {
+      if (row == null) {
          return null;
-      } else {
-         switch(null.$SwitchMap$org$apache$cassandra$schema$ColumnMetadata$Kind[column.kind.ordinal()]) {
-         case 1:
-            if(row.isStatic()) {
-               return null;
-            }
-
-            return row.clustering().get(column.position());
-         case 2:
-            if(!row.isStatic()) {
-               return null;
-            }
-         case 3:
-            break;
-         default:
-            return null;
-         }
-
-         Cell cell = row.getCell(column);
-         return cell != null && cell.isLive(nowInSecs)?cell.value():null;
       }
+      switch (column.kind) {
+         case CLUSTERING: {
+            if (row.isStatic()) {
+               return null;
+            }
+            return row.clustering().get(column.position());
+         }
+         case STATIC: {
+            if (!row.isStatic()) {
+               return null;
+            }
+         }
+         case REGULAR: {
+            Cell cell = row.getCell(column);
+            return cell == null || !cell.isLive(nowInSecs) ? null : cell.value();
+         }
+      }
+      return null;
    }
 
    public String toString() {

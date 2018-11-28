@@ -58,12 +58,12 @@ public class StatefulDecryptor {
 
    public int decrypt(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset) throws InvalidAlgorithmParameterException, InvalidKeyException, BadPaddingException, ShortBufferException, IllegalBlockSizeException, KeyAccessException, KeyGenerationException {
       IKeyProvider keyProvider = this.encryptionConfig.getKeyProvider();
-      int headerSize = false;
+      int headerSize = 0;
       SecretKey key;
       if(keyProvider instanceof IMultiKeyProvider) {
          ByteBuffer inputBuffer = ByteBuffer.wrap(input, inputOffset, inputLength - inputOffset);
          key = ((IMultiKeyProvider)keyProvider).readHeader(this.encryptionConfig.getCipherName(), this.encryptionConfig.getKeyStrength(), inputBuffer);
-         int headerSize = inputBuffer.position() - inputOffset;
+         headerSize = inputBuffer.position() - inputOffset;
          inputLength -= headerSize;
          inputOffset = inputBuffer.position();
       } else {

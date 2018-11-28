@@ -91,7 +91,7 @@ public abstract class CqlKeyspaceManager extends CqlAbstractManager {
                }
             }
          } else {
-            Map datacenterWorkloads;
+            Map<String,Set<Workload>> datacenterWorkloads;
             if(replicationClass.equals(NetworkTopologyStrategy.class)) {
                datacenterWorkloads = EndpointStateTracker.instance.getDatacenterWorkloads();
                datacenterWorkloads.entrySet().stream().filter((entry) -> {

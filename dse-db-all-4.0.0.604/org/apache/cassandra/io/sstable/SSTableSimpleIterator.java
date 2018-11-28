@@ -40,7 +40,7 @@ public abstract class SSTableSimpleIterator extends AbstractIterator<Unfiltered>
       private final SerializationHeader header;
 
       private CurrentFormatTombstoneIterator(TableMetadata metadata, DataInputPlus in, SerializationHeader header, SerializationHelper helper) {
-         super(metadata, in, helper, null);
+         super(metadata, in, helper);
          this.header = header;
       }
 
@@ -70,7 +70,7 @@ public abstract class SSTableSimpleIterator extends AbstractIterator<Unfiltered>
       private final Row.Builder builder;
 
       private CurrentFormatIterator(TableMetadata metadata, DataInputPlus in, SerializationHeader header, SerializationHelper helper) {
-         super(metadata, in, helper, null);
+         super(metadata, in, helper);
          this.header = header;
          this.builder = Row.Builder.sorted();
       }

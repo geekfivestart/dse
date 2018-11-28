@@ -22,13 +22,13 @@ public class PrepareMessage extends StreamMessage {
 
          int numSummaries;
          for(numSummaries = 0; numSummaries < numRequests; ++numSummaries) {
-            message.requests.add(((Serializer)StreamRequest.serializers.get(version)).deserialize(input));
+            message.requests.add((StreamRequest.serializers.get(version)).deserialize(input));
          }
 
          numSummaries = input.readInt();
 
          for(int i = 0; i < numSummaries; ++i) {
-            message.summaries.add(((Serializer)StreamSummary.serializers.get(version)).deserialize(input));
+            message.summaries.add((StreamSummary.serializers.get(version)).deserialize(input));
          }
 
          return message;
@@ -36,21 +36,13 @@ public class PrepareMessage extends StreamMessage {
 
       public void serialize(PrepareMessage message, DataOutputStreamPlus out, StreamMessage.StreamVersion version, StreamSession session) throws IOException {
          out.writeInt(message.requests.size());
-         Iterator var5 = message.requests.iterator();
-
-         while(var5.hasNext()) {
-            StreamRequest request = (StreamRequest)var5.next();
-            ((Serializer)StreamRequest.serializers.get(version)).serialize(request, out);
+         for (StreamRequest request : message.requests) {
+            StreamRequest.serializers.get(version).serialize(request, out);
          }
-
          out.writeInt(message.summaries.size());
-         var5 = message.summaries.iterator();
-
-         while(var5.hasNext()) {
-            StreamSummary summary = (StreamSummary)var5.next();
-            ((Serializer)StreamSummary.serializers.get(version)).serialize(summary, out);
+         for (StreamSummary summary : message.summaries) {
+            StreamSummary.serializers.get(version).serialize(summary, out);
          }
-
       }
    };
    public final Collection<StreamRequest> requests = new ArrayList();

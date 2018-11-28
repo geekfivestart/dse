@@ -248,7 +248,7 @@ public class ArrayBackedPartition implements Partition {
          DeletionTime partitionDeletion = this.holder.deletionInfo.getPartitionDeletion();
          return UnfilteredRowIterators.noRowsIterator(this.metadata(), this.partitionKey(), staticRow, partitionDeletion, reversed);
       } else {
-         return (UnfilteredRowIterator)(slices.size() == 1?this.sliceIterator(selection, slices.get(0), reversed, staticRow):new ArrayBackedPartition.SlicesIterator(selection, slices, reversed, staticRow, null));
+         return (UnfilteredRowIterator)(slices.size() == 1?this.sliceIterator(selection, slices.get(0), reversed, staticRow):new ArrayBackedPartition.SlicesIterator(selection, slices, reversed, staticRow));
       }
    }
 
@@ -269,32 +269,33 @@ public class ArrayBackedPartition implements Partition {
    }
 
    private Iterator<Row> slice(ClusteringBound start, ClusteringBound end, final boolean reversed) {
-      if(this.holder.length == 0) {
+      int startAt;
+      int endAt;
+      if (this.holder.length == 0) {
          return Collections.emptyIterator();
-      } else {
-         final int startAt = start == null?0:this.indexOf(start);
-         if(startAt < 0) {
-            startAt = -startAt - 1;
-         }
-
-         final int endAt = end == null?this.holder.length - 1:this.indexOf(end);
-         if(endAt < 0) {
-            endAt = -endAt - 2;
-         }
-
-         if(endAt >= 0 && endAt >= startAt) {
-            assert endAt >= startAt;
-
-            return new AbstractIndexedListIterator<Row>(endAt + 1, startAt) {
-               protected Row get(int index) {
-                  int idx = reversed?endAt - (index - startAt):index;
-                  return ArrayBackedPartition.this.holder.rows[idx];
-               }
-            };
-         } else {
-            return Collections.emptyIterator();
-         }
       }
+      int n = startAt = start == null ? 0 : this.indexOf(start);
+      if (startAt < 0) {
+         startAt = - startAt - 1;
+      }
+      int n2 = endAt = end == null ? this.holder.length - 1 : this.indexOf(end);
+      if (endAt < 0) {
+         endAt = - endAt - 2;
+      }
+      if (endAt < 0 || endAt < startAt) {
+         return Collections.emptyIterator();
+      }
+      final int startAtIdx = startAt;
+      final int endAtIdx = endAt;
+      assert (endAtIdx >= startAtIdx);
+      return new AbstractIndexedListIterator<Row>(endAtIdx + 1, startAtIdx){
+
+         @Override
+         protected Row get(int index) {
+            int idx = reversed ? endAtIdx - (index - startAtIdx) : index;
+            return ArrayBackedPartition.this.holder.rows[idx];
+         }
+      };
    }
 
    private Row staticRow(ColumnFilter columns, boolean setActiveDeletionToRow) {

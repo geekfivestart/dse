@@ -102,24 +102,25 @@ public class FunctionCall extends Term.NonTerminal {
    }
 
    private static Term.Terminal makeTerminal(Function fun, ByteBuffer result, ProtocolVersion version) throws InvalidRequestException {
-      if(result == null) {
+      if (result == null) {
          return null;
-      } else {
-         if(fun.returnType().isCollection()) {
-            switch(null.$SwitchMap$org$apache$cassandra$db$marshal$CollectionType$Kind[((CollectionType)fun.returnType()).kind.ordinal()]) {
-            case 1:
+      }
+      if (fun.returnType().isCollection()) {
+         switch (((CollectionType)fun.returnType()).kind) {
+            case LIST: {
                return Lists.Value.fromSerialized(result, (ListType)fun.returnType(), version);
-            case 2:
+            }
+            case SET: {
                return Sets.Value.fromSerialized(result, (SetType)fun.returnType(), version);
-            case 3:
+            }
+            case MAP: {
                return Maps.Value.fromSerialized(result, (MapType)fun.returnType(), version);
             }
-         } else if(fun.returnType().isUDT()) {
-            return UserTypes.Value.fromSerialized(result, (UserType)fun.returnType());
          }
-
-         return new Constants.Value(result);
+      } else if (fun.returnType().isUDT()) {
+         return UserTypes.Value.fromSerialized(result, (UserType)fun.returnType());
       }
+      return new Constants.Value(result);
    }
 
    public static class Raw extends Term.Raw {
@@ -165,7 +166,7 @@ public class FunctionCall extends Term.NonTerminal {
                   parameters.add(t);
                }
 
-               return new FunctionCall(scalarFun, parameters, null);
+               return new FunctionCall(scalarFun, parameters);
             }
          }
       }

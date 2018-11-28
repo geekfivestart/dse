@@ -45,7 +45,7 @@ public class SkipListMemIndex extends MemIndex {
       if(min == null && max == null) {
          throw new IllegalArgumentException();
       } else {
-         ConcurrentNavigableMap search;
+         ConcurrentNavigableMap<ByteBuffer, ConcurrentSkipListSet<DecoratedKey>> search;
          if(min != null && max != null) {
             search = this.index.subMap(min, expression.lower.inclusive, max, expression.upper.inclusive);
          } else if(min == null) {

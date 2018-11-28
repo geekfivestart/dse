@@ -7,8 +7,8 @@ public class ContinuousPagingMetrics {
    private final MetricNameFactory factory = new DefaultNameFactory("ContinuousPaging", "");
    private final LatencyMetrics optimizedPathLatency = new LatencyMetrics("ContinuousPaging", "OptimizedPathLatency");
    private final LatencyMetrics slowPathLatency = new LatencyMetrics("ContinuousPaging", "SlowPathLatency");
-   public final Gauge liveSessions;
-   public final Gauge pendingPages;
+   public final Gauge liveSessions = CassandraMetricsRegistry.Metrics.register(this.factory.createMetricName("LiveSessions"), ContinuousPagingService::liveSessions);
+   public final Gauge pendingPages = CassandraMetricsRegistry.Metrics.register(this.factory.createMetricName("PendingPages"), ContinuousPagingService::pendingPages);
    public final Meter requests;
    public final Meter creationFailures;
    public final Meter tooManySessions;
@@ -19,8 +19,6 @@ public class ContinuousPagingMetrics {
    public final LatencyMetrics serverBlockedLatency;
 
    public ContinuousPagingMetrics() {
-      this.liveSessions = (Gauge)CassandraMetricsRegistry.Metrics.register(this.factory.createMetricName("LiveSessions"), ContinuousPagingService::liveSessions);
-      this.pendingPages = (Gauge)CassandraMetricsRegistry.Metrics.register(this.factory.createMetricName("PendingPages"), ContinuousPagingService::pendingPages);
       this.requests = CassandraMetricsRegistry.Metrics.meter(this.factory.createMetricName("Requests"));
       this.creationFailures = CassandraMetricsRegistry.Metrics.meter(this.factory.createMetricName("CreationFailures"));
       this.tooManySessions = CassandraMetricsRegistry.Metrics.meter(this.factory.createMetricName("TooManySessions"));

@@ -1,5 +1,7 @@
 package org.apache.cassandra.db;
 
+import org.apache.cassandra.db.marshal.AbstractType;
+
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -120,7 +122,7 @@ public abstract class CBuilder {
       }
 
       public CBuilder add(Object value) {
-         return this.add(this.type.subtype(this.size).decompose(value));
+         return this.add(((AbstractType<Object>)this.type.subtype(this.size)).decompose(value));
       }
 
       private boolean isDone() {

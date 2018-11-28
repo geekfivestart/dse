@@ -30,7 +30,7 @@ import org.apache.cassandra.utils.SearchIterator;
 import org.apache.cassandra.utils.btree.BTreeSet;
 
 public class ClusteringIndexNamesFilter extends AbstractClusteringIndexFilter {
-   static final ClusteringIndexFilter.InternalDeserializer deserializer = new ClusteringIndexNamesFilter.NamesDeserializer(null);
+   static final ClusteringIndexFilter.InternalDeserializer deserializer = new ClusteringIndexNamesFilter.NamesDeserializer();
    private final NavigableSet<Clustering> clusterings;
    private final NavigableSet<Clustering> clusteringsInQueryOrder;
 

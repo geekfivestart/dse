@@ -47,30 +47,21 @@ public class SetCoverFinder<T, S> {
    }
 
    private ArrayList<int[]> indexesOfAll(Collection<T> sourceItems) {
-      ArrayList<int[]> result = Lists.newArrayListWithExpectedSize(sourceItems.size());
-      Iterator var3 = sourceItems.iterator();
-
-      while(var3.hasNext()) {
-         T item = var3.next();
+      ArrayList result = Lists.newArrayListWithExpectedSize((int)sourceItems.size());
+      for (T item : sourceItems) {
          result.add(this.indexesOf((Collection)this.itemElementsFn.apply(item)));
       }
-
       return result;
    }
 
    private int[] indexesOf(Collection<S> elements) {
-      ArrayList<Integer> indexes = new ArrayList(elements.size());
-      Iterator var3 = elements.iterator();
-
-      while(var3.hasNext()) {
-         S element = var3.next();
-         Integer elementIndex = (Integer)this.universeMap.get(element);
-         if(elementIndex != null) {
-            indexes.add(elementIndex);
-         }
+      ArrayList<Integer> indexes = new ArrayList<Integer>(elements.size());
+      for (S element : elements) {
+         Integer elementIndex = this.universeMap.get(element);
+         if (elementIndex == null) continue;
+         indexes.add(elementIndex);
       }
-
-      return toArray(indexes);
+      return SetCoverFinder.toArray(indexes);
    }
 
    private static int[] toArray(List<Integer> integers) {
@@ -350,7 +341,7 @@ public class SetCoverFinder<T, S> {
       private final BitSet removedElements;
       private final BitSet removedItems;
 
-      private SetCoverProblem(SetCoverFinder.SetCoverOptimizationStrategy<T> var1) {
+      private SetCoverProblem(SetCoverFinder.SetCoverOptimizationStrategy<T> strategy) {
          this.removedElements = new BitSet(SetCoverFinder.this.universe.size());
          this.removedItems = new BitSet();
          this.itemById = this.decorateItems(SetCoverFinder.this.items, strategy);
@@ -358,69 +349,52 @@ public class SetCoverFinder<T, S> {
          this.itemIdsTempBuffer = new int[SetCoverFinder.this.items.size()];
       }
 
-      private ArrayList<SetCoverFinder.Item<T>> decorateItems(Collection<T> items, SetCoverFinder.SetCoverOptimizationStrategy<T> strategy) {
-         ArrayList<SetCoverFinder.Item<T>> result = Lists.newArrayListWithExpectedSize(items.size());
+      private ArrayList<Item<T>> decorateItems(Collection<T> items, SetCoverOptimizationStrategy<T> strategy) {
+         ArrayList result = Lists.newArrayListWithExpectedSize((int)items.size());
          int id = 0;
-
-         for(Iterator var5 = items.iterator(); var5.hasNext(); ++id) {
-            T item = var5.next();
+         for (T item : items) {
             result.add(strategy.createDecoratedItem(id, item, (int[])SetCoverFinder.this.itemElements.get(id)));
+            ++id;
          }
-
          return result;
       }
 
       private SetCoverResult<T, S> solve(RefiningFilter<S> elementFilter) {
-         LinkedHashMap<T, List<S>> result = Maps.newLinkedHashMap();
+         Item<T> resultItem;
+         LinkedHashMap result = Maps.newLinkedHashMap();
          int uncoveredCount = SetCoverFinder.this.universe.size();
-
-         while(!this.itemQueue.isEmpty()) {
-            SetCoverFinder.Item<T> resultItem = this.itemQueue.pop();
-            if(resultItem == null) {
-               break;
-            }
-
+         while (!this.itemQueue.isEmpty() && (resultItem = this.itemQueue.pop()) != null) {
             this.removedItems.set(resultItem.itemId);
             List<S> coveringElements = this.removeElementsOf(resultItem);
             uncoveredCount -= coveringElements.size();
             this.itemQueue.updateOrder();
-            if(!coveringElements.isEmpty()) {
-               if(elementFilter != null) {
-                  List<S> filteredElements = Lists.newArrayListWithExpectedSize(coveringElements.size());
-                  Iterator var7 = coveringElements.iterator();
-
-                  while(var7.hasNext()) {
-                     S candidate = var7.next();
-                     if(elementFilter.apply(candidate)) {
-                        filteredElements.add(elementFilter.refine(candidate));
-                     }
+            if (!coveringElements.isEmpty()) {
+               if (elementFilter != null) {
+                  ArrayList filteredElements = Lists.newArrayListWithExpectedSize((int)coveringElements.size());
+                  for (S candidate : coveringElements) {
+                     if (!elementFilter.apply(candidate)) continue;
+                     filteredElements.add(elementFilter.refine(candidate));
                   }
-
-                  if(!filteredElements.isEmpty()) {
+                  if (!filteredElements.isEmpty()) {
                      result.put(resultItem.item, filteredElements);
                   }
                } else {
                   result.put(resultItem.item, coveringElements);
                }
             }
-
-            if(uncoveredCount == 0) {
-               break;
-            }
+            if (uncoveredCount != 0) continue;
+            break;
          }
-
-         if(elementFilter != null) {
-            if(result.isEmpty()) {
+         if (elementFilter != null) {
+            if (result.isEmpty()) {
                return new SetCoverResult(result);
             }
          } else {
-            if(uncoveredCount > 0) {
+            if (uncoveredCount > 0) {
                return new SetCoverResult(result, this.notCoveredElements(result));
             }
-
-            assert uncoveredCount == 0 : "Bug detected: Some input elements have been covered by more than one result subset.";
+            assert (uncoveredCount == 0);
          }
-
          return new SetCoverResult(result);
       }
 

@@ -138,35 +138,34 @@ public abstract class AbstractReadCommandBuilder<T extends ReadCommand> {
    }
 
    private ByteBuffer bb(Object value, AbstractType<?> type) {
-      return value instanceof ByteBuffer?(ByteBuffer)value:type.decompose(value);
+      return value instanceof ByteBuffer?(ByteBuffer)value:((AbstractType)type).decompose(value);
    }
 
    private AbstractType<?> forValues(AbstractType<?> collectionType) {
-      assert collectionType instanceof CollectionType;
-
+      assert (collectionType instanceof CollectionType);
       CollectionType ct = (CollectionType)collectionType;
-      switch(null.$SwitchMap$org$apache$cassandra$db$marshal$CollectionType$Kind[ct.kind.ordinal()]) {
-      case 1:
-      case 2:
-         return ct.valueComparator();
-      case 3:
-         return ct.nameComparator();
-      default:
-         throw new AssertionError();
+      switch (ct.kind) {
+         case LIST:
+         case MAP: {
+            return ct.valueComparator();
+         }
+         case SET: {
+            return ct.nameComparator();
+         }
       }
+      throw new AssertionError();
    }
 
    private AbstractType<?> forKeys(AbstractType<?> collectionType) {
-      assert collectionType instanceof CollectionType;
-
+      assert (collectionType instanceof CollectionType);
       CollectionType ct = (CollectionType)collectionType;
-      switch(null.$SwitchMap$org$apache$cassandra$db$marshal$CollectionType$Kind[ct.kind.ordinal()]) {
-      case 1:
-      case 2:
-         return ct.nameComparator();
-      default:
-         throw new AssertionError();
+      switch (ct.kind) {
+         case LIST:
+         case MAP: {
+            return ct.nameComparator();
+         }
       }
+      throw new AssertionError();
    }
 
    public AbstractReadCommandBuilder<T> filterOn(String column, Operator op, Object value) {
@@ -288,7 +287,7 @@ public abstract class AbstractReadCommandBuilder<T extends ReadCommand> {
          if(((PartitionPosition)start).compareTo(end) > 0) {
             bounds = start;
             start = end;
-            end = bounds;
+            end = (PartitionPosition) bounds;
          }
 
          if(this.startInclusive && this.endInclusive) {

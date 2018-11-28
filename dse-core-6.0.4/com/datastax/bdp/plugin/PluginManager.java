@@ -47,26 +47,20 @@ public class PluginManager implements LifecycleAware {
       this.injector = injector;
       this.activePlugins = new ConcurrentHashMap();
       this.inactivePlugins = new ConcurrentHashMap();
-      this.dependants = Multimaps.newSetMultimap(new HashMap(), HashSet::<init>);
+      this.dependants = Multimaps.newSetMultimap(new HashMap(), HashSet::new);
    }
 
    public synchronized void postSetup() {
-      if(this.injector != null) {
-         logger.debug("Registering plugins");
-         Iterator var1 = this.injector.getAllBindings().keySet().iterator();
-
-         while(var1.hasNext()) {
-            Key<?> key = (Key)var1.next();
-            Class<?> pluginClass = key.getTypeLiteral().getRawType();
-            if(IPlugin.class.isAssignableFrom(pluginClass) && pluginClass.isAnnotationPresent(DsePlugin.class)) {
-               this.register(pluginClass, (p) -> {
-               });
+      if (this.injector != null) {
+         PluginManager.logger.debug("Registering plugins");
+         for (final Key<?> key : this.injector.getAllBindings().keySet()) {
+            final Class<?> pluginClass = (Class<?>)key.getTypeLiteral().getRawType();
+            if (IPlugin.class.isAssignableFrom(pluginClass) && pluginClass.isAnnotationPresent(DsePlugin.class)) {
+               this.register((Class<? extends IPlugin>)pluginClass, p -> {});
             }
          }
-
          logger.debug("Plugins registration finished");
       }
-
    }
 
    public synchronized void preStart() {
@@ -133,7 +127,7 @@ public class PluginManager implements LifecycleAware {
    }
 
    public synchronized <T extends IPlugin> T getActivePlugin(Class<T> pluginClass) {
-      return (IPlugin)this.activePlugins.get(pluginClass);
+      return (T)this.activePlugins.get(pluginClass);
    }
 
    private synchronized boolean isPluginActive(IPlugin plugin) {
@@ -147,30 +141,26 @@ public class PluginManager implements LifecycleAware {
    }
 
    private void register(Class<? extends IPlugin> pluginClass, Consumer<Class<? extends IPlugin>> dependencyVisitor) {
-      if(this.injector != null) {
-         Iterator var3 = PluginUtil.getPluginDependencies(pluginClass).iterator();
-
-         while(var3.hasNext()) {
-            Class<? extends IPlugin> dep = (Class)var3.next();
-            this.register(dep, (p) -> {
-               dependencyVisitor.accept(p);
-               this.dependants.put(p, pluginClass);
-            });
-         }
-
-         try {
-            if(!this.inactivePlugins.containsKey(pluginClass) && !this.activePlugins.containsKey(pluginClass)) {
-               IPlugin plugin = (IPlugin)this.injector.getInstance(pluginClass);
-               plugin.setPluginManager(this);
-               this.registerDirect(plugin);
-            }
-
-            dependencyVisitor.accept(pluginClass);
-         } catch (PluginManager.DuplicatePluginException var5) {
-            assert false;
-         }
-      }
-
+       if (this.injector != null) {
+           for (final Class<? extends IPlugin> dep : PluginUtil.getPluginDependencies(pluginClass)) {
+               this.register(dep, p -> {
+                   dependencyVisitor.accept(p);
+                   this.dependants.put(p, pluginClass);
+                   return;
+               });
+           }
+           try {
+               if (!this.inactivePlugins.containsKey(pluginClass) && !this.activePlugins.containsKey(pluginClass)) {
+                   final IPlugin plugin = (IPlugin)this.injector.getInstance((Class)pluginClass);
+                   plugin.setPluginManager(this);
+                   this.registerDirect(plugin);
+               }
+               dependencyVisitor.accept(pluginClass);
+           }
+           catch (DuplicatePluginException ignored) {
+               assert false;
+           }
+       }
    }
 
    private void registerDirect(IPlugin plugin) throws PluginManager.DuplicatePluginException {
@@ -193,46 +183,33 @@ public class PluginManager implements LifecycleAware {
    }
 
    private void activate() {
-      logger.info("Activating plugins which {} native transport", this.isNativeTransportActive?"require":"do not require");
-
-      try {
-         Iterator var1 = (new ArrayList(this.inactivePlugins.keySet())).iterator();
-
-         while(var1.hasNext()) {
-            Class<? extends IPlugin> pluginClass = (Class)var1.next();
-            this.activate((IPlugin)this.inactivePlugins.get(pluginClass), false);
-         }
-
-         logger.info("Activation of plugins which {} native transport finished", this.isNativeTransportActive?"require":"do not require");
-      } catch (RuntimeException var4) {
-         logger.info("All plugins will be deactivated because activation of some plugins failed");
-
-         try {
-            this.deactivate();
-         } catch (RuntimeException var3) {
-            ;
-         }
-
-         throw var4;
-      }
+       PluginManager.logger.info("Activating plugins which {} native transport", (Object)(this.isNativeTransportActive ? "require" : "do not require"));
+       try {
+           for (final Class<? extends IPlugin> pluginClass : new ArrayList<Class<? extends IPlugin>>((Collection<? extends Class<? extends IPlugin>>)this.inactivePlugins.keySet())) {
+               this.activate(this.inactivePlugins.get(pluginClass), false);
+           }
+           PluginManager.logger.info("Activation of plugins which {} native transport finished", (Object)(this.isNativeTransportActive ? "require" : "do not require"));
+       }
+       catch (RuntimeException ex) {
+           PluginManager.logger.info("All plugins will be deactivated because activation of some plugins failed");
+           try {
+               this.deactivate();
+           }
+           catch (RuntimeException ex2) {}
+           throw ex;
+       }
    }
 
    public synchronized void activate(IPlugin plugin, boolean force) {
-      if(force && plugin != null) {
-         logger.info("Requested to force activate plugin: {}", plugin);
-      }
-
-      if(this.shouldActivatePlugin(plugin, force)) {
-         Iterator var3 = PluginUtil.getPluginDependencies(plugin.getClass()).iterator();
-
-         while(var3.hasNext()) {
-            Class<? extends IPlugin> dependencyClass = (Class)var3.next();
-            this.activate((IPlugin)this.inactivePlugins.get(dependencyClass), force);
-         }
-
-         this.activateDirect(plugin);
-      }
-
+       if (force && plugin != null) {
+           PluginManager.logger.info("Requested to force activate plugin: {}", (Object)plugin);
+       }
+       if (this.shouldActivatePlugin(plugin, force)) {
+           for (final Class<? extends IPlugin> dependencyClass : PluginUtil.getPluginDependencies(plugin.getClass())) {
+               this.activate(this.inactivePlugins.get(dependencyClass), force);
+           }
+           this.activateDirect(plugin);
+       }
    }
 
    private boolean shouldActivatePlugin(IPlugin plugin, boolean force) {
@@ -310,34 +287,25 @@ public class PluginManager implements LifecycleAware {
    }
 
    private synchronized void deactivate() {
-      logger.info("Deactivating plugins which {} native transport", this.isNativeTransportActive?"require":"do not require");
-      boolean success = true;
-
-      Class pluginClass;
-      for(Iterator var2 = (new ArrayList(this.activePlugins.keySet())).iterator(); var2.hasNext(); success &= this.deactivate((IPlugin)this.activePlugins.get(pluginClass), false)) {
-         pluginClass = (Class)var2.next();
-      }
-
-      if(!success) {
-         throw new RuntimeException("Failed to deactivate some plugins. See messages in log");
-      } else {
-         logger.info("Deactivation of plugins which {} native transport finished", this.isNativeTransportActive?"require":"do not require");
-      }
+       PluginManager.logger.info("Deactivating plugins which {} native transport", (Object)(this.isNativeTransportActive ? "require" : "do not require"));
+       boolean success = true;
+       for (final Class<? extends IPlugin> pluginClass : new ArrayList<Class<? extends IPlugin>>((Collection<? extends Class<? extends IPlugin>>)this.activePlugins.keySet())) {
+           success &= this.deactivate(this.activePlugins.get(pluginClass), false);
+       }
+       if (!success) {
+           throw new RuntimeException("Failed to deactivate some plugins. See messages in log");
+       }
+       PluginManager.logger.info("Deactivation of plugins which {} native transport finished", (Object)(this.isNativeTransportActive ? "require" : "do not require"));
    }
 
    public synchronized boolean deactivate(IPlugin plugin, boolean force) {
-      if(!this.shouldDeactivatePlugin(plugin, force)) {
-         return true;
-      } else {
-         boolean noFailuresInDeps = this.getDependants(plugin.getClass()).stream().map((depClass) -> {
-            return (IPlugin)this.getInstance(depClass).orElse((Object)null);
-         }).allMatch((p) -> {
-            return this.deactivate(p, force);
-         });
-         this.checkNoActiveDependants(plugin.getClass());
-         boolean noFailures = this.deactivateDirect(plugin);
-         return noFailuresInDeps && noFailures;
-      }
+       if (this.shouldDeactivatePlugin(plugin, force)) {
+           final boolean noFailuresInDeps = this.getDependants(plugin.getClass()).stream().map(depClass -> this.getInstance(depClass).orElse(null)).allMatch(p -> this.deactivate(p, force));
+           this.checkNoActiveDependants(plugin.getClass());
+           final boolean noFailures = this.deactivateDirect(plugin);
+           return noFailuresInDeps && noFailures;
+       }
+       return true;
    }
 
    private boolean shouldDeactivatePlugin(IPlugin plugin, boolean force) {
@@ -347,32 +315,27 @@ public class PluginManager implements LifecycleAware {
    }
 
    private boolean deactivateDirect(IPlugin plugin) {
-      logger.info("Deactivating plugin: {}", plugin);
-      boolean needsPostStopAction = plugin.needsPostDeactivate();
-
-      boolean var4;
-      try {
-         plugin.onPreDeactivate();
-         logger.info("Plugin deactivated: {}", plugin);
-         boolean var3 = true;
-         return var3;
-      } catch (Exception var8) {
-         interruptIfNeeded(var8);
-         logger.error(String.format("Failed to pre-deactivate plugin: %s - %s", new Object[]{plugin, var8}), var8);
-         var4 = false;
-      } finally {
-         if(this.activePlugins.remove(plugin.getClass()) != null) {
-            this.inactivePlugins.put(plugin.getClass(), plugin);
-         }
-
-         plugin.setActive(false);
-         if(needsPostStopAction) {
-            this.pendingPostStop.add(plugin);
-         }
-
-      }
-
-      return var4;
+       PluginManager.logger.info("Deactivating plugin: {}", (Object)plugin);
+       final boolean needsPostStopAction = plugin.needsPostDeactivate();
+       try {
+           plugin.onPreDeactivate();
+           PluginManager.logger.info("Plugin deactivated: {}", (Object)plugin);
+           return true;
+       }
+       catch (Exception ex) {
+           interruptIfNeeded(ex);
+           PluginManager.logger.error(String.format("Failed to pre-deactivate plugin: %s - %s", plugin, ex), (Throwable)ex);
+           return false;
+       }
+       finally {
+           if (this.activePlugins.remove(plugin.getClass()) != null) {
+               this.inactivePlugins.put(plugin.getClass(), plugin);
+           }
+           plugin.setActive(false);
+           if (needsPostStopAction) {
+               this.pendingPostStop.add(plugin);
+           }
+       }
    }
 
    private void checkNoActiveDependants(Class<? extends IPlugin> pluginClass) {

@@ -295,7 +295,7 @@ class ReplicationAwareTokenAllocator<Unit> extends TokenAllocatorBase<Unit> {
 
    private class PopulateVisitor extends ReplicationAwareTokenAllocator<Unit>.GroupVisitor {
       private PopulateVisitor() {
-         super(null);
+         super();
       }
 
       TokenAllocatorBase.GroupInfo prevSeen(TokenAllocatorBase.GroupInfo group) {
@@ -309,7 +309,7 @@ class ReplicationAwareTokenAllocator<Unit> extends TokenAllocatorBase<Unit> {
 
    private class ReplicationVisitor extends ReplicationAwareTokenAllocator<Unit>.GroupVisitor {
       private ReplicationVisitor() {
-         super(null);
+         super();
       }
 
       TokenAllocatorBase.GroupInfo prevSeen(TokenAllocatorBase.GroupInfo group) {

@@ -79,8 +79,8 @@ public class SimpleClient implements Closeable {
    }
 
    public SimpleClient(String host, int port, ProtocolVersion version, boolean useBeta, EncryptionOptions.ClientEncryptionOptions encryptionOptions) {
-      this.responseHandler = new SimpleClient.ResponseHandler(null);
-      this.tracker = new SimpleClient.ConnectionTracker(null);
+      this.responseHandler = new SimpleClient.ResponseHandler();
+      this.tracker = new SimpleClient.ConnectionTracker();
       this.connectionFactory = new Connection.Factory() {
          public Connection newConnection(Channel channel, ProtocolVersion version) {
             return SimpleClient.this.connection;
@@ -122,7 +122,7 @@ public class SimpleClient implements Closeable {
       if(this.encryptionOptions.enabled) {
          this.bootstrap.handler(new SimpleClient.SecureInitializer());
       } else {
-         this.bootstrap.handler(new SimpleClient.Initializer(null));
+         this.bootstrap.handler(new SimpleClient.Initializer());
       }
 
       ChannelFuture future = this.bootstrap.connect(new InetSocketAddress(this.host, this.port));
@@ -253,7 +253,7 @@ public class SimpleClient implements Closeable {
       private final SSLContext sslContext;
 
       public SecureInitializer() throws IOException {
-         super(null);
+         super();
          this.sslContext = SSLFactory.createSSLContext(SimpleClient.this.encryptionOptions, true);
       }
 

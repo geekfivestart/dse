@@ -83,7 +83,7 @@ public class KmipHost {
       KmipHost.CipherInfo cipherInfo = new KmipHost.CipherInfo(cipher);
       int idx = 0;
       Att[] attrs = new Att[6 + (options.namespace != null?1:0)];
-      int idx = idx + 1;
+      idx = idx + 1;
       attrs[idx] = Att.cryptographicAlgorithm(cipherInfo.getCryptographicAlgorithm());
       attrs[idx++] = Att.cryptographicLength(keyStrength);
       attrs[idx++] = Att.objectType(ObjectType.SymmetricKey);
@@ -106,7 +106,7 @@ public class KmipHost {
       CryptographicAlgorithm algorithm = cipherInfo.getCryptographicAlgorithm();
       int idx = 0;
       Att[] attrs = new Att[5 + (options.namespace != null?1:0)];
-      int idx = idx + 1;
+      idx = idx + 1;
       attrs[idx] = Att.cryptographicAlgorithm(algorithm);
       attrs[idx++] = Att.cryptographicLength(keyStrength);
       attrs[idx++] = Att.cryptographicUsageMask(new CryptographicUsageMask[]{CryptographicUsageMask.Encrypt, CryptographicUsageMask.Decrypt});
@@ -216,7 +216,7 @@ public class KmipHost {
    List<String> sortAndFilterKeys(List<String> ids, Kmip kmip) throws KeyAccessException {
       List<KmipHost.KeyAttrs> keyAttrs = this.getKeyAttrs(ids, kmip);
       final Date now = new Date();
-      List<KmipHost.KeyAttrs> keyAttrs = Lists.newArrayList(Iterables.filter(keyAttrs, new Predicate<KmipHost.KeyAttrs>() {
+      keyAttrs = Lists.newArrayList(Iterables.filter(keyAttrs, new Predicate<KmipHost.KeyAttrs>() {
          public boolean apply(KmipHost.KeyAttrs input) {
             return input.protectStopDate == null || !input.protectStopDate.before(now);
          }

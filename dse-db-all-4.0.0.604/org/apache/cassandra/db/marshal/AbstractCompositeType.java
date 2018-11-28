@@ -172,13 +172,13 @@ public abstract class AbstractCompositeType extends AbstractType<ByteBuffer> {
          ((AbstractCompositeType.ParsedComparator)comparators.get(i)).serializeComparator(bb);
          ByteBufferUtil.writeShortLength(bb, component.remaining());
          bb.put(component);
-         bb.put(0);
+         bb.put((byte)0);
       }
 
       if(lastByteIsOne) {
-         bb.put(bb.limit() - 1, 1);
+         bb.put(bb.limit() - 1, (byte)1);
       } else if(lastByteIsMinusOne) {
-         bb.put(bb.limit() - 1, -1);
+         bb.put(bb.limit() - 1, (byte)-1);
       }
 
       bb.rewind();

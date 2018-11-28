@@ -177,7 +177,7 @@ public class CqlRecordReader extends RecordReader<Long, Row> implements org.apac
    }
 
    public Row createValue() {
-      return new CqlRecordReader.WrappedRow(null);
+      return new CqlRecordReader.WrappedRow();
    }
 
    public int getNativeProtocolVersion() {

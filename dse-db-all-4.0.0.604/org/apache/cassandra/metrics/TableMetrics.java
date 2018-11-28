@@ -107,8 +107,8 @@ public class TableMetrics {
    public final NodeSyncMetrics nodeSyncMetrics;
    private final MetricNameFactory factory;
    private final MetricNameFactory aliasFactory;
-   private static final MetricNameFactory globalFactory = new TableMetrics.AllTableMetricNameFactory("Table", null);
-   private static final MetricNameFactory globalAliasFactory = new TableMetrics.AllTableMetricNameFactory("ColumnFamily", null);
+   private static final MetricNameFactory globalFactory = new TableMetrics.AllTableMetricNameFactory("Table");
+   private static final MetricNameFactory globalAliasFactory = new TableMetrics.AllTableMetricNameFactory("ColumnFamily");
    public final Counter speculativeRetries;
    public final Counter speculativeFailedRetries;
    public final Counter speculativeInsufficientReplicas;
@@ -199,8 +199,8 @@ public class TableMetrics {
    }
 
    public TableMetrics(final ColumnFamilyStore cfs) {
-      this.factory = new TableMetrics.TableMetricNameFactory(cfs, "Table", null);
-      this.aliasFactory = new TableMetrics.TableMetricNameFactory(cfs, "ColumnFamily", null);
+      this.factory = new TableMetrics.TableMetricNameFactory(cfs, "Table");
+      this.aliasFactory = new TableMetrics.TableMetricNameFactory(cfs, "ColumnFamily");
       this.samplers = new EnumMap(TableMetrics.Sampler.class);
       TableMetrics.Sampler[] var2 = TableMetrics.Sampler.values();
       int var3 = var2.length;

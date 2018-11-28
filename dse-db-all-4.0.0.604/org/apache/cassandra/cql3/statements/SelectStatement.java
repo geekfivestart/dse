@@ -297,7 +297,7 @@ public class SelectStatement implements CQLStatement, TableStatement {
    }
 
    private Single<ResultMessage.Rows> processResults(Flow<FlowablePartition> partitions, QueryOptions options, Selection.Selectors selectors, int nowInSec, int userLimit, AggregationSpecification aggregationSpec) throws RequestValidationException {
-      return this.process(partitions, options, selectors, nowInSec, userLimit, aggregationSpec).map(ResultMessage.Rows::<init>);
+      return this.process(partitions, options, selectors, nowInSec, userLimit, aggregationSpec).map(ResultMessage.Rows::new);
    }
 
    public Single<ResultMessage.Rows> executeInternal(QueryState state, QueryOptions options) throws RequestExecutionException, RequestValidationException {
@@ -347,7 +347,7 @@ public class SelectStatement implements CQLStatement, TableStatement {
       PageSize pageSize = this.getPageSize(queryOptions);
       DataLimits limit = this.getDataLimits(userLimit, userPerPartitionLimit, pageSize, aggregationSpec);
       ReadQuery query = this.getQuery(queryState, queryOptions, selectors.getColumnFilter(), nowInSec, limit);
-      ContinuousPagingState continuousPagingState = new ContinuousPagingState(DatabaseDescriptor.getContinuousPaging(), new SelectStatement.ContinuousPagingExecutor(this, queryOptions, queryState, query, queryStartNanoTime, pageSize, null), () -> {
+      ContinuousPagingState continuousPagingState = new ContinuousPagingState(DatabaseDescriptor.getContinuousPaging(), new SelectStatement.ContinuousPagingExecutor(this, queryOptions, queryState, query, queryStartNanoTime, pageSize), () -> {
          return queryState.getConnection().channel();
       }, ResultSet.estimatedRowSizeForColumns(this.table, this.getSelection().getColumnMapping()));
       ResultBuilder builder = ContinuousPagingService.createSession(this.getSelection().newSelectors(queryOptions), aggregationSpec == null?null:aggregationSpec.newGroupMaker(), this.getResultMetadata(), continuousPagingState, queryState, queryOptions);
@@ -390,28 +390,22 @@ public class SelectStatement implements CQLStatement, TableStatement {
    }
 
    private ReadQuery getSliceCommands(QueryState queryState, QueryOptions options, ColumnFilter columnFilter, DataLimits limit, int nowInSec) {
-      Collection<ByteBuffer> keys = this.restrictions.getPartitionKeys(options);
-      if(keys.isEmpty()) {
+      List<ByteBuffer> keys = this.restrictions.getPartitionKeys(options);
+      if (keys.isEmpty()) {
          return ReadQuery.empty(this.table);
-      } else {
-         ClusteringIndexFilter filter = this.makeClusteringIndexFilter(options, columnFilter);
-         if(filter == null) {
-            return ReadQuery.empty(this.table);
-         } else {
-            RowFilter rowFilter = this.getRowFilter(queryState, options);
-            List<SinglePartitionReadCommand> commands = new ArrayList(keys.size());
-            Iterator var10 = keys.iterator();
-
-            while(var10.hasNext()) {
-               ByteBuffer key = (ByteBuffer)var10.next();
-               QueryProcessor.validateKey(key);
-               DecoratedKey dk = this.table.partitioner.decorateKey(ByteBufferUtil.clone(key));
-               commands.add(SinglePartitionReadCommand.create(this.table, nowInSec, columnFilter, rowFilter, limit, dk, filter));
-            }
-
-            return new SinglePartitionReadCommand.Group(commands, limit);
-         }
       }
+      ClusteringIndexFilter filter = this.makeClusteringIndexFilter(options, columnFilter);
+      if (filter == null) {
+         return ReadQuery.empty(this.table);
+      }
+      RowFilter rowFilter = this.getRowFilter(queryState, options);
+      ArrayList<SinglePartitionReadCommand> commands = new ArrayList<SinglePartitionReadCommand>(keys.size());
+      for (ByteBuffer key : keys) {
+         QueryProcessor.validateKey(key);
+         DecoratedKey dk = this.table.partitioner.decorateKey(ByteBufferUtil.clone(key));
+         commands.add(SinglePartitionReadCommand.create(this.table, nowInSec, columnFilter, rowFilter, limit, dk, filter));
+      }
+      return new SinglePartitionReadCommand.Group(commands, limit);
    }
 
    public Slices clusteringIndexFilterAsSlices() {
@@ -590,51 +584,46 @@ public class SelectStatement implements CQLStatement, TableStatement {
 
    <T extends ResultBuilder> Flow<T> processPartition(FlowablePartition partition, QueryOptions options, T result, int nowInSec) throws InvalidRequestException {
       ProtocolVersion protocolVersion = options.getProtocolVersion();
-      ByteBuffer[] keyComponents = getComponents(this.table, partition.header().partitionKey);
-      Flow var10000 = partition.content();
-      result.getClass();
-      return var10000.takeUntil(result::isCompleted).reduce(Boolean.valueOf(false), (hasContent, row) -> {
+      ByteBuffer[] keyComponents = SelectStatement.getComponents(this.table, partition.header().partitionKey);
+      return partition.content().takeUntil(result::isCompleted).reduce(false, (hasContent, row) -> {
          result.newRow(partition.partitionKey(), row.clustering());
-         Iterator var8 = this.selection.getColumns().iterator();
-
-         while(var8.hasNext()) {
-            ColumnMetadata def = (ColumnMetadata)var8.next();
-            switch(null.$SwitchMap$org$apache$cassandra$schema$ColumnMetadata$Kind[def.kind.ordinal()]) {
-            case 1:
-               result.add(keyComponents[def.position()]);
-               break;
-            case 2:
-               addValue(result, def, partition.staticRow(), nowInSec, protocolVersion);
-               break;
-            case 3:
-               result.add(row.clustering().get(def.position()));
-               break;
-            case 4:
-               addValue(result, def, row, nowInSec, protocolVersion);
-            }
-         }
-
-         return Boolean.valueOf(true);
-      }).map((hasContent) -> {
-         if(!hasContent.booleanValue() && !result.isCompleted() && !partition.staticRow().isEmpty() && this.returnStaticContentOnPartitionWithNoRows()) {
-            result.newRow(partition.partitionKey(), partition.staticRow().clustering());
-            Iterator var7 = this.selection.getColumns().iterator();
-
-            while(var7.hasNext()) {
-               ColumnMetadata def = (ColumnMetadata)var7.next();
-               switch(null.$SwitchMap$org$apache$cassandra$schema$ColumnMetadata$Kind[def.kind.ordinal()]) {
-               case 1:
+         for (ColumnMetadata def : this.selection.getColumns()) {
+            switch (def.kind) {
+               case PARTITION_KEY: {
                   result.add(keyComponents[def.position()]);
                   break;
-               case 2:
-                  addValue(result, def, partition.staticRow(), nowInSec, protocolVersion);
+               }
+               case CLUSTERING: {
+                  result.add(row.clustering().get(def.position()));
                   break;
-               default:
-                  result.add((ByteBuffer)null);
+               }
+               case REGULAR: {
+                  SelectStatement.addValue(result, def, row, nowInSec, protocolVersion);
+                  break;
+               }
+               case STATIC: {
+                  SelectStatement.addValue(result, def, partition.staticRow(), nowInSec, protocolVersion);
                }
             }
          }
-
+         return true;
+      }).map(hasContent -> {
+         if (!hasContent.booleanValue() && !result.isCompleted() && !partition.staticRow().isEmpty() && this.returnStaticContentOnPartitionWithNoRows()) {
+            result.newRow(partition.partitionKey(), partition.staticRow().clustering());
+            block4 : for (ColumnMetadata def : this.selection.getColumns()) {
+               switch (def.kind) {
+                  case PARTITION_KEY: {
+                     result.add(keyComponents[def.position()]);
+                     continue block4;
+                  }
+                  case STATIC: {
+                     SelectStatement.addValue(result, def, partition.staticRow(), nowInSec, protocolVersion);
+                     continue block4;
+                  }
+               }
+               result.add(null);
+            }
+         }
          return result;
       });
    }
@@ -674,7 +663,7 @@ public class SelectStatement implements CQLStatement, TableStatement {
       private final List<Integer> positions;
 
       private CompositeComparator(List<Comparator<ByteBuffer>> orderTypes, List<Integer> positions) {
-         super(null);
+         super();
          this.orderTypes = orderTypes;
          this.positions = positions;
       }
@@ -698,7 +687,7 @@ public class SelectStatement implements CQLStatement, TableStatement {
       private final Comparator<ByteBuffer> comparator;
 
       public SingleColumnComparator(int columnIndex, Comparator<ByteBuffer> orderer) {
-         super(null);
+         super();
          this.index = columnIndex;
          this.comparator = orderer;
       }
@@ -934,7 +923,7 @@ public class SelectStatement implements CQLStatement, TableStatement {
                sorters.add(orderingColumn.type);
             }
 
-            return (Comparator)(idToSort.size() == 1?new SelectStatement.SingleColumnComparator(((Integer)idToSort.get(0)).intValue(), (Comparator)sorters.get(0)):new SelectStatement.CompositeComparator(sorters, idToSort, null));
+            return (Comparator)(idToSort.size() == 1?new SelectStatement.SingleColumnComparator(((Integer)idToSort.get(0)).intValue(), (Comparator)sorters.get(0)):new SelectStatement.CompositeComparator(sorters, idToSort));
          }
       }
 
@@ -1154,11 +1143,11 @@ public class SelectStatement implements CQLStatement, TableStatement {
       }
 
       public static SelectStatement.Pager forInternalQuery(QueryPager pager) {
-         return new SelectStatement.Pager.InternalPager(pager, null);
+         return new SelectStatement.Pager.InternalPager(pager);
       }
 
       public static SelectStatement.Pager forNormalQuery(QueryPager pager, ReadContext.Builder paramsBuilder) {
-         return new SelectStatement.Pager.NormalPager(pager, paramsBuilder, null);
+         return new SelectStatement.Pager.NormalPager(pager, paramsBuilder);
       }
 
       public boolean isExhausted() {

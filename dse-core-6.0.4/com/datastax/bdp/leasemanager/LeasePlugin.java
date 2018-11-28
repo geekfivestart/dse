@@ -84,7 +84,7 @@ public class LeasePlugin extends AbstractPlugin implements LeaseMXBean, Lifecycl
 
    public void onRegister() {
       super.onRegister();
-      JMX.registerMBean(this, JMX.Type.CORE, MapBuilder.immutable().withKeys(new String[]{"name"}).withValues(new String[]{"Leases"}).build());
+      JMX.registerMBean(this, JMX.Type.CORE, MapBuilder.<String,String>immutable().withKeys(new String[]{"name"}).withValues(new String[]{"Leases"}).build());
    }
 
    public void onActivate() {
@@ -323,7 +323,7 @@ public class LeasePlugin extends AbstractPlugin implements LeaseMXBean, Lifecycl
       InetAddress remoteMonitor = this.getRemoteMonitor(manager, name, dc);
       if(remoteMonitor != null) {
          logger.debug("Forwarding request to node {}", remoteMonitor);
-         Request message = (LeaseProtocol.LeaseRequest)request.get();
+         LeaseProtocol.LeaseRequest message = (LeaseProtocol.LeaseRequest)request.get();
          return this.client.sendSync(remoteMonitor, message.type, message, INTERNODE_TIMEOUT_MS);
       } else {
          logger.debug("Handling request locally!");

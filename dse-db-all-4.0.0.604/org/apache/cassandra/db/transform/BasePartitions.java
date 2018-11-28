@@ -8,7 +8,7 @@ import org.apache.cassandra.utils.Throwables;
 
 public abstract class BasePartitions<R extends BaseRowIterator<?>, I extends BasePartitionIterator<? extends BaseRowIterator<?>>> extends BaseIterator<BaseRowIterator<?>, I, R> implements BasePartitionIterator<R> {
    public BasePartitions(I input) {
-      super((Iterator)input);
+      super((I)input);
    }
 
    BasePartitions(BasePartitions<?, ? extends I> copyFrom) {

@@ -129,25 +129,25 @@ public class OutboundTcpConnectionPool {
       return this.id.equals(FBUtilities.getBroadcastAddress())?FBUtilities.getLocalAddress():this.resetEndpoint;
    }
 
+
    public static boolean isEncryptedChannel(InetAddress address) {
       IEndpointSnitch snitch = DatabaseDescriptor.getEndpointSnitch();
-      switch(null.$SwitchMap$org$apache$cassandra$config$EncryptionOptions$ServerEncryptionOptions$InternodeEncryption[DatabaseDescriptor.getServerEncryptionOptions().internode_encryption.ordinal()]) {
-      case 1:
-         return false;
-      case 2:
-      default:
-         break;
-      case 3:
-         if(snitch.isInLocalDatacenter(address)) {
+      switch (DatabaseDescriptor.getServerEncryptionOptions().internode_encryption) {
+         case none: {
             return false;
          }
-         break;
-      case 4:
-         if(snitch.isInLocalRack(address)) {
+         case all: {
+            break;
+         }
+         case dc: {
+            if (!snitch.isInLocalDatacenter(address)) break;
+            return false;
+         }
+         case rack: {
+            if (!snitch.isInLocalRack(address)) break;
             return false;
          }
       }
-
       return true;
    }
 

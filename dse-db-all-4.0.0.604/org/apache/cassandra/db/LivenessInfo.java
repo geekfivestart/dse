@@ -161,7 +161,7 @@ public class LivenessInfo {
 
    private static class ExpiredLivenessInfo extends LivenessInfo.ExpiringLivenessInfo {
       private ExpiredLivenessInfo(long timestamp, int ttl, int localExpirationTime) {
-         super(timestamp, ttl, localExpirationTime, null);
+         super(timestamp, ttl, localExpirationTime);
 
          assert ttl == 2147483647;
 

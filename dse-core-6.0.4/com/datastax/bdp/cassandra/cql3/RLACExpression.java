@@ -121,7 +121,7 @@ public class RLACExpression extends UserExpression implements ExternalRestrictio
       public RLACExpression deserialize(DataInputPlus in, ReadVersion version, TableMetadata metadata) throws IOException {
          ByteBuffer userBytes = ByteBufferUtil.readWithShortLength(in);
          ClientState state = ClientState.forExternalCalls(new AuthenticatedUser(UTF8Serializer.instance.deserialize(userBytes)));
-         return new RLACExpression(metadata, userBytes, state, null);
+         return new RLACExpression(metadata, userBytes, state);
       }
    }
 }

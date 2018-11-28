@@ -22,7 +22,7 @@ public final class InjectableRequestWrapper extends HttpServletRequestWrapper {
       super(request);
       Map<String, String[]> originalParameters = super.getParameterMap();
       String originalQueryString = super.getQueryString();
-      this.parameters = ImmutableMap.builder().putAll(additionalParameters).putAll(originalParameters).build();
+      this.parameters = ImmutableMap.<String,String[]>builder().putAll(additionalParameters).<String,String[]>putAll(originalParameters).build();
       List<String> parameterStrings = Lists.newArrayListWithExpectedSize(additionalParameters.size() + 1);
       if(StringUtils.isNotBlank(originalQueryString)) {
          parameterStrings.add(originalQueryString);

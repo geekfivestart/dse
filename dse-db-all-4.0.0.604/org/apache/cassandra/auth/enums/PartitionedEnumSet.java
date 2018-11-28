@@ -23,11 +23,11 @@ public class PartitionedEnumSet<E extends PartitionedEnum> implements Set<E> {
    private final boolean isImmutable;
 
    public static <E extends PartitionedEnum> PartitionedEnumSet<E> allOf(Class<E> elementType, Class<? extends E> domain) {
-      return of(elementType, (PartitionedEnum[])domain.getEnumConstants());
+      return of(elementType, (E[])domain.getEnumConstants());
    }
 
    public static <E extends PartitionedEnum> PartitionedEnumSet<E> immutableSetOfAll(Class<E> elementType, Class<? extends E> domain) {
-      return immutableSetOf(elementType, (PartitionedEnum[])domain.getEnumConstants());
+      return immutableSetOf(elementType, (E[])domain.getEnumConstants());
    }
 
    public static <E extends PartitionedEnum> PartitionedEnumSet<E> of(Class<E> elementType, E... elements) {
@@ -129,22 +129,13 @@ public class PartitionedEnumSet<E extends PartitionedEnum> implements Set<E> {
    }
 
    public void forEach(Consumer<? super E> action) {
-      Iterator var2 = this.registry.domains().iterator();
-
-      while(var2.hasNext()) {
-         Domains.Domain d = (Domains.Domain)var2.next();
+      for (Domains.Domain d : this.registry.domains()) {
          int off = d.bitOffset;
-         Enum[] var5 = (Enum[])d.enumType.getEnumConstants();
-         int var6 = var5.length;
-
-         for(int var7 = 0; var7 < var6; ++var7) {
-            Enum e = var5[var7];
-            if(this.bits.get(off + e.ordinal())) {
-               action.accept((PartitionedEnum)e);
-            }
+         for (Enum e : d.enumType.getEnumConstants()) {
+            if (!this.bits.get(off + e.ordinal())) continue;
+            action.accept((E)e);
          }
       }
-
    }
 
    public Stream<E> stream() {
@@ -264,8 +255,8 @@ public class PartitionedEnumSet<E extends PartitionedEnum> implements Set<E> {
 
    public <T> T[] toArray(T[] a) {
       int size = this.size();
-      T[] array = a.length >= size?a:(Object[])((Object[])Array.newInstance(a.getClass().getComponentType(), size));
-      T[] r = (Object[])this.toArrayInt(array);
+      T[] array = a.length >= size?a:(T[])((Object[])Array.newInstance(a.getClass().getComponentType(), size));
+      T[] r = (T[])this.toArrayInt(array);
 
       for(int i = size; i < a.length; ++i) {
          r[i] = null;
@@ -336,7 +327,7 @@ public class PartitionedEnumSet<E extends PartitionedEnum> implements Set<E> {
          Iterator var3 = c.iterator();
 
          while(var3.hasNext()) {
-            E e = (PartitionedEnum)var3.next();
+            E e = (E)var3.next();
             if(this.add(e)) {
                added = true;
             }
@@ -365,7 +356,7 @@ public class PartitionedEnumSet<E extends PartitionedEnum> implements Set<E> {
          Iterator iter = this.iterator();
 
          while(iter.hasNext()) {
-            E e = (PartitionedEnum)iter.next();
+            PartitionedEnum e = (PartitionedEnum)iter.next();
             if(!c.contains(e)) {
                removed = this.remove((Object)e);
             }

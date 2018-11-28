@@ -458,9 +458,8 @@ public class Cql_Lexer extends Lexer {
    public final void mBOOLEAN() throws RecognitionException {
       int _type = 6;
       int _channel = 0;
-      int alt16 = true;
+      int alt16 = 2;
       int LA16_0 = this.input.LA(1);
-      byte alt16;
       if(LA16_0 != 84 && LA16_0 != 116) {
          if(LA16_0 != 70 && LA16_0 != 102) {
             if(this.state.backtracking > 0) {
@@ -548,9 +547,8 @@ public class Cql_Lexer extends Lexer {
    public final void mCOMMENT() throws RecognitionException {
       int _type = 8;
       int _channel = 0;
-      int alt42 = true;
+      int alt42 = 2;
       int LA42_0 = this.input.LA(1);
-      byte alt42;
       if(LA42_0 == 45) {
          alt42 = 1;
       } else {
@@ -655,8 +653,8 @@ public class Cql_Lexer extends Lexer {
       byte _channel;
       _type = 11;
       _channel = 0;
-      int alt38 = true;
-      int alt38 = this.dfa38.predict(this.input);
+      int alt38 = 4;
+      alt38 = this.dfa38.predict(this.input);
       byte alt37;
       int LA37_0;
       int cnt36;
@@ -752,9 +750,9 @@ public class Cql_Lexer extends Lexer {
                                     return;
                                  }
 
-                                 MismatchedSetException mse = new MismatchedSetException((BitSet)null, this.input);
-                                 this.recover(mse);
-                                 throw mse;
+                                 MismatchedSetException mse1 = new MismatchedSetException((BitSet)null, this.input);
+                                 this.recover(mse1);
+                                 throw mse1;
                               }
 
                               this.input.consume();
@@ -768,7 +766,7 @@ public class Cql_Lexer extends Lexer {
                                     return;
                                  }
 
-                                 EarlyExitException eee = new EarlyExitException(19, this.input);
+                                 eee = new EarlyExitException(19, this.input);
                                  throw eee;
                               }
 
@@ -805,7 +803,6 @@ public class Cql_Lexer extends Lexer {
                return;
             }
 
-            int alt23 = true;
             cnt36 = this.dfa23.predict(this.input);
             int cnt22;
             byte alt27;
@@ -828,9 +825,9 @@ public class Cql_Lexer extends Lexer {
                            this.state.failed = true;
                            return;
                         } else {
-                           MismatchedSetException mse = new MismatchedSetException((BitSet)null, this.input);
-                           this.recover(mse);
-                           throw mse;
+                           MismatchedSetException mse1 = new MismatchedSetException((BitSet)null, this.input);
+                           this.recover(mse1);
+                           throw mse1;
                         }
                      }
 
@@ -845,7 +842,7 @@ public class Cql_Lexer extends Lexer {
                            return;
                         }
 
-                        EarlyExitException eee = new EarlyExitException(22, this.input);
+                        eee = new EarlyExitException(22, this.input);
                         throw eee;
                      }
 
@@ -857,7 +854,6 @@ public class Cql_Lexer extends Lexer {
                   }
                }
             default:
-               int alt25 = true;
                cnt22 = this.dfa25.predict(this.input);
                int cnt26;
                switch(cnt22) {
@@ -880,9 +876,9 @@ public class Cql_Lexer extends Lexer {
                               return;
                            }
 
-                           MismatchedSetException mse = new MismatchedSetException((BitSet)null, this.input);
-                           this.recover(mse);
-                           throw mse;
+                           MismatchedSetException mse1 = new MismatchedSetException((BitSet)null, this.input);
+                           this.recover(mse1);
+                           throw mse1;
                         }
 
                         this.input.consume();
@@ -896,7 +892,7 @@ public class Cql_Lexer extends Lexer {
                               return;
                            }
 
-                           EarlyExitException eee = new EarlyExitException(24, this.input);
+                           eee = new EarlyExitException(24, this.input);
                            throw eee;
                         }
 
@@ -935,9 +931,9 @@ public class Cql_Lexer extends Lexer {
                                  return;
                               }
 
-                              MismatchedSetException mse = new MismatchedSetException((BitSet)null, this.input);
-                              this.recover(mse);
-                              throw mse;
+                              MismatchedSetException mse1 = new MismatchedSetException((BitSet)null, this.input);
+                              this.recover(mse1);
+                              throw mse1;
                            }
 
                            this.input.consume();
@@ -951,7 +947,7 @@ public class Cql_Lexer extends Lexer {
                                  return;
                               }
 
-                              EarlyExitException eee = new EarlyExitException(26, this.input);
+                              eee = new EarlyExitException(26, this.input);
                               throw eee;
                            }
 
@@ -977,7 +973,6 @@ public class Cql_Lexer extends Lexer {
                         return;
                      }
 
-                     int alt29 = true;
                      alt29 = this.dfa29.predict(this.input);
                      byte alt33;
                      int LA33_0;
@@ -1002,9 +997,9 @@ public class Cql_Lexer extends Lexer {
                                     return;
                                  }
 
-                                 MismatchedSetException mse = new MismatchedSetException((BitSet)null, this.input);
-                                 this.recover(mse);
-                                 throw mse;
+                                 MismatchedSetException mse1 = new MismatchedSetException((BitSet)null, this.input);
+                                 this.recover(mse1);
+                                 throw mse1;
                               }
 
                               this.input.consume();
@@ -1018,7 +1013,7 @@ public class Cql_Lexer extends Lexer {
                                     return;
                                  }
 
-                                 EarlyExitException eee = new EarlyExitException(28, this.input);
+                                 eee = new EarlyExitException(28, this.input);
                                  throw eee;
                               }
 
@@ -1031,7 +1026,6 @@ public class Cql_Lexer extends Lexer {
                         }
                      }
 
-                     int alt31 = true;
                      cnt28 = this.dfa31.predict(this.input);
                      int cnt32;
                      switch(cnt28) {
@@ -1054,9 +1048,9 @@ public class Cql_Lexer extends Lexer {
                                     return;
                                  }
 
-                                 MismatchedSetException mse = new MismatchedSetException((BitSet)null, this.input);
-                                 this.recover(mse);
-                                 throw mse;
+                                 MismatchedSetException mse1 = new MismatchedSetException((BitSet)null, this.input);
+                                 this.recover(mse1);
+                                 throw mse1;
                               }
 
                               this.input.consume();
@@ -1070,8 +1064,8 @@ public class Cql_Lexer extends Lexer {
                                     return;
                                  }
 
-                                 EarlyExitException eee = new EarlyExitException(30, this.input);
-                                 throw eee;
+                                 EarlyExitException eee1 = new EarlyExitException(30, this.input);
+                                 throw eee1;
                               }
 
                               this.match(77);
@@ -1107,9 +1101,9 @@ public class Cql_Lexer extends Lexer {
                                        return;
                                     }
 
-                                    MismatchedSetException mse = new MismatchedSetException((BitSet)null, this.input);
-                                    this.recover(mse);
-                                    throw mse;
+                                    MismatchedSetException mse1 = new MismatchedSetException((BitSet)null, this.input);
+                                    this.recover(mse1);
+                                    throw mse1;
                                  }
 
                                  this.input.consume();
@@ -1123,8 +1117,8 @@ public class Cql_Lexer extends Lexer {
                                        return;
                                     }
 
-                                    EarlyExitException eee = new EarlyExitException(32, this.input);
-                                    throw eee;
+                                    EarlyExitException eee1 = new EarlyExitException(32, this.input);
+                                    throw eee1;
                                  }
 
                                  this.match(83);
@@ -1327,8 +1321,8 @@ public class Cql_Lexer extends Lexer {
    }
 
    public final void mDURATION_UNIT() throws RecognitionException {
-      int alt9 = true;
-      int alt9 = this.dfa9.predict(this.input);
+      int alt9 = 11;
+      alt9 = this.dfa9.predict(this.input);
       switch(alt9) {
       case 1:
          this.mY();
@@ -1539,11 +1533,10 @@ public class Cql_Lexer extends Lexer {
    public final void mFLOAT() throws RecognitionException {
       int _type = 17;
       int _channel = 0;
-      int alt15 = true;
+      int alt15 = 3;
       int LA15_0 = this.input.LA(1);
       int LA15_2;
       int LA13_0;
-      byte alt15;
       if(LA15_0 == 45) {
          LA15_2 = this.input.LA(2);
          if(LA15_2 < 48 || LA15_2 > 57) {
@@ -2362,9 +2355,8 @@ public class Cql_Lexer extends Lexer {
    public final void mK_COLUMNFAMILY() throws RecognitionException {
       int _type = 51;
       int _channel = 0;
-      int alt2 = true;
+      int alt2 = 2;
       int LA2_0 = this.input.LA(1);
-      byte alt2;
       if(LA2_0 != 67 && LA2_0 != 99) {
          if(LA2_0 != 84 && LA2_0 != 116) {
             if(this.state.backtracking > 0) {
@@ -3544,9 +3536,8 @@ public class Cql_Lexer extends Lexer {
    public final void mK_KEYSPACE() throws RecognitionException {
       int _type = 103;
       int _channel = 0;
-      int alt1 = true;
+      int alt1 = 2;
       int LA1_0 = this.input.LA(1);
-      byte alt1;
       if(LA1_0 != 75 && LA1_0 != 107) {
          if(LA1_0 != 83 && LA1_0 != 115) {
             if(this.state.backtracking > 0) {
@@ -5814,9 +5805,8 @@ public class Cql_Lexer extends Lexer {
       int _type = 207;
       int _channel = 0;
       StringBuilder txt = new StringBuilder();
-      int alt5 = true;
+      int alt5 = 2;
       int LA5_0 = this.input.LA(1);
-      byte alt5;
       if(LA5_0 == 36) {
          alt5 = 1;
       } else {
@@ -5989,8 +5979,8 @@ public class Cql_Lexer extends Lexer {
    }
 
    public void mTokens() throws RecognitionException {
-      int alt45 = true;
-      int alt45 = this.dfa45.predict(this.input);
+      int alt45 = 157;
+      alt45 = this.dfa45.predict(this.input);
       switch(alt45) {
       case 1:
          this.mK_SELECT();

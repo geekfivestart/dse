@@ -28,7 +28,7 @@ public class SchemaVerbs extends VerbGroup<SchemaVerbs.SchemaVersion> {
       this.VERSION = ((VerbGroup.RegistrationHelper.RequestResponseBuilder)((VerbGroup.RegistrationHelper.RequestResponseBuilder)helper.requestResponse("VERSION", EmptyPayload.class, UUID.class).withResponseSerializer(UUIDSerializer.serializer)).timeout(DatabaseDescriptor::getRpcTimeout)).syncHandler((from, x) -> {
          return Schema.instance.getVersion();
       });
-      this.PULL = ((VerbGroup.RegistrationHelper.RequestResponseBuilder)helper.requestResponse("PULL", PullRequest.class, SchemaMigration.class).timeout(DatabaseDescriptor::getRpcTimeout)).syncHandler((from, pr) -> {
+      this.PULL = (helper.requestResponse("PULL", PullRequest.class, SchemaMigration.class).timeout(DatabaseDescriptor::getRpcTimeout)).syncHandler((from, pr) -> {
          int version = pr.schemaCompatibilityVersion();
          if(version < 0) {
             if(!Schema.instance.isSchemaCompatibleWith(from)) {

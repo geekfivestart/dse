@@ -257,7 +257,7 @@ final class LogRecord {
    }
 
    LogRecord asType(LogRecord.Type type) {
-      return new LogRecord(type, (String)this.absolutePath.orElse((Object)null), this.updateTime, this.numFiles);
+      return new LogRecord(type, (String)this.absolutePath.orElse(null), this.updateTime, this.numFiles);
    }
 
    public static final class Status {

@@ -62,7 +62,7 @@ public class Downsampling {
          return originalIndexes;
       } else {
          List<Integer> pattern = getSamplingPattern(128).subList(0, 128 - samplingLevel);
-         List<Integer> originalIndexes = new ArrayList(samplingLevel);
+         originalIndexes = new ArrayList(samplingLevel);
 
          for(int j = 0; j < 128; ++j) {
             if(!pattern.contains(Integer.valueOf(j))) {

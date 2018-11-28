@@ -94,27 +94,32 @@ public class ResourceManagerWorkPoolResource implements IResource {
    }
 
    public String getName() {
-      switch(null.$SwitchMap$com$datastax$bdp$cassandra$auth$ResourceManagerWorkPoolResource$Level[this.level.ordinal()]) {
-      case 1:
-         return "any_work_pool_in_any_dc";
-      case 2:
-         return String.format("%s/%s", new Object[]{"any_work_pool_in_any_dc", this.dc});
-      case 3:
-         return String.format("%s/%s/%s", new Object[]{"any_work_pool_in_any_dc", this.dc, this.workPool});
-      default:
-         throw new AssertionError();
+      switch (this.level) {
+         case ANY_WORK_POOL: {
+            return "any_work_pool_in_any_dc";
+         }
+         case ANY_WORK_POOL_IN_DC: {
+            return String.format("%s/%s", "any_work_pool_in_any_dc", this.dc);
+         }
+         case WORK_POOL: {
+            return String.format("%s/%s/%s", "any_work_pool_in_any_dc", this.dc, this.workPool);
+         }
+         default: {
+            throw new AssertionError();
+         }
       }
    }
 
    public IResource getParent() {
-      switch(null.$SwitchMap$com$datastax$bdp$cassandra$auth$ResourceManagerWorkPoolResource$Level[this.level.ordinal()]) {
-      case 2:
-         return root();
-      case 3:
-         return dc(this.dc);
-      default:
-         throw new IllegalStateException("Root-level resource can't have a parent");
+      switch (this.level) {
+         case WORK_POOL: {
+            return (IResource)dc(this.dc);
+         }
+         case ANY_WORK_POOL_IN_DC: {
+            return (IResource)root();
+         }
       }
+      throw new IllegalStateException("Root-level resource can't have a parent");
    }
 
    public boolean hasParent() {
@@ -122,44 +127,50 @@ public class ResourceManagerWorkPoolResource implements IResource {
    }
 
    public boolean exists() {
-      switch(null.$SwitchMap$com$datastax$bdp$cassandra$auth$ResourceManagerWorkPoolResource$Level[this.level.ordinal()]) {
-      case 1:
-         return true;
-      case 2:
-         this.ensureInitialized.get();
-         return ((Boolean)((Function)this.workPoolVerifier.get()).apply(this.dc)).booleanValue();
-      case 3:
-         this.ensureInitialized.get();
-         return ((Boolean)((Function)this.workPoolVerifier.get()).apply(getSpec(this.dc, this.workPool))).booleanValue();
-      default:
-         throw new AssertionError();
+      switch (this.level) {
+         case ANY_WORK_POOL: {
+            return true;
+         }
+         case ANY_WORK_POOL_IN_DC: {
+            this.ensureInitialized.get();
+            return (Boolean)((Function)this.workPoolVerifier.get()).apply(this.dc);
+         }
+         case WORK_POOL: {
+            this.ensureInitialized.get();
+            return (Boolean)((Function)this.workPoolVerifier.get()).apply(getSpec(this.dc, this.workPool));
+         }
       }
+      throw new AssertionError();
    }
 
    public Set<Permission> applicablePermissions() {
-      switch(null.$SwitchMap$com$datastax$bdp$cassandra$auth$ResourceManagerWorkPoolResource$Level[this.level.ordinal()]) {
-      case 1:
-         return DEFAULT_PERMISSIONS;
-      case 2:
-         return DEFAULT_PERMISSIONS;
-      case 3:
-         return DEFAULT_PERMISSIONS;
-      default:
-         throw new AssertionError();
+      switch (this.level) {
+         case ANY_WORK_POOL: {
+            return ResourceManagerWorkPoolResource.DEFAULT_PERMISSIONS;
+         }
+         case ANY_WORK_POOL_IN_DC: {
+            return ResourceManagerWorkPoolResource.DEFAULT_PERMISSIONS;
+         }
+         case WORK_POOL: {
+            return ResourceManagerWorkPoolResource.DEFAULT_PERMISSIONS;
+         }
       }
+      throw new AssertionError();
    }
 
    public String toString() {
-      switch(null.$SwitchMap$com$datastax$bdp$cassandra$auth$ResourceManagerWorkPoolResource$Level[this.level.ordinal()]) {
-      case 1:
-         return "<any work pool>";
-      case 2:
-         return String.format("<any work pool in %s>", new Object[]{this.dc});
-      case 3:
-         return String.format("<work pool %s in %s>", new Object[]{this.workPool, this.dc});
-      default:
-         throw new AssertionError();
+      switch (this.level) {
+         case ANY_WORK_POOL: {
+            return "<any work pool>";
+         }
+         case ANY_WORK_POOL_IN_DC: {
+            return String.format("<any work pool in %s>", this.dc);
+         }
+         case WORK_POOL: {
+            return String.format("<work pool %s in %s>", this.workPool, this.dc);
+         }
       }
+      throw new AssertionError();
    }
 
    public boolean equals(Object o) {

@@ -44,62 +44,23 @@ public class CompressedCacheStreamFactory implements IStreamFactory {
    }
 
    static void writeCompressionParamters(File file, CompressionParams parameters) throws IOException {
-      FileOutputStream outputStream = new FileOutputStream(file);
-      Throwable var3 = null;
-
-      try {
+      try (FileOutputStream outputStream = new FileOutputStream(file);){
          DataOutputBuffer outputBuffer = new DataOutputBuffer();
-         ((Serializer)CompressionParams.serializers.get(StreamVersion.OSS_30)).serialize(parameters, outputBuffer);
+         ((Serializer)CompressionParams.serializers.get(StreamVersion.OSS_30)).serialize((Object)parameters, outputBuffer);
          outputStream.write(outputBuffer.getData());
          outputStream.close();
-      } catch (Throwable var12) {
-         var3 = var12;
-         throw var12;
-      } finally {
-         if(outputStream != null) {
-            if(var3 != null) {
-               try {
-                  outputStream.close();
-               } catch (Throwable var11) {
-                  var3.addSuppressed(var11);
-               }
-            } else {
-               outputStream.close();
-            }
-         }
-
       }
-
    }
 
    static CompressionParams readCompressionParameters(File file) {
+
       try {
-         FileInputStream inputStream = new FileInputStream(file);
-         Throwable var2 = null;
-
-         CompressionParams var3;
-         try {
-            var3 = (CompressionParams)((Serializer)CompressionParams.serializers.get(StreamVersion.OSS_30)).deserialize(new DataInputStreamPlus(inputStream));
-         } catch (Throwable var13) {
-            var2 = var13;
-            throw var13;
-         } finally {
-            if(inputStream != null) {
-               if(var2 != null) {
-                  try {
-                     inputStream.close();
-                  } catch (Throwable var12) {
-                     var2.addSuppressed(var12);
-                  }
-               } else {
-                  inputStream.close();
-               }
-            }
-
+         try (FileInputStream inputStream = new FileInputStream(file);){
+            CompressionParams compressionParams = (CompressionParams)((Serializer)CompressionParams.serializers.get(StreamVersion.OSS_30)).deserialize(new DataInputStreamPlus((InputStream)inputStream));
+            return compressionParams;
          }
-
-         return var3;
-      } catch (IOException var15) {
+      }
+      catch (IOException e) {
          return null;
       }
    }

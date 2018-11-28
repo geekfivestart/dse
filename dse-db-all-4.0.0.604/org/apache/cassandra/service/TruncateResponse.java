@@ -10,7 +10,7 @@ import org.apache.cassandra.utils.versioning.VersionDependent;
 import org.apache.cassandra.utils.versioning.Versioned;
 
 public class TruncateResponse {
-   public static final Versioned<OperationsVerbs.OperationsVersion, Serializer<TruncateResponse>> serializers = OperationsVerbs.OperationsVersion.versioned(TruncateResponse.TruncateResponseSerializer::<init>);
+   public static final Versioned<OperationsVerbs.OperationsVersion, Serializer<TruncateResponse>> serializers = OperationsVerbs.OperationsVersion.versioned(TruncateResponse.TruncateResponseSerializer::new);
    private static final TruncateResponse EMPTY = new TruncateResponse((String)null, (String)null);
    private final String keyspace;
    private final String columnFamily;

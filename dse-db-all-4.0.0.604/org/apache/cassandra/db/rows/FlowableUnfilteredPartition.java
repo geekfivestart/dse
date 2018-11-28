@@ -5,7 +5,7 @@ import io.reactivex.functions.Predicate;
 import org.apache.cassandra.utils.flow.Flow;
 
 public interface FlowableUnfilteredPartition extends FlowablePartitionBase<Unfiltered> {
-   static default FlowableUnfilteredPartition create(PartitionHeader header, Row staticRow, Flow<Unfiltered> content) {
+   public static FlowableUnfilteredPartition create(PartitionHeader header, Row staticRow, Flow<Unfiltered> content) {
       return new FlowableUnfilteredPartition.Instance(header, staticRow, content);
    }
 

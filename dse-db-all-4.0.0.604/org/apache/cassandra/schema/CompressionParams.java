@@ -40,7 +40,7 @@ public final class CompressionParams {
    private static volatile boolean hasLoggedCrcCheckChanceWarning;
    public static final int DEFAULT_CHUNK_LENGTH = 65536;
    public static final double DEFAULT_MIN_COMPRESS_RATIO = 0.0D;
-   public static final Versioned<StreamMessage.StreamVersion, Serializer<CompressionParams>> serializers = StreamMessage.StreamVersion.versioned(CompressionParams.CompressionParmsSerializer::<init>);
+   public static final Versioned<StreamMessage.StreamVersion, Serializer<CompressionParams>> serializers = StreamMessage.StreamVersion.versioned(CompressionParams.CompressionParmsSerializer::new);
    public static final String CLASS = "class";
    public static final String CHUNK_LENGTH_IN_KB = "chunk_length_in_kb";
    public static final String ENABLED = "enabled";

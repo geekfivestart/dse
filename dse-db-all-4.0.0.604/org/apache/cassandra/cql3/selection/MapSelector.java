@@ -39,7 +39,7 @@ final class MapSelector extends Selector {
             entries.add(Pair.create(serializer.deserialize(in, metadata), serializer.deserialize(in, metadata)));
          }
 
-         return new MapSelector(type, entries, null);
+         return new MapSelector(type, entries);
       }
    };
    private final MapType<?, ?> type;
@@ -76,7 +76,7 @@ final class MapSelector extends Selector {
          public Selector newInstance(QueryOptions options) {
             return new MapSelector(type, (List)factories.stream().map((p) -> {
                return Pair.create(((Selector.Factory)p.left).newInstance(options), ((Selector.Factory)p.right).newInstance(options));
-            }).collect(Collectors.toList()), null);
+            }).collect(Collectors.toList()));
          }
 
          public boolean isAggregateSelectorFactory() {

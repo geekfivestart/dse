@@ -13,6 +13,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import jnr.x86asm.Mem;
 import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.db.Memtable;
 import org.apache.cassandra.db.PartitionPosition;
@@ -71,37 +73,31 @@ public class View {
    }
 
    public Iterable<SSTableReader> select(SSTableSet sstableSet) {
-      switch(null.$SwitchMap$org$apache$cassandra$db$lifecycle$SSTableSet[sstableSet.ordinal()]) {
-      case 1:
-         return this.sstables;
-      case 2:
-         return Iterables.filter(this.sstables, (s) -> {
-            return !this.compacting.contains(s);
-         });
-      case 3:
-         Set<SSTableReader> canonicalSSTables = new HashSet();
-         Iterator var3 = this.compacting.iterator();
-
-         SSTableReader sstable;
-         while(var3.hasNext()) {
-            sstable = (SSTableReader)var3.next();
-            if(sstable.openReason != SSTableReader.OpenReason.EARLY) {
-               canonicalSSTables.add(sstable);
-            }
+      switch (sstableSet) {
+         case LIVE: {
+            return this.sstables;
          }
-
-         var3 = this.sstables.iterator();
-
-         while(var3.hasNext()) {
-            sstable = (SSTableReader)var3.next();
-            if(!this.compacting.contains(sstable) && sstable.openReason != SSTableReader.OpenReason.EARLY) {
-               canonicalSSTables.add(sstable);
-            }
+         case NONCOMPACTING: {
+            return Iterables.filter(this.sstables, s -> !this.compacting.contains(s));
+            //return Iterables.<Iterable<SSTableReader>>filter((Iterable)this.sstables, s -> !this.compacting.contains(s));
          }
-
-         return canonicalSSTables;
-      default:
-         throw new IllegalStateException();
+         case CANONICAL: {
+            final Set<SSTableReader> canonicalSSTables = new HashSet<SSTableReader>();
+            for (final SSTableReader sstable : this.compacting) {
+               if (sstable.openReason != SSTableReader.OpenReason.EARLY) {
+                  canonicalSSTables.add(sstable);
+               }
+            }
+            for (final SSTableReader sstable : this.sstables) {
+               if (!this.compacting.contains(sstable) && sstable.openReason != SSTableReader.OpenReason.EARLY) {
+                  canonicalSSTables.add(sstable);
+               }
+            }
+            return canonicalSSTables;
+         }
+         default: {
+            throw new IllegalStateException();
+         }
       }
    }
 
@@ -210,7 +206,7 @@ public class View {
    static Function<View, View> switchMemtable(final Memtable newMemtable) {
       return new Function<View, View>() {
          public View apply(View view) {
-            List<Memtable> newLive = ImmutableList.builder().addAll(view.liveMemtables).add(newMemtable).build();
+            List<Memtable> newLive = ImmutableList.<Memtable>builder().addAll(view.liveMemtables).add(newMemtable).build();
 
             assert newLive.size() == view.liveMemtables.size() + 1;
 

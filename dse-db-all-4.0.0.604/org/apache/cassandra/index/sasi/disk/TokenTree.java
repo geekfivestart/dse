@@ -215,28 +215,29 @@ public class TokenTree {
 
       private long[] fetchOffsets() {
          short info = this.buffer.getShort(this.position);
-         int offsetExtra = this.buffer.getShort(this.position + 2L) & '\uffff';
+         int offsetExtra = this.buffer.getShort(this.position + 2L) & 65535;
          int offsetData = this.buffer.getInt(this.position + 4L + 8L);
          TokenTreeBuilder.EntryType type = TokenTreeBuilder.EntryType.of(info & 3);
-         switch(null.$SwitchMap$org$apache$cassandra$index$sasi$disk$TokenTreeBuilder$EntryType[type.ordinal()]) {
-         case 1:
-            return new long[]{(long)offsetData};
-         case 2:
-            long[] offsets = new long[offsetExtra];
-            long offsetPos = this.buffer.position() + (long)(2 * this.leafSize * 8) + (long)(offsetData * 8);
-
-            for(int i = 0; i < offsetExtra; ++i) {
-               offsets[i] = this.buffer.getLong(offsetPos + (long)(i * 8));
+         switch (type) {
+            case SIMPLE: {
+               return new long[]{offsetData};
             }
-
-            return offsets;
-         case 3:
-            return new long[]{((long)offsetData << 16) + (long)offsetExtra};
-         case 4:
-            return new long[]{(long)offsetExtra, (long)offsetData};
-         default:
-            throw new IllegalStateException("Unknown entry type: " + type);
+            case OVERFLOW: {
+               long[] offsets = new long[offsetExtra];
+               long offsetPos = this.buffer.position() + (long)(2 * (this.leafSize * 8)) + (long)(offsetData * 8);
+               for (int i = 0; i < offsetExtra; ++i) {
+                  offsets[i] = this.buffer.getLong(offsetPos + (long)(i * 8));
+               }
+               return offsets;
+            }
+            case FACTORED: {
+               return new long[]{((long)offsetData << 16) + (long)offsetExtra};
+            }
+            case PACKED: {
+               return new long[]{offsetExtra, offsetData};
+            }
          }
+         throw new IllegalStateException("Unknown entry type: " + (Object)((Object)type));
       }
    }
 
@@ -334,7 +335,7 @@ public class TokenTree {
       protected boolean firstIteration = true;
       private boolean lastLeaf;
 
-      TokenTreeIterator(MappedBuffer this$0, Function<Long, DecoratedKey> file) {
+      TokenTreeIterator(MappedBuffer file, Function<Long, DecoratedKey> keyFetcher) {
          super(Long.valueOf(TokenTree.this.treeMinToken), Long.valueOf(TokenTree.this.treeMaxToken), TokenTree.this.tokenCount);
          this.file = file;
          this.keyFetcher = keyFetcher;

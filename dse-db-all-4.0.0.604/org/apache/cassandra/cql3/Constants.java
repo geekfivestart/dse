@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory;
 
 public abstract class Constants {
    private static final Logger logger = LoggerFactory.getLogger(Constants.class);
-   public static final Constants.UnsetLiteral UNSET_LITERAL = new Constants.UnsetLiteral(null);
+   public static final Constants.UnsetLiteral UNSET_LITERAL = new Constants.UnsetLiteral();
    public static final Constants.Value UNSET_VALUE;
    public static final Constants.NullLiteral NULL_LITERAL;
    public static final Term.Terminal NULL_VALUE;
@@ -33,7 +33,7 @@ public abstract class Constants {
 
    static {
       UNSET_VALUE = new Constants.Value(ByteBufferUtil.UNSET_BYTE_BUFFER);
-      NULL_LITERAL = new Constants.NullLiteral(null);
+      NULL_LITERAL = new Constants.NullLiteral();
       NULL_VALUE = new Constants.Value((ByteBuffer)null) {
          public Term.Terminal bind(QueryOptions options) {
             return null;
@@ -222,92 +222,95 @@ public abstract class Constants {
 
       public AssignmentTestable.TestResult testAssignment(String keyspace, ColumnSpecification receiver) {
          CQL3Type receiverType = receiver.type.asCQL3Type();
-         if(!receiverType.isCollection() && !receiverType.isUDT()) {
-            if(!(receiverType instanceof CQL3Type.Native)) {
-               return AssignmentTestable.TestResult.WEAKLY_ASSIGNABLE;
-            } else {
-               CQL3Type.Native nt = (CQL3Type.Native)receiverType;
-               if(nt.getType().equals(this.preferedType)) {
-                  return AssignmentTestable.TestResult.EXACT_MATCH;
-               } else {
-                  switch(null.$SwitchMap$org$apache$cassandra$cql3$Constants$Type[this.type.ordinal()]) {
-                  case 1:
-                     switch(null.$SwitchMap$org$apache$cassandra$cql3$CQL3Type$Native[nt.ordinal()]) {
-                     case 1:
-                     case 2:
-                     case 3:
-                     case 4:
-                     case 5:
-                     case 6:
-                     case 7:
-                        return AssignmentTestable.TestResult.WEAKLY_ASSIGNABLE;
-                     default:
-                        return AssignmentTestable.TestResult.NOT_ASSIGNABLE;
-                     }
-                  case 2:
-                     switch(null.$SwitchMap$org$apache$cassandra$cql3$CQL3Type$Native[nt.ordinal()]) {
-                     case 5:
-                     case 6:
-                     case 7:
-                     case 8:
-                     case 9:
-                     case 10:
-                     case 11:
-                     case 12:
-                     case 13:
-                     case 14:
-                     case 15:
-                     case 16:
-                     case 17:
-                        return AssignmentTestable.TestResult.WEAKLY_ASSIGNABLE;
-                     default:
-                        return AssignmentTestable.TestResult.NOT_ASSIGNABLE;
-                     }
-                  case 3:
-                     switch(null.$SwitchMap$org$apache$cassandra$cql3$CQL3Type$Native[nt.ordinal()]) {
-                     case 18:
-                     case 19:
-                        return AssignmentTestable.TestResult.WEAKLY_ASSIGNABLE;
-                     default:
-                        return AssignmentTestable.TestResult.NOT_ASSIGNABLE;
-                     }
-                  case 4:
-                     switch(null.$SwitchMap$org$apache$cassandra$cql3$CQL3Type$Native[nt.ordinal()]) {
-                     case 10:
-                     case 11:
-                     case 13:
-                        return AssignmentTestable.TestResult.WEAKLY_ASSIGNABLE;
-                     case 12:
-                     default:
-                        return AssignmentTestable.TestResult.NOT_ASSIGNABLE;
-                     }
-                  case 5:
-                     switch(null.$SwitchMap$org$apache$cassandra$cql3$CQL3Type$Native[nt.ordinal()]) {
-                     case 20:
-                        return AssignmentTestable.TestResult.WEAKLY_ASSIGNABLE;
-                     default:
-                        return AssignmentTestable.TestResult.NOT_ASSIGNABLE;
-                     }
-                  case 6:
-                     switch(null.$SwitchMap$org$apache$cassandra$cql3$CQL3Type$Native[nt.ordinal()]) {
-                     case 21:
-                        return AssignmentTestable.TestResult.WEAKLY_ASSIGNABLE;
-                     default:
-                        return AssignmentTestable.TestResult.NOT_ASSIGNABLE;
-                     }
-                  case 7:
-                     switch(null.$SwitchMap$org$apache$cassandra$cql3$CQL3Type$Native[nt.ordinal()]) {
-                     case 12:
-                        return AssignmentTestable.TestResult.WEAKLY_ASSIGNABLE;
-                     }
-                  }
-
-                  return AssignmentTestable.TestResult.NOT_ASSIGNABLE;
-               }
-            }
-         } else {
+         if (receiverType.isCollection() || receiverType.isUDT()) {
             return AssignmentTestable.TestResult.NOT_ASSIGNABLE;
          }
+         if (!(receiverType instanceof CQL3Type.Native)) {
+            return AssignmentTestable.TestResult.WEAKLY_ASSIGNABLE;
+         }
+         CQL3Type.Native nt = (CQL3Type.Native)receiverType;
+         if (nt.getType().equals(this.preferedType)) {
+            return AssignmentTestable.TestResult.EXACT_MATCH;
+         }
+         switch (this.type) {
+            case STRING: {
+               switch (nt) {
+                  case ASCII:
+                  case TEXT:
+                  case INET:
+                  case VARCHAR:
+                  case DATE:
+                  case TIME:
+                  case TIMESTAMP: {
+                     return AssignmentTestable.TestResult.WEAKLY_ASSIGNABLE;
+                  }
+               }
+               break;
+            }
+            case INTEGER: {
+               switch (nt) {
+                  case DATE:
+                  case TIME:
+                  case TIMESTAMP:
+                  case BIGINT:
+                  case COUNTER:
+                  case DECIMAL:
+                  case DOUBLE:
+                  case DURATION:
+                  case FLOAT:
+                  case INT:
+                  case SMALLINT:
+                  case TINYINT:
+                  case VARINT: {
+                     return AssignmentTestable.TestResult.WEAKLY_ASSIGNABLE;
+                  }
+               }
+               break;
+            }
+            case UUID: {
+               switch (nt) {
+                  case UUID:
+                  case TIMEUUID: {
+                     return AssignmentTestable.TestResult.WEAKLY_ASSIGNABLE;
+                  }
+               }
+               break;
+            }
+            case FLOAT: {
+               switch (nt) {
+                  case DECIMAL:
+                  case DOUBLE:
+                  case FLOAT: {
+                     return AssignmentTestable.TestResult.WEAKLY_ASSIGNABLE;
+                  }
+               }
+               break;
+            }
+            case BOOLEAN: {
+               switch (nt) {
+                  case BOOLEAN: {
+                     return AssignmentTestable.TestResult.WEAKLY_ASSIGNABLE;
+                  }
+               }
+               break;
+            }
+            case HEX: {
+               switch (nt) {
+                  case BLOB: {
+                     return AssignmentTestable.TestResult.WEAKLY_ASSIGNABLE;
+                  }
+               }
+               break;
+            }
+            case DURATION: {
+               switch (nt) {
+                  case DURATION: {
+                     return AssignmentTestable.TestResult.WEAKLY_ASSIGNABLE;
+                  }
+               }
+            }
+         }
+         return AssignmentTestable.TestResult.NOT_ASSIGNABLE;
       }
 
       public AbstractType<?> getExactTypeIfKnown(String keyspace) {

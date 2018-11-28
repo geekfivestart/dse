@@ -24,7 +24,7 @@ public class ValidationTask extends AbstractFuture<TreeResponse> implements Runn
 
    public void run() {
       ValidationRequest request = new ValidationRequest(this.desc, this.nowInSec);
-      MessagingService.instance().send(Verbs.REPAIR.VALIDATION_REQUEST.newRequest(this.endpoint, (Object)request));
+      MessagingService.instance().send(Verbs.REPAIR.VALIDATION_REQUEST.newRequest(this.endpoint, request));
    }
 
    public void treesReceived(MerkleTrees trees) {

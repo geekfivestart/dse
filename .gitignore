@@ -7,3 +7,6 @@
 *.class
 classes/
 *.jar
+
+.idea
+out

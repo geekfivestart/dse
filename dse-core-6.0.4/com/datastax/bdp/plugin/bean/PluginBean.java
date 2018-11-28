@@ -110,6 +110,6 @@ public abstract class PluginBean implements PluginMXBean {
    public void registerMBean() {
       String beanName = PerformanceObjectsController.getPerfBeanName(this.getClass());
       logger.debug("Registering JMX interface for {}", beanName);
-      JMX.registerMBean(this, JMX.Type.PERF_OBJECTS, MapBuilder.immutable().withKeys(new String[]{"name"}).withValues(new String[]{beanName}).build());
+      JMX.registerMBean(this, JMX.Type.PERF_OBJECTS, MapBuilder.<String,String>immutable().withKeys(new String[]{"name"}).withValues(new String[]{beanName}).build());
    }
 }

@@ -39,16 +39,18 @@ public class ReconnectableSnitchHelper implements IEndpointStateChangeSubscriber
 
    @VisibleForTesting
    static CompletableFuture<Void> reconnect(InetAddress publicAddress, InetAddress localAddress, IEndpointSnitch snitch, String localDc) {
-      return MessagingService.instance().getConnectionPool(publicAddress).thenCompose((cp) -> {
-         if(cp == null) {
-            logger.debug("InternodeAuthenticator said don't reconnect to {} on {}", publicAddress, localAddress);
-            return CompletableFuture.completedFuture((Object)null);
-         } else {
-            return snitch.getDatacenter(publicAddress).equals(localDc) && !cp.endPoint().equals(localAddress)?SystemKeyspace.updatePreferredIP(publicAddress, localAddress).thenAccept((r) -> {
-               cp.reset(localAddress);
-               logger.debug("Initiated reconnect to an Internal IP {} for the {}", localAddress, publicAddress);
-            }):CompletableFuture.completedFuture((Object)null);
+      return MessagingService.instance().getConnectionPool(publicAddress).thenCompose(cp -> {
+         if (cp == null) {
+            logger.debug("InternodeAuthenticator said don't reconnect to {} on {}", (Object)publicAddress, (Object)localAddress);
+            return CompletableFuture.completedFuture(null);
          }
+         if (snitch.getDatacenter(publicAddress).equals(localDc) && !cp.endPoint().equals(localAddress)) {
+            return SystemKeyspace.updatePreferredIP(publicAddress, localAddress).thenAccept(r -> {
+               cp.reset(localAddress);
+               logger.debug("Initiated reconnect to an Internal IP {} for the {}", (Object)localAddress, (Object)publicAddress);
+            });
+         }
+         return CompletableFuture.completedFuture(null);
       });
    }
 

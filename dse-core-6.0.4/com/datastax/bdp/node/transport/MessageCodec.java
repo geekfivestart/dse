@@ -103,9 +103,9 @@ public class MessageCodec {
       @VisibleForTesting
       public MessageSerDe(Map<MessageCodec.VersionedMessageType, MessageBodySerializer> serializers) {
          this.serializers = new ConcurrentHashMap(serializers);
-         this.serializers.put(new MessageCodec.VersionedMessageType(SystemMessageTypes.HANDSHAKE, -1), new HandshakeSerializer());
-         this.serializers.put(new MessageCodec.VersionedMessageType(SystemMessageTypes.UNSUPPORTED_MESSAGE, -1), new UnsupportedMessageSerializer());
-         this.serializers.put(new MessageCodec.VersionedMessageType(SystemMessageTypes.FAILED_PROCESSOR, -1), new FailedProcessorSerializer());
+         this.serializers.put(new MessageCodec.VersionedMessageType(SystemMessageTypes.HANDSHAKE, (byte)-1), new HandshakeSerializer());
+         this.serializers.put(new MessageCodec.VersionedMessageType(SystemMessageTypes.UNSUPPORTED_MESSAGE, (byte)-1), new UnsupportedMessageSerializer());
+         this.serializers.put(new MessageCodec.VersionedMessageType(SystemMessageTypes.FAILED_PROCESSOR, (byte)-1), new FailedProcessorSerializer());
       }
 
       @VisibleForTesting
@@ -145,7 +145,7 @@ public class MessageCodec {
             input.skipBytes(input.readableBytes());
             UnsupportedMessageException ex = new UnsupportedMessageException(Long.valueOf(h.id), h.type, Byte.valueOf(h.version));
             message = new Message(EnumSet.of(Message.Flag.UNSUPPORTED_MESSAGE), ex.messageId.longValue(), SystemMessageTypes.UNSUPPORTED_MESSAGE, ex);
-            message.trySetVersion(-1);
+            message.trySetVersion((byte)-1);
             collector.add(message);
          }
 

@@ -77,7 +77,7 @@ public final class CounterCacheKey extends CacheKey {
    public ByteBuffer readCounterValue(ColumnFamilyStore cfs) {
       TableMetadata metadata = cfs.metadata();
 
-      assert metadata.id.equals(this.tableId) && Objects.equals(metadata.indexName().orElse((Object)null), this.indexName);
+      assert metadata.id.equals(this.tableId) && Objects.equals(metadata.indexName().orElse(null), this.indexName);
 
       DecoratedKey key = cfs.decorateKey(this.partitionKey());
       int clusteringSize = metadata.comparator.size();

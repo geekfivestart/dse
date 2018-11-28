@@ -128,42 +128,50 @@ public abstract class AbstractType<T> implements Comparator<ByteBuffer>, Assignm
    }
 
    public final int compare(ByteBuffer left, ByteBuffer right) {
-      if(this.comparisonType == AbstractType.ComparisonType.FIXED_COMPARE) {
+      if (this.comparisonType == ComparisonType.FIXED_COMPARE) {
          return this.fixedCompareReturns;
-      } else {
-         if(this.isReversed) {
-            ByteBuffer t = left;
-            left = right;
-            right = t;
-         }
-
-         if(left.hasRemaining() && right.hasRemaining()) {
-            if(this.comparisonType == AbstractType.ComparisonType.PRIMITIVE_COMPARE) {
-               switch(null.$SwitchMap$org$apache$cassandra$db$marshal$AbstractType$PrimitiveType[this.primitiveType.ordinal()]) {
-               case 1:
-                  return BooleanType.compareType(left, right);
-               case 2:
-                  return ByteType.compareType(left, right);
-               case 3:
-                  return ShortType.compareType(left, right);
-               case 4:
-                  return Int32Type.compareType(left, right);
-               case 5:
-                  return FloatType.compareType(left, right);
-               case 6:
-                  return LongType.compareType(left, right);
-               case 7:
-                  return DoubleType.compareType(left, right);
-               default:
-                  throw new IllegalStateException();
-               }
-            } else {
-               return this.comparisonType == AbstractType.ComparisonType.BYTE_ORDER?FastByteOperations.compareUnsigned(left, right):(this.isReversed?((ReversedType)this).baseType.compareCustom(left, right):this.compareCustom(left, right));
-            }
-         } else {
-            return left.hasRemaining()?1:(right.hasRemaining()?-1:0);
-         }
       }
+      if (this.isReversed) {
+         ByteBuffer t = left;
+         left = right;
+         right = t;
+      }
+      if (!left.hasRemaining() || !right.hasRemaining()) {
+         return left.hasRemaining() ? 1 : (right.hasRemaining() ? -1 : 0);
+      }
+      if (this.comparisonType == ComparisonType.PRIMITIVE_COMPARE) {
+         switch (this.primitiveType) {
+            case BOOLEAN: {
+               return BooleanType.compareType(left, right);
+            }
+            case BYTE: {
+               return ByteType.compareType(left, right);
+            }
+            case SHORT: {
+               return ShortType.compareType(left, right);
+            }
+            case INT32: {
+               return Int32Type.compareType(left, right);
+            }
+            case FLOAT: {
+               return FloatType.compareType(left, right);
+            }
+            case LONG: {
+               return LongType.compareType(left, right);
+            }
+            case DOUBLE: {
+               return DoubleType.compareType(left, right);
+            }
+         }
+         throw new IllegalStateException();
+      }
+      if (this.comparisonType == ComparisonType.BYTE_ORDER) {
+         return FastByteOperations.compareUnsigned(left, right);
+      }
+      if (this.isReversed) {
+         return ((ReversedType)this).baseType.compareCustom(left, right);
+      }
+      return this.compareCustom(left, right);
    }
 
    public int compareCustom(ByteBuffer left, ByteBuffer right) {

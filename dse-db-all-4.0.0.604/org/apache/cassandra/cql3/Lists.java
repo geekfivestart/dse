@@ -63,31 +63,18 @@ public abstract class Lists {
       return type != null?ListType.getInstance(type, false):null;
    }
 
-   protected static <T> AbstractType<?> getElementType(List<T> items, Function<T, AbstractType<?>> mapper) {
+   protected static <T> AbstractType<?> getElementType(List<T> items, java.util.function.Function<T, AbstractType<?>> mapper) {
       AbstractType<?> type = null;
-      Iterator var3 = items.iterator();
-
-      AbstractType itemType;
-      do {
-         while(true) {
-            do {
-               if(!var3.hasNext()) {
-                  return type;
-               }
-
-               T item = var3.next();
-               itemType = (AbstractType)mapper.apply(item);
-            } while(itemType == null);
-
-            if(type != null && !itemType.isCompatibleWith(type)) {
-               break;
-            }
-
-            type = itemType;
+      for (T item : items) {
+         AbstractType<?> itemType = mapper.apply(item);
+         if (itemType == null) continue;
+         if (type != null && !itemType.isCompatibleWith(type)) {
+            if (type.isCompatibleWith(itemType)) continue;
+            throw new InvalidRequestException("Invalid collection literal: all selectors must have the same CQL type inside collection literals");
          }
-      } while(type.isCompatibleWith(itemType));
-
-      throw new InvalidRequestException("Invalid collection literal: all selectors must have the same CQL type inside collection literals");
+         type = itemType;
+      }
+      return type;
    }
 
    private static int existingSize(Row row, ColumnMetadata column) {

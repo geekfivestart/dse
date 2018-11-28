@@ -55,7 +55,7 @@ public class NodeJmxProxyPool {
 
    public <T> T makePerfProxy(Class<? extends PluginBean> pluginClass, Class<T> interfaceClass) throws MalformedObjectNameException {
       String name = PerformanceObjectsController.getPerfBeanName(pluginClass);
-      T proxy = this.proxies.get(name);
+      T proxy = (T)this.proxies.get(name);
       if(proxy == null) {
          proxy = javax.management.JMX.newMXBeanProxy(this.connection, JMX.getObjectName(JMX.Type.PERF_OBJECTS, name), interfaceClass);
          this.proxies.put(name, proxy);
@@ -65,7 +65,7 @@ public class NodeJmxProxyPool {
    }
 
    public <P> P getProxy(Class<P> proxiedClass) {
-      return this.proxyInterfaces.get(proxiedClass);
+      return (P)this.proxyInterfaces.get(proxiedClass);
    }
 
    public Object getProxy(String name) {

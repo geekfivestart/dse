@@ -41,7 +41,7 @@ public class RemoteSyncTask extends SyncTask {
       String message = String.format("Forwarding streaming repair of %d ranges to %s%s (to be streamed with %s)", new Object[]{Integer.valueOf(transferToLeft.size()), request.src, transferToLeft.size() != transferToRight.size()?String.format(" and %d ranges from", new Object[]{Integer.valueOf(transferToRight.size())}):"", request.dst});
       logger.info("{} {}", this.previewKind.logPrefix(this.desc.sessionId), message);
       Tracing.traceRepair(message, new Object[0]);
-      MessagingService.instance().send(Verbs.REPAIR.SYNC_REQUEST.newRequest(request.src, (Object)request));
+      MessagingService.instance().send(Verbs.REPAIR.SYNC_REQUEST.newRequest(request.src, request));
    }
 
    public void syncComplete(boolean success, List<SessionSummary> summaries) {

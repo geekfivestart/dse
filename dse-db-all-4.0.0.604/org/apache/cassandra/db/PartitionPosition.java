@@ -63,7 +63,6 @@ public abstract class PartitionPosition implements RingPosition<PartitionPositio
       public int serializedSize(PartitionPosition pos, BoundsVersion version) {
          PartitionPosition.Kind kind = pos.kind();
          int size = 1;
-         int size;
          if(kind == PartitionPosition.Kind.ROW_KEY) {
             int keySize = ((DecoratedKey)pos).getKey().remaining();
             size = size + TypeSizes.sizeof((short)keySize) + keySize;

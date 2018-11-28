@@ -47,7 +47,7 @@ import org.apache.cassandra.utils.flow.Flow;
 import org.apache.cassandra.utils.versioning.Versioned;
 
 public class PartitionRangeReadCommand extends ReadCommand {
-   private static final ReadCommand.SelectionDeserializer<PartitionRangeReadCommand> selectionDeserializer = new PartitionRangeReadCommand.Deserializer(null);
+   private static final ReadCommand.SelectionDeserializer<PartitionRangeReadCommand> selectionDeserializer = new PartitionRangeReadCommand.Deserializer();
    public static final Versioned<ReadVerbs.ReadVersion, Serializer<PartitionRangeReadCommand>> serializers = ReadVerbs.ReadVersion.versioned((v) -> {
       return new ReadCommand.ReadCommandSerializer(v, selectionDeserializer);
    });

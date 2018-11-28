@@ -129,7 +129,7 @@ public class GossipVerbs extends VerbGroup<GossipVerbs.GossipVersion> {
                   GossipVerbs.logger.trace("Sending a GossipDigestAck2Message to {}", from);
                }
 
-               MessagingService.instance().send(Verbs.GOSSIP.ACK2.newRequest(from, (Object)(new GossipDigestAck2(deltaEpStateMap))));
+               MessagingService.instance().send(Verbs.GOSSIP.ACK2.newRequest(from, (new GossipDigestAck2(deltaEpStateMap))));
                Gossiper.instance.onNewMessageProcessed();
             }
          }
@@ -185,7 +185,7 @@ public class GossipVerbs extends VerbGroup<GossipVerbs.GossipVersion> {
       }
 
       private void ack(InetAddress to, List<GossipDigest> digestList, Map<InetAddress, EndpointState> epStateMap) {
-         MessagingService.instance().send(Verbs.GOSSIP.ACK.newRequest(to, (Object)(new GossipDigestAck(digestList, epStateMap))));
+         MessagingService.instance().send(Verbs.GOSSIP.ACK.newRequest(to, (new GossipDigestAck(digestList, epStateMap))));
          Gossiper.instance.onNewMessageProcessed();
       }
 

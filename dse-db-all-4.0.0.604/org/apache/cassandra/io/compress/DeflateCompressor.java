@@ -74,33 +74,28 @@ public final class DeflateCompressor implements ICompressor {
       }
    }
 
+
    public void compressBuffer(ByteBuffer input, ByteBuffer output) {
       Deflater def = (Deflater)deflater.get();
       def.reset();
-      byte[] buffer = getThreadLocalScratchBuffer();
+      byte[] buffer = DeflateCompressor.getThreadLocalScratchBuffer();
       int chunkLen = buffer.length / 2;
-
-      int len;
-      while(input.remaining() > chunkLen) {
+      while (input.remaining() > chunkLen) {
          input.get(buffer, 0, chunkLen);
          def.setInput(buffer, 0, chunkLen);
-
-         while(!def.needsInput()) {
-            len = def.deflate(buffer, chunkLen, chunkLen);
+         while (!def.needsInput()) {
+            int len = def.deflate(buffer, chunkLen, chunkLen);
             output.put(buffer, chunkLen, len);
          }
       }
-
-      len = input.remaining();
-      input.get(buffer, 0, len);
-      def.setInput(buffer, 0, len);
+      int inputLength = input.remaining();
+      input.get(buffer, 0, inputLength);
+      def.setInput(buffer, 0, inputLength);
       def.finish();
-
-      while(!def.finished()) {
+      while (!def.finished()) {
          int len = def.deflate(buffer, chunkLen, chunkLen);
          output.put(buffer, chunkLen, len);
       }
-
    }
 
    public void uncompress(ByteBuffer input, ByteBuffer output) throws IOException {
@@ -118,31 +113,26 @@ public final class DeflateCompressor implements ICompressor {
       try {
          Inflater inf = (Inflater)inflater.get();
          inf.reset();
-         byte[] buffer = getThreadLocalScratchBuffer();
+         byte[] buffer = DeflateCompressor.getThreadLocalScratchBuffer();
          int chunkLen = buffer.length / 2;
-
-         int len;
-         while(input.remaining() > chunkLen) {
+         while (input.remaining() > chunkLen) {
             input.get(buffer, 0, chunkLen);
             inf.setInput(buffer, 0, chunkLen);
-
-            while(!inf.needsInput()) {
-               len = inf.inflate(buffer, chunkLen, chunkLen);
+            while (!inf.needsInput()) {
+               int len = inf.inflate(buffer, chunkLen, chunkLen);
                output.put(buffer, chunkLen, len);
             }
          }
-
-         len = input.remaining();
-         input.get(buffer, 0, len);
-         inf.setInput(buffer, 0, len);
-
-         while(!inf.needsInput()) {
+         int inputLength = input.remaining();
+         input.get(buffer, 0, inputLength);
+         inf.setInput(buffer, 0, inputLength);
+         while (!inf.needsInput()) {
             int len = inf.inflate(buffer, chunkLen, chunkLen);
             output.put(buffer, chunkLen, len);
          }
-
-      } catch (DataFormatException var8) {
-         throw new IOException(var8);
+      }
+      catch (DataFormatException e) {
+         throw new IOException(e);
       }
    }
 

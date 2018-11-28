@@ -164,12 +164,12 @@ abstract class AbstractPatriciaTrie<K, V> extends AbstractTrie<K, V> {
    }
 
    public Entry<K, V> select(K key) {
-      AbstractPatriciaTrie.Reference<Entry<K, V>> reference = new AbstractPatriciaTrie.Reference(null);
+      AbstractPatriciaTrie.Reference<Entry<K, V>> reference = new AbstractPatriciaTrie.Reference();
       return !this.selectR(this.root.left, -1, key, reference)?(Entry)reference.get():null;
    }
 
    public Entry<K, V> select(K key, Cursor<? super K, ? super V> cursor) {
-      AbstractPatriciaTrie.Reference<Entry<K, V>> reference = new AbstractPatriciaTrie.Reference(null);
+      AbstractPatriciaTrie.Reference<Entry<K, V>> reference = new AbstractPatriciaTrie.Reference();
       this.selectR(this.root.left, -1, key, cursor, reference);
       return (Entry)reference.get();
    }
@@ -195,60 +195,59 @@ abstract class AbstractPatriciaTrie<K, V> extends AbstractTrie<K, V> {
       }
    }
 
-   private boolean selectR(AbstractPatriciaTrie.TrieEntry<K, V> h, int bitIndex, K key, Cursor<? super K, ? super V> cursor, AbstractPatriciaTrie.Reference<Entry<K, V>> reference) {
-      if(h.bitIndex <= bitIndex) {
-         if(!h.isEmpty()) {
+   private boolean selectR(TrieEntry<K, V> h, int bitIndex, K key, Cursor<? super K, ? super V> cursor, Reference<Map.Entry<K, V>> reference) {
+      if (h.bitIndex <= bitIndex) {
+         if (!h.isEmpty()) {
             Cursor.Decision decision = cursor.select(h);
-            switch(null.$SwitchMap$org$apache$cassandra$index$sasi$utils$trie$Cursor$Decision[decision.ordinal()]) {
-            case 1:
-               throw new UnsupportedOperationException("Cannot remove during select");
-            case 2:
-               reference.set(h);
-               return false;
-            case 3:
-               AbstractPatriciaTrie.TrieEntry<K, V> entry = new AbstractPatriciaTrie.TrieEntry(h.getKey(), h.getValue(), -1);
-               reference.set(entry);
-               this.removeEntry(h);
-               return false;
-            case 4:
+            switch (decision) {
+               case REMOVE: {
+                  throw new UnsupportedOperationException("Cannot remove during select");
+               }
+               case EXIT: {
+                  reference.set(h);
+                  return false;
+               }
+               case REMOVE_AND_EXIT: {
+                  TrieEntry<K, V> entry = new TrieEntry<K, V>(h.getKey(), h.getValue(), -1);
+                  reference.set(entry);
+                  this.removeEntry(h);
+                  return false;
+               }
             }
          }
-
          return true;
-      } else {
-         if(!this.isBitSet(key, h.bitIndex)) {
-            if(this.selectR(h.left, h.bitIndex, key, cursor, reference)) {
-               return this.selectR(h.right, h.bitIndex, key, cursor, reference);
-            }
-         } else if(this.selectR(h.right, h.bitIndex, key, cursor, reference)) {
-            return this.selectR(h.left, h.bitIndex, key, cursor, reference);
-         }
-
-         return false;
       }
+      if (!this.isBitSet(key, h.bitIndex)) {
+         if (this.selectR(h.left, h.bitIndex, key, cursor, reference)) {
+            return this.selectR(h.right, h.bitIndex, key, cursor, reference);
+         }
+      } else if (this.selectR(h.right, h.bitIndex, key, cursor, reference)) {
+         return this.selectR(h.left, h.bitIndex, key, cursor, reference);
+      }
+      return false;
    }
 
-   public Entry<K, V> traverse(Cursor<? super K, ? super V> cursor) {
-      AbstractPatriciaTrie.TrieEntry entry = this.nextEntry((AbstractPatriciaTrie.TrieEntry)null);
-
-      while(entry != null) {
-         AbstractPatriciaTrie.TrieEntry<K, V> current = entry;
-         Cursor.Decision decision = cursor.select(entry);
-         entry = this.nextEntry(entry);
-         switch(null.$SwitchMap$org$apache$cassandra$index$sasi$utils$trie$Cursor$Decision[decision.ordinal()]) {
-         case 1:
-            this.removeEntry(current);
-            break;
-         case 2:
-            return current;
-         case 3:
-            Entry<K, V> value = new AbstractPatriciaTrie.TrieEntry(current.getKey(), current.getValue(), -1);
-            this.removeEntry(current);
-            return value;
-         case 4:
+   public Map.Entry<K, V> traverse(Cursor<? super K, ? super V> cursor) {
+      TrieEntry<K, V> entry = this.nextEntry(null);
+      while (entry != null) {
+         TrieEntry<K, V> current = entry;
+         Cursor.Decision decision = cursor.select(current);
+         entry = this.nextEntry(current);
+         switch (decision) {
+            case EXIT: {
+               return current;
+            }
+            case REMOVE: {
+               this.removeEntry(current);
+               break;
+            }
+            case REMOVE_AND_EXIT: {
+               TrieEntry<K, V> value = new TrieEntry<K, V>(current.getKey(), current.getValue(), -1);
+               this.removeEntry(current);
+               return value;
+            }
          }
       }
-
       return null;
    }
 
@@ -264,7 +263,7 @@ abstract class AbstractPatriciaTrie<K, V> extends AbstractTrie<K, V> {
 
    public Set<Entry<K, V>> entrySet() {
       if(this.entrySet == null) {
-         this.entrySet = new AbstractPatriciaTrie.EntrySet(null);
+         this.entrySet = new AbstractPatriciaTrie.EntrySet();
       }
 
       return this.entrySet;
@@ -272,7 +271,7 @@ abstract class AbstractPatriciaTrie<K, V> extends AbstractTrie<K, V> {
 
    public Set<K> keySet() {
       if(this.keySet == null) {
-         this.keySet = new AbstractPatriciaTrie.KeySet(null);
+         this.keySet = new AbstractPatriciaTrie.KeySet();
       }
 
       return this.keySet;
@@ -280,7 +279,7 @@ abstract class AbstractPatriciaTrie<K, V> extends AbstractTrie<K, V> {
 
    public Collection<V> values() {
       if(this.values == null) {
-         this.values = new AbstractPatriciaTrie.Values(null);
+         this.values = new AbstractPatriciaTrie.Values();
       }
 
       return this.values;
@@ -325,7 +324,7 @@ abstract class AbstractPatriciaTrie<K, V> extends AbstractTrie<K, V> {
       }
 
       this.decrementSize();
-      return h.setKeyValue((Object)null, (Object)null);
+      return h.setKeyValue(null, null);
    }
 
    private void removeExternalEntry(AbstractPatriciaTrie.TrieEntry<K, V> h) {
@@ -481,7 +480,7 @@ abstract class AbstractPatriciaTrie<K, V> extends AbstractTrie<K, V> {
          this.next = AbstractPatriciaTrie.this.nextEntry((AbstractPatriciaTrie.TrieEntry)null);
       }
 
-      protected TrieIterator(AbstractPatriciaTrie.TrieEntry<K, V> this$0) {
+      protected TrieIterator(AbstractPatriciaTrie.TrieEntry<K, V> firstEntry) {
          this.expectedModCount = AbstractPatriciaTrie.this.modCount;
          this.next = firstEntry;
       }
@@ -528,7 +527,7 @@ abstract class AbstractPatriciaTrie<K, V> extends AbstractTrie<K, V> {
       }
 
       public Iterator<V> iterator() {
-         return new AbstractPatriciaTrie.Values.ValueIterator(null);
+         return new AbstractPatriciaTrie.Values.ValueIterator();
       }
 
       public int size() {
@@ -575,7 +574,7 @@ abstract class AbstractPatriciaTrie<K, V> extends AbstractTrie<K, V> {
       }
 
       public Iterator<K> iterator() {
-         return new AbstractPatriciaTrie.KeySet.KeyIterator(null);
+         return new AbstractPatriciaTrie.KeySet.KeyIterator();
       }
 
       public int size() {
@@ -612,7 +611,7 @@ abstract class AbstractPatriciaTrie<K, V> extends AbstractTrie<K, V> {
       }
 
       public Iterator<Entry<K, V>> iterator() {
-         return new AbstractPatriciaTrie.EntrySet.EntryIterator(null);
+         return new AbstractPatriciaTrie.EntrySet.EntryIterator();
       }
 
       public boolean contains(Object o) {

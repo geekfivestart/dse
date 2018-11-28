@@ -54,7 +54,7 @@ public interface Selectable extends AssignmentTestable {
 
    boolean selectColumns(Predicate<ColumnMetadata> var1);
 
-   static default boolean selectColumns(List<Selectable> selectables, Predicate<ColumnMetadata> predicate) {
+   public static boolean selectColumns(List<Selectable> selectables, Predicate<ColumnMetadata> predicate) {
       Iterator var2 = selectables.iterator();
 
       Selectable selectable;
@@ -96,16 +96,18 @@ public interface Selectable extends AssignmentTestable {
    }
 
    default ColumnSpecification specForElementOrSlice(Selectable selected, ColumnSpecification receiver, String selectionType) {
-      switch(null.$SwitchMap$org$apache$cassandra$db$marshal$CollectionType$Kind[((CollectionType)receiver.type).kind.ordinal()]) {
-      case 1:
-         throw new InvalidRequestException(String.format("%s selection is only allowed on sets and maps, but %s is a list", new Object[]{selectionType, selected}));
-      case 2:
-         return Sets.valueSpecOf(receiver);
-      case 3:
-         return Maps.keySpecOf(receiver);
-      default:
-         throw new AssertionError();
+      switch (((CollectionType)receiver.type).kind) {
+         case LIST: {
+            throw new InvalidRequestException(String.format("%s selection is only allowed on sets and maps, but %s is a list", selectionType, selected));
+         }
+         case SET: {
+            return Sets.valueSpecOf(receiver);
+         }
+         case MAP: {
+            return Maps.keySpecOf(receiver);
+         }
       }
+      throw new AssertionError();
    }
 
    public static class WithSliceSelection implements Selectable {
@@ -855,32 +857,28 @@ public interface Selectable extends AssignmentTestable {
          }
 
          public Selectable prepare(TableMetadata table) {
-            List<Selectable> preparedArgs = new ArrayList(this.args.size());
-            Iterator var3 = this.args.iterator();
-
-            while(var3.hasNext()) {
-               Selectable.Raw arg = (Selectable.Raw)var3.next();
-               ((List)preparedArgs).add(arg.prepare(table));
+            List<Selectable> preparedArgs = new ArrayList<Selectable>(this.args.size());
+            for (final Selectable.Raw arg : this.args) {
+               preparedArgs.add(arg.prepare(table));
             }
-
             FunctionName name = this.functionName;
-            if(this.functionName.equalsNativeFunction(ToJsonFct.NAME)) {
-               return new Selectable.WithToJSonFunction((List)preparedArgs, null);
-            } else {
-               if(this.functionName.equalsNativeFunction(FunctionName.nativeFunction("count")) && ((List)preparedArgs).size() == 1 && ((List)preparedArgs).get(0) instanceof Selectable.WithTerm && ((Selectable.WithTerm)((List)preparedArgs).get(0)).rawTerm instanceof Constants.Literal) {
-                  name = AggregateFcts.countRowsFunction.name();
-                  preparedArgs = Collections.emptyList();
-               }
-
-               org.apache.cassandra.cql3.functions.Function fun = FunctionResolver.get(table.keyspace, name, (List)preparedArgs, table.keyspace, table.name, (AbstractType)null);
-               if(fun == null) {
-                  throw new InvalidRequestException(String.format("Unknown function '%s'", new Object[]{this.functionName}));
-               } else if(fun.returnType() == null) {
-                  throw new InvalidRequestException(String.format("Unknown function %s called in selection clause", new Object[]{this.functionName}));
-               } else {
-                  return new Selectable.WithFunction(fun, (List)preparedArgs);
-               }
+            if (this.functionName.equalsNativeFunction(ToJsonFct.NAME)) {
+               return new WithToJSonFunction((List)preparedArgs);
             }
+            if (this.functionName.equalsNativeFunction(FunctionName.nativeFunction("count")) &&
+                    preparedArgs.size() == 1 && preparedArgs.get(0) instanceof WithTerm &&
+                    ((Selectable.WithTerm)((List)preparedArgs).get(0)).rawTerm instanceof Constants.Literal) {
+               name = AggregateFcts.countRowsFunction.name();
+               preparedArgs = Collections.emptyList();
+            }
+            org.apache.cassandra.cql3.functions.Function fun = FunctionResolver.get(table.keyspace, name, preparedArgs, table.keyspace, table.name, null);
+            if (fun == null) {
+               throw new InvalidRequestException(String.format("Unknown function '%s'", this.functionName));
+            }
+            if (fun.returnType() == null) {
+               throw new InvalidRequestException(String.format("Unknown function %s called in selection clause", this.functionName));
+            }
+            return new WithFunction(fun, preparedArgs);
          }
       }
    }

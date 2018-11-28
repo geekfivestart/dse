@@ -480,7 +480,7 @@ public class EndpointStateTracker implements IEndpointStateChangeSubscriber, End
       LinkedHashMap<String, List<String>> result = new LinkedHashMap();
 
       String token;
-      Object tokenList;
+      List<String> tokenList;
       for(Iterator var4 = sortedTokens.iterator(); var4.hasNext(); ((List)tokenList).add(token)) {
          token = (String)var4.next();
          String endpoint = (String)tokenToEndpoint.get(token);

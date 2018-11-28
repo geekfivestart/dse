@@ -13,38 +13,35 @@ public class CompositeUtil {
    public CompositeUtil() {
    }
 
-   public static ByteBuffer createDynamicCompositeKey(Object... objects) throws IOException {
+   public static /* varargs */ ByteBuffer createDynamicCompositeKey(Object ... objects) throws IOException {
       ByteBufferOutputStream out = new ByteBufferOutputStream();
-      Object[] var2 = objects;
-      int var3 = objects.length;
-
-      for(int var4 = 0; var4 < var3; ++var4) {
-         Object object = var2[var4];
+      for (Object object : objects) {
          ByteBuffer bytes;
-         if(object instanceof String) {
-            bytes = ByteBufferUtil.bytes((String)object);
-            out.writeShort(-32653);
+         if (object instanceof String) {
+            bytes = ByteBufferUtil.bytes((String)((String)object));
+            out.writeShort((short)-32653);
             out.writeShort((short)bytes.remaining());
             out.write(bytes);
             out.write(0);
-         } else if(object instanceof UUID) {
-            out.writeShort(-32652);
-            out.writeShort(16);
-            out.write(UUIDGen.decompose((UUID)object));
-            out.write(0);
-         } else {
-            if(!(object instanceof ByteBuffer)) {
-               throw new MarshalException(object.getClass().getName() + " is not recognized as a valid type for this composite");
-            }
-
-            bytes = ((ByteBuffer)object).duplicate();
-            out.writeShort(-32670);
-            out.writeShort((short)bytes.remaining());
-            out.write(bytes);
-            out.write(0);
+            continue;
          }
+         if (object instanceof UUID) {
+            out.writeShort((short)-32652);
+            out.writeShort((short)16);
+            out.write(UUIDGen.decompose((UUID)((UUID)object)));
+            out.write(0);
+            continue;
+         }
+         if (object instanceof ByteBuffer) {
+            bytes = ((ByteBuffer)object).duplicate();
+            out.writeShort((short)-32670);
+            out.writeShort((short)bytes.remaining());
+            out.write(bytes);
+            out.write(0);
+            continue;
+         }
+         throw new MarshalException(object.getClass().getName() + " is not recognized as a valid type for this composite");
       }
-
       return out.getByteBuffer();
    }
 
